@@ -21,6 +21,7 @@
     git_pending_files: number;
     git_sync_status: GitSyncStatus;
     is_repairing_links: boolean;
+    link_repair_message: string | null;
     on_vault_click: () => void;
     on_info_click: () => void;
     on_git_click: () => void;
@@ -41,6 +42,7 @@
     git_pending_files,
     git_sync_status,
     is_repairing_links,
+    link_repair_message,
     on_vault_click,
     on_info_click,
     on_git_click,
@@ -115,7 +117,7 @@
     {#if is_repairing_links}
       <span class="StatusBar__item StatusBar__item--repairing">
         <RefreshCw class="StatusBar__spinner" />
-        <span>Repairing links...</span>
+        <span>{link_repair_message ?? "Repairing links..."}</span>
       </span>
       <span class="StatusBar__separator" aria-hidden="true"></span>
     {/if}

@@ -611,6 +611,7 @@ describe("FolderService", () => {
     expect(repair_links).toHaveBeenCalledWith(
       vault.id,
       new Map([["docs/note-001.md", "archive/note-001.md"]]),
+      expect.any(Function),
     );
   });
 
@@ -737,6 +738,7 @@ describe("FolderService", () => {
     expect(repair_links).toHaveBeenCalledWith(
       vault.id,
       new Map([["docs/note-001.md", "archive/note-001.md"]]),
+      expect.any(Function),
     );
   });
 

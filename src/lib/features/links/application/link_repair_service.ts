@@ -19,6 +19,11 @@ export type LinkRepairResult = {
   failed: string[];
 };
 
+export type LinkRepairProgress = {
+  processed: number;
+  total: number;
+};
+
 export class LinkRepairService {
   constructor(
     private readonly notes_port: NotesPort,
@@ -29,12 +34,6 @@ export class LinkRepairService {
     private readonly now_ms: () => number,
     private readonly close_editor_buffer: (path: NotePath) => void = () => {},
   ) {}
-
-  private build_target_map(
-    path_map: Map<string, string>,
-  ): Record<string, string> {
-    return Object.fromEntries(path_map);
-  }
 
   private async collect_external_source_paths(
     vault_id: VaultId,
@@ -70,14 +69,13 @@ export class LinkRepairService {
     new_source_path: string,
   ) {
     const open_note = this.editor_store.open_note;
-    if (!open_note) {
-      return null;
-    }
-    if (open_note.meta.id === note_path) {
+    if (!open_note) return null;
+    if (open_note.meta.id === note_path) return open_note;
+    if (
+      old_source_path !== new_source_path &&
+      String(open_note.meta.id) === old_source_path
+    ) {
       return open_note;
-    }
-    if (old_source_path !== new_source_path) {
-      return String(open_note.meta.id) === old_source_path ? open_note : null;
     }
     return null;
   }
@@ -138,6 +136,7 @@ export class LinkRepairService {
   async repair_links(
     vault_id: VaultId,
     path_map: Map<string, string>,
+    on_progress?: (progress: LinkRepairProgress) => void,
   ): Promise<LinkRepairResult> {
     if (path_map.size === 0) {
       return { scanned: 0, rewritten: 0, failed: [] };
@@ -149,11 +148,14 @@ export class LinkRepairService {
       failed: [],
     };
 
-    const target_map = this.build_target_map(path_map);
+    const target_map = Object.fromEntries(path_map);
+    on_progress?.({ processed: 0, total: path_map.size });
     const external_sources = await this.collect_external_source_paths(
       vault_id,
       path_map,
     );
+    const total = external_sources.size + path_map.size;
+    on_progress?.({ processed: 0, total });
 
     for (const source_path of external_sources) {
       result.scanned += 1;
@@ -170,6 +172,7 @@ export class LinkRepairService {
       if (rewrite_result.status === "failed") {
         result.failed.push(source_path);
       }
+      on_progress?.({ processed: result.scanned, total });
     }
 
     for (const [old_path, new_path] of path_map) {
@@ -187,6 +190,7 @@ export class LinkRepairService {
       if (rewrite_result.status === "failed") {
         result.failed.push(new_path);
       }
+      on_progress?.({ processed: result.scanned, total });
     }
 
     return result;

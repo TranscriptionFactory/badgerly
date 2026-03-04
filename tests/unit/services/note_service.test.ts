@@ -550,6 +550,7 @@ describe("NoteService", () => {
     expect(repair_links).toHaveBeenCalledWith(
       vault_id,
       new Map([["docs/old.md", "docs/new.md"]]),
+      expect.any(Function),
     );
   });
 

@@ -78,8 +78,12 @@ export class FolderService {
       link_repair: this.link_repair,
       vault_id,
       path_map,
-      on_start: () => {
+      on_start: (message) => {
         this.start_operation("links.repair");
+        this.op_store.set_pending_message("links.repair", message);
+      },
+      on_progress: (message) => {
+        this.op_store.set_pending_message("links.repair", message);
       },
       on_success: (message) => {
         this.op_store.succeed("links.repair", message);

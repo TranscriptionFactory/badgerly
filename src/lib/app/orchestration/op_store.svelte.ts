@@ -36,6 +36,17 @@ export class OpStore {
     });
   }
 
+  set_pending_message(key: string, message: string | null) {
+    const current = this.ops.get(key);
+    if (!current || current.status !== "pending") {
+      return;
+    }
+    this.ops.set(key, {
+      ...current,
+      message,
+    });
+  }
+
   succeed(key: string, message: string | null = null) {
     this.ops.set(key, {
       status: "success",
