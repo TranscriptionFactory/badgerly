@@ -25,7 +25,10 @@ import { create_untitled_open_note } from "$lib/features/note/domain/ensure_open
 import { parent_folder_path } from "$lib/shared/utils/path";
 import { resolve_existing_note_path } from "$lib/features/note/domain/note_lookup";
 import { note_path_exists } from "$lib/features/note/domain/note_path_exists";
-import type { LinkRepairResult, LinkRepairService } from "$lib/features/links";
+import {
+  run_link_repair_operation,
+  type LinkRepairService,
+} from "$lib/features/links";
 import type { EditorService } from "$lib/features/editor";
 import {
   to_open_note_state,
@@ -99,38 +102,26 @@ export class NoteService {
     return message;
   }
 
-  private build_link_repair_success_message(result: LinkRepairResult): string {
-    if (result.scanned === 0) {
-      return "Link repair complete: no notes scanned";
-    }
-    return `Link repair complete: ${String(result.rewritten)}/${String(result.scanned)} notes updated`;
-  }
-
   private async run_link_repair(
     vault_id: VaultId,
     path_map: Map<string, string>,
   ): Promise<void> {
-    if (!this.link_repair || path_map.size === 0) {
-      return;
-    }
-
-    this.start_operation("links.repair");
-
-    try {
-      const result = await this.link_repair.repair_links(vault_id, path_map);
-      if (result.failed.length > 0) {
-        const message = `Link repair failed for ${String(result.failed.length)} notes`;
+    await run_link_repair_operation({
+      link_repair: this.link_repair,
+      vault_id,
+      path_map,
+      on_start: () => {
+        this.start_operation("links.repair");
+      },
+      on_success: (message) => {
+        this.op_store.succeed("links.repair", message);
+      },
+      on_failed: (message) => {
         this.op_store.fail("links.repair", message);
-        return;
-      }
-
-      this.op_store.succeed(
-        "links.repair",
-        this.build_link_repair_success_message(result),
-      );
-    } catch (error) {
-      this.fail_operation("links.repair", "Link repair failed", error);
-    }
+      },
+      on_error: (error) =>
+        this.fail_operation("links.repair", "Link repair failed", error),
+    });
   }
 
   private async read_or_create_note(

@@ -265,7 +265,7 @@ export class VaultService {
   }
 
   async rebuild_index(): Promise<
-    | { status: "started" }
+    | { status: "success" }
     | { status: "skipped" }
     | { status: "failed"; error: string }
   > {
@@ -282,7 +282,7 @@ export class VaultService {
     try {
       await this.index_port.rebuild_index(vault_id);
       this.succeed_operation("vault.reindex");
-      return { status: "started" };
+      return { status: "success" };
     } catch (error) {
       const message = this.fail_operation(
         "vault.reindex",
@@ -297,7 +297,7 @@ export class VaultService {
   }
 
   async sync_index(): Promise<
-    | { status: "started" }
+    | { status: "success" }
     | { status: "skipped" }
     | { status: "failed"; error: string }
   > {
@@ -314,7 +314,7 @@ export class VaultService {
     try {
       await this.index_port.sync_index(vault_id);
       this.succeed_operation("vault.sync_index");
-      return { status: "started" };
+      return { status: "success" };
     } catch (error) {
       const message = this.fail_operation(
         "vault.sync_index",

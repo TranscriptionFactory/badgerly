@@ -140,8 +140,6 @@
       </span>
       <span class="StatusBar__separator" aria-hidden="true"></span>
     {/if}
-    
-    <span class="StatusBar__separator" aria-hidden="true"></span>
     <button
       type="button"
       class="StatusBar__vault-action"
@@ -175,16 +173,19 @@
     <Tooltip.Provider delayDuration={0}>
       <Tooltip.Root>
         <Tooltip.Trigger>
-          <button
-            type="button"
-            class="StatusBar__action"
-            class:StatusBar__action--active={is_indexing}
-            onclick={on_sync_click}
-            disabled={!vault_name || is_indexing}
-            aria-label={sync_tooltip}
-          >
-            <RefreshCw class={is_indexing ? "StatusBar__spinner" : ""} />
-          </button>
+          {#snippet child({ props })}
+            <button
+              {...props}
+              type="button"
+              class="StatusBar__action"
+              class:StatusBar__action--active={is_indexing}
+              onclick={on_sync_click}
+              disabled={!vault_name || is_indexing}
+              aria-label={sync_tooltip}
+            >
+              <RefreshCw class={is_indexing ? "StatusBar__spinner" : ""} />
+            </button>
+          {/snippet}
         </Tooltip.Trigger>
         <Tooltip.Content side="top" sideOffset={4}>
           {sync_tooltip}

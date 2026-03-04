@@ -42,7 +42,7 @@ function create_vault_actions_harness() {
       remove_vault_from_registry: vi.fn(),
       toggle_vault_pin: vi.fn(),
       rebuild_index: vi.fn(),
-      sync_index: vi.fn().mockResolvedValue({ status: "started" }),
+      sync_index: vi.fn().mockResolvedValue({ status: "success" }),
       reset_change_operation: vi.fn(),
       apply_opened_vault: vi.fn().mockResolvedValue(undefined),
     },
