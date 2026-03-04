@@ -516,8 +516,11 @@
                     <Sidebar.Group class="h-full">
                       <Sidebar.GroupContent class="h-full">
                         <VaultDashboardPanel
-                          note_count={stores.notes.notes.length}
-                          folder_count={stores.notes.folder_paths.length}
+                          stats_status={stores.notes.dashboard_stats.status}
+                          note_count={stores.notes.dashboard_stats.value
+                            ?.note_count ?? null}
+                          folder_count={stores.notes.dashboard_stats.value
+                            ?.folder_count ?? null}
                           recent_notes={stores.notes.recent_notes}
                           vault_name={stores.vault.vault.name}
                           vault_path={stores.vault.vault.path}
@@ -693,6 +696,7 @@
       git_pending_files={stores.git.pending_files}
       git_sync_status={stores.git.sync_status}
       is_repairing_links={stores.op.is_pending("links.repair")}
+      link_repair_message={stores.op.get("links.repair").message}
       on_vault_click={() =>
         void action_registry.execute(ACTION_IDS.vault_request_change)}
       on_info_click={() => (details_dialog_open = true)}
