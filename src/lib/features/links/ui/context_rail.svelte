@@ -1,10 +1,14 @@
 <script lang="ts">
   import LinksPanel from "$lib/features/links/ui/links_panel.svelte";
+  import OutlinePanel from "$lib/features/outline/ui/outline_panel.svelte";
   import { use_app_context } from "$lib/app/context/app_context.svelte";
 
   const { stores } = use_app_context();
 
-  const tabs = [{ id: "links" as const, label: "Links" }];
+  const tabs = [
+    { id: "links" as const, label: "Links" },
+    { id: "outline" as const, label: "Outline" },
+  ];
 </script>
 
 <div class="ContextRail">
@@ -23,6 +27,8 @@
   <div class="ContextRail__panel">
     {#if stores.ui.context_rail_tab === "links"}
       <LinksPanel />
+    {:else if stores.ui.context_rail_tab === "outline"}
+      <OutlinePanel />
     {/if}
   </div>
 </div>
