@@ -526,6 +526,11 @@
                               folder_path,
                             )}
                           on_toggle_star={toggle_star_for_selection}
+                          on_open_to_side={(path: string) =>
+                            void action_registry.execute(
+                              ACTION_IDS.split_view_open_to_side,
+                              path,
+                            )}
                           on_retry_load={(path: string) =>
                             void action_registry.execute(
                               ACTION_IDS.folder_retry_load,
@@ -651,6 +656,11 @@
                             folder_path,
                           )}
                         on_toggle_star={toggle_star_for_selection}
+                        on_open_to_side={(path: string) =>
+                          void action_registry.execute(
+                            ACTION_IDS.split_view_open_to_side,
+                            path,
+                          )}
                         on_retry_load={(path: string) =>
                           void action_registry.execute(
                             ACTION_IDS.folder_retry_load,

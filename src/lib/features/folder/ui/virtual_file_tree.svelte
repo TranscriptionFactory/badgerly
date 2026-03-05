@@ -33,6 +33,7 @@
     on_toggle_star?:
       | ((payload: { paths: string[]; all_starred: boolean }) => void)
       | undefined;
+    on_open_to_side?: ((path: string) => void) | undefined;
     on_retry_load: (path: string) => void;
     on_load_more: (folder_path: string) => void;
     on_retry_load_more: (folder_path: string) => void;
@@ -62,6 +63,7 @@
     on_request_create_note,
     on_request_create_folder,
     on_toggle_star,
+    on_open_to_side,
     on_retry_load,
     on_load_more,
     on_retry_load_more,
@@ -411,6 +413,7 @@
             {on_request_rename_folder}
             {on_request_create_note}
             {on_request_create_folder}
+            {on_open_to_side}
             on_toggle_star={on_toggle_star ? handle_toggle_star : undefined}
             selection_count={selected_items.length}
             {all_selected_starred}

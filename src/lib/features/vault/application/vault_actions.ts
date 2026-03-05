@@ -12,6 +12,7 @@ async function apply_opened_vault(
   input.stores.tab.reset();
   input.stores.editor.clear_open_note();
   input.stores.outline.clear();
+  void input.registry.execute(ACTION_IDS.split_view_close);
   input.stores.ui.reset_for_new_vault();
   input.stores.ui.set_editor_settings(editor_settings);
   input.stores.ui.change_vault = {
