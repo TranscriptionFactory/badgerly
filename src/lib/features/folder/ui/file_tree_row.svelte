@@ -16,6 +16,7 @@
     Star,
     StarOff,
     Copy,
+    Columns2,
   } from "@lucide/svelte";
   import { toast } from "svelte-sonner";
 
@@ -58,6 +59,7 @@
     on_toggle_star?: ((path: string) => void) | undefined;
     selection_count?: number;
     all_selected_starred?: boolean;
+    on_open_to_side?: ((path: string) => void) | undefined;
     on_retry_load: (path: string) => void;
     on_retry_load_more: (folder_path: string) => void;
   };
@@ -89,6 +91,7 @@
     on_toggle_star,
     selection_count = 1,
     all_selected_starred = false,
+    on_open_to_side,
     on_retry_load,
     on_retry_load_more,
   }: Props = $props();
@@ -377,6 +380,16 @@
             <Copy class="mr-2 h-4 w-4" />
             <span>Copy File Path</span>
           </ContextMenu.Item>
+          {#if on_open_to_side}
+            <ContextMenu.Item
+              onSelect={() => {
+                on_open_to_side(node.path);
+              }}
+            >
+              <Columns2 class="mr-2 h-4 w-4" />
+              <span>Open to Side</span>
+            </ContextMenu.Item>
+          {/if}
           {#if on_request_rename || on_request_delete}
             <ContextMenu.Separator />
             {#if on_request_rename}

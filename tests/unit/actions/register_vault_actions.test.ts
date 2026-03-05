@@ -100,6 +100,12 @@ function create_vault_actions_harness() {
     execute: async () => {},
   });
 
+  registry.register({
+    id: ACTION_IDS.split_view_close,
+    label: "Close Split View",
+    execute: () => {},
+  });
+
   return { registry, stores, services, execute_open_dashboard };
 }
 

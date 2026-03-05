@@ -7,6 +7,7 @@
     ChevronLeft,
     ChevronRight,
     PanelRight,
+    Columns2,
   } from "@lucide/svelte";
   import { use_app_context } from "$lib/app/context/app_context.svelte";
   import { ACTION_IDS } from "$lib/app";
@@ -305,6 +306,16 @@
                   )}
               >
                 Reveal in File Tree
+              </ContextMenu.Item>
+              <ContextMenu.Item
+                onSelect={() =>
+                  void action_registry.execute(
+                    ACTION_IDS.split_view_open_to_side,
+                    tab.note_path,
+                  )}
+              >
+                <Columns2 class="mr-2 h-4 w-4" />
+                Open to Side
               </ContextMenu.Item>
               <ContextMenu.Separator />
               {@const note_meta = find_note_meta(tab)}
