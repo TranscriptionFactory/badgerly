@@ -51,27 +51,27 @@ From project guide (Prompt 4):
 
 ### Part B: Document Split View — Complete
 
-1. Created `SplitViewStore` with Svelte 5 runes ($state) — tracks active, secondary\_note, active\_pane
+1. Created `SplitViewStore` with Svelte 5 runes ($state) — tracks active, secondary_note, active_pane
 2. Created `SplitViewService` — manages secondary EditorService + EditorStore lifecycle
+   - Separate activation (store update) vs mount (DOM-dependent) to solve chicken-and-egg
 
-   * Separate activation (store update) vs mount (DOM-dependent) to solve chicken-and-egg
 3. Created `SplitNoteEditor.svelte` — header with title/close, content with `use:mount_editor` directive
 4. Modified `workspace_layout.svelte` — conditional nested `Resizable.PaneGroup` when split active
-5. Registered actions: toggle, close, mount, unmount, set\_active\_pane, open\_to\_side
+5. Registered actions: toggle, close, mount, unmount, set_active_pane, open_to_side
 6. Added `Cmd+\` hotkey in `default_hotkeys.ts`
 7. Added "Open to Side" context menu items in:
+   - File tree row (via `on_open_to_side` callback prop)Phase_3.md
 
-   * File tree row (via `on_open_to_side` callback prop)Phase\_3.md
+   - Tab bar (via `ACTION_IDS.split_view_open_to_side` action)
 
-   * Tab bar (via `ACTION_IDS.split_view_open_to_side` action)
 8. Added split view close on vault switch in `apply_opened_vault`
 9. Exported `SplitNoteEditor` through barrel to fix cross-feature layering violation
 10. Added 9 unit tests for `SplitViewStore`
 
 ### Key Decisions Made During Implementation
 
-* **No separate SplitEditorStore class** — reused `EditorStore` directly. Same shape, no need for abstraction.
+- **No separate SplitEditorStore class** — reused `EditorStore` directly. Same shape, no need for abstraction.
 
-* **Reactor delegates to action** — file\_open reactor just calls a callback; all async logic in the action handler. Keeps reactors layering-compliant (no await).
+- **Reactor delegates to action** — file_open reactor just calls a callback; all async logic in the action handler. Keeps reactors layering-compliant (no await).
 
-* **`void`** **dispatch for split\_view\_close on vault switch** — fire-and-forget since close is synchronous internally.
+- **`void`** **dispatch for split_view_close on vault switch** — fire-and-forget since close is synchronous internally.

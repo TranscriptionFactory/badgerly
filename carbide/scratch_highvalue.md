@@ -612,11 +612,11 @@ Batches 0+1, 2, and 3 can be developed in parallel.
 
 ## New Dependencies
 
-| Package          | Feature            | Load Strategy             | Status    |
-| ---------------- | ------------------ | ------------------------- | --------- |
+| Package            | Feature           | Load Strategy             | Status    |
+| ------------------ | ----------------- | ------------------------- | --------- |
 | `@floating-ui/dom` | Floating toolbars | Static import             | Installed |
-| `node-emoji`     | Emoji shortcodes   | Static import (small)     | Installed |
-| `mermaid`        | Mermaid preview    | Lazy `import()` (~2.4 MB) | Installed |
+| `node-emoji`       | Emoji shortcodes  | Static import (small)     | Installed |
+| `mermaid`          | Mermaid preview   | Lazy `import()` (~2.4 MB) | Installed |
 
 ## Timeline
 
@@ -639,6 +639,7 @@ Batches 0+1, 2, and 3 can be developed in parallel.
 **Commit:** `e8cb652` on `fix/browse-mode-switch-freeze`
 
 **Files created (7):**
+
 - `floating_toolbar_utils.ts` — shared `@floating-ui/dom` wrapper, z-index constants, backdrop helper
 - `table_toolbar_plugin.ts` — cursor-in-table detection, floating toolbar with add/delete row/column
 - `image_toolbar_plugin.ts` — click-on-image detection, floating size presets (25/50/75/100%)
@@ -647,20 +648,24 @@ Batches 0+1, 2, and 3 can be developed in parallel.
 - `emoji_plugin.ts` — `:shortcode:` expansion via `node-emoji`, skips code blocks
 
 **Files modified (2):**
+
 - `milkdown_adapter.ts` — swapped `code_block_copy_plugin` for new plugins
 - `editor.css` — added styles for table toolbar, image toolbar, code block toolbar/picker, mermaid preview
 
 **Tests added (2 files, 16 tests):**
+
 - `language_registry.test.ts` — label lookup, search filtering, sort order
 - `emoji_plugin.test.ts` — shortcode extraction, edge cases
 
 **Design decisions:**
+
 - Used pure DOM for all toolbar UI (consistent with existing ProseMirror plugin patterns, no Svelte `mount()` needed)
 - Mermaid rendering inlined into `code_block_view_plugin` rather than separate renderer (simpler for now)
 - Table cell alignment deferred (needs Milkdown GFM schema investigation)
 - Auto-detect language deferred to v2
 
 **Remaining work for these batches:**
+
 - Table cell alignment support
 - Mermaid serial render queue + stale result guard
 - Mermaid theme re-render on color scheme change (MutationObserver)

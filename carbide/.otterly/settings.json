@@ -1,6 +1,13 @@
 {
-  "starred_paths": [],
   "recent_notes": [
+    {
+      "id": "source_visual_split.md",
+      "mtime_ms": 1772758584227,
+      "name": "source_visual_split",
+      "path": "source_visual_split.md",
+      "size_bytes": 9358,
+      "title": "Source / Visual Editor Mode Toggle"
+    },
     {
       "id": "Phase_6.md",
       "mtime_ms": 1772758584224,
@@ -24,14 +31,6 @@
       "path": "carbide-project-guide.md",
       "size_bytes": 23425,
       "title": "Carbide: Revised Project Guide (v2)"
-    },
-    {
-      "id": "source_visual_split.md",
-      "mtime_ms": 1772756181080,
-      "name": "source_visual_split",
-      "path": "source_visual_split.md",
-      "size_bytes": 9111,
-      "title": "Source / Visual Editor Mode Toggle"
     },
     {
       "id": "TODO.md",
@@ -74,14 +73,9 @@
       "title": "Carbide Phase Implementation Prompt"
     }
   ],
+  "starred_paths": [],
   "open_tabs": {
-    "active_tab_path": "source_visual_split.md",
-    "tabs": [
-      {
-        "cursor": null,
-        "is_pinned": false,
-        "note_path": "source_visual_split.md"
-      }
-    ]
+    "active_tab_path": null,
+    "tabs": []
   }
 }
