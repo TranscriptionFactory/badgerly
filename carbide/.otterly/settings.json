@@ -1,16 +1,25 @@
 {
+  "starred_paths": [],
   "recent_notes": [
     {
       "id": "Phase_6.md",
-      "mtime_ms": 1772753236365,
+      "mtime_ms": 1772758584224,
       "name": "Phase_6",
       "path": "Phase_6.md",
-      "size_bytes": 3514,
+      "size_bytes": 3568,
       "title": "Phase 6: Terminal Panel"
     },
     {
+      "id": "Phase_3.md",
+      "mtime_ms": 1772758584224,
+      "name": "Phase_3",
+      "path": "Phase_3.md",
+      "size_bytes": 4510,
+      "title": "Phase 3: macOS Default App Registration + Document Split View"
+    },
+    {
       "id": "carbide-project-guide.md",
-      "mtime_ms": 1772756314812,
+      "mtime_ms": 1772758584224,
       "name": "carbide-project-guide",
       "path": "carbide-project-guide.md",
       "size_bytes": 23425,
@@ -66,8 +75,13 @@
     }
   ],
   "open_tabs": {
-    "active_tab_path": null,
-    "tabs": []
-  },
-  "starred_paths": []
+    "active_tab_path": "source_visual_split.md",
+    "tabs": [
+      {
+        "cursor": null,
+        "is_pinned": false,
+        "note_path": "source_visual_split.md"
+      }
+    ]
+  }
 }
