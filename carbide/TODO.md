@@ -23,25 +23,25 @@
 
 ### Frontend — UI
 
-- [ ] Add vault dropdown selector in sidebar header (shows current vault name + chevron)
-- [ ] Dropdown lists all known vaults, sorted by pinned-first then recent
-- [ ] Click vault in dropdown → switch to that vault (uses existing `VaultService.switch_vault()`)
-- [ ] "Add Vault" option at bottom of dropdown → opens folder picker
-- [ ] "Manage Vaults" option → opens existing vault management dialog
-- [ ] Show vault icon/emoji or first letter as visual identifier
-- [ ] Right-click vault in dropdown → Remove from list, Reveal in Finder
+- [x] Add vault dropdown selector in sidebar header (shows current vault name + chevron)
+- [x] Dropdown lists all known vaults, sorted by pinned-first then recent
+- [x] Click vault in dropdown → switch to that vault (uses existing `VaultService.switch_vault()`)
+- [x] "Add Vault" option at bottom of dropdown → opens folder picker
+- [x] "Manage Vaults" option → opens existing vault management dialog
+- [x] Show vault icon/emoji or first letter as visual identifier
+- [x] Right-click vault in dropdown → Remove from list, Reveal in Finder
 
 ### Frontend — Polish
 
-- [ ] Keyboard shortcut to open vault switcher dropdown (e.g. `Cmd+Shift+V`)
-- [ ] Show git branch + dirty indicator per vault in dropdown (if available)
-- [ ] Persist last-used vault order
+- [x] Keyboard shortcut to open vault switcher dropdown (`Cmd+Shift+V`)
+- [x] Show git branch + dirty indicator per vault in dropdown
+- [x] Persist last-used vault order
 
 ### Testing
 
-- [ ] Test dropdown rendering with multiple vaults
-- [ ] Test vault switching via dropdown
-- [ ] Test "Add Vault" flow from dropdown
+- [x] Test dropdown rendering with multiple vaults
+- [x] Test vault switching via dropdown
+- [x] Test "Add Vault" flow from dropdown
 
 ### Future: Simultaneous Multi-Vault Sidebar
 
@@ -89,7 +89,6 @@
 
 - [x] Handle file-open event: if file is in known vault → open vault + navigate to file
 - [x] Handle file-open event: if file outside any vault → toast prompting to add folder as vault
-- [ ] Support drag-and-drop `.md` files onto dock icon
 
 ### Testing
 
@@ -166,27 +165,30 @@
 
 ### Backend (Rust)
 
-- [ ] Add `portable-pty` crate to `Cargo.toml`
-- [ ] Tauri commands: `terminal_spawn`, `terminal_write`, `terminal_resize`, `terminal_kill`
-- [ ] Spawn PTY with user's default shell, inheriting environment
-- [ ] Working directory defaults to active vault root
-- [ ] Bidirectional streaming via Tauri events
+- [x] Add `tauri-plugin-pty` to `Cargo.toml` (handles spawn, data transport, resize, kill via plugin IPC)
+- [x] Spawn PTY with user's default shell (hardcoded `/bin/zsh`; cross-platform detection deferred)
+- [x] Working directory defaults to active vault root
+- [x] Bidirectional streaming via Tauri plugin events
 
 ### Frontend
 
-- [ ] Add `xterm.js` + `xterm-addon-fit` to `package.json`
-- [ ] Create `TerminalPanel.svelte` — bottom panel
-- [ ] Toggle with `Cmd+\``
-- [ ] Draggable resize handle between editor and terminal
-- [ ] Terminal persists across file/tab switches
-- [ ] Integrate into `workspace_layout.svelte` as vertical split below editor
+- [x] Add `@xterm/xterm` + `@xterm/addon-fit` to `package.json`
+- [x] Create `TerminalPanel.svelte` — bottom panel
+- [x] Toggle with `Cmd+Shift+\``
+- [x] Draggable resize handle between editor and terminal
+- [x] Terminal persists across file/tab switches
+- [x] Integrate into `workspace_layout.svelte` as vertical split below editor
 
 ### Stretch
 
 - [ ] Multiple terminal tabs (`Cmd+Shift+\``)
+- [ ] Cross-platform shell detection (respect `$SHELL`, fallback to bash)
+- [ ] Respawn PTY on vault change (currently keeps old cwd)
+- [ ] Theme update on theme switch (currently resolved once at init)
 
 ### Testing
 
+- [x] Test terminal store (toggle/open/close/reset — 6 tests)
 - [ ] Test PTY spawn/kill lifecycle
 - [ ] Test terminal resize
 - [ ] Test terminal persistence across tab switches
