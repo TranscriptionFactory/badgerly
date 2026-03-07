@@ -8,9 +8,9 @@
 ## Phase 0: Audit & Bootstrap
 
 - [x] Audit Otterly codebase (architecture, commands, stores, components)
-- [ ] Produce `carbide/AUDIT.md` (formal write-up of audit findings)
-- [ ] Produce `carbide/ARCHITECTURE.md` (integration plan for all new features)
-- [ ] Verify `cargo tauri dev` builds and runs cleanly
+- [-] Produce `carbide/AUDIT.md` — superseded by `carbide-project-guide.md` and inline knowledge
+- [-] Produce `carbide/ARCHITECTURE.md` — superseded by `carbide-project-guide.md` and `devlog/architecture.md`
+- [x] Verify `cargo tauri dev` builds and runs cleanly
 - [ ] Rebrand: app name, window title, asset URI scheme, config paths
 
 ---
@@ -108,10 +108,10 @@
 - [x] `Cmd+\` to split editor area into two panes
 - [x] Each pane opens a different file independently
 - [x] Leverage existing `Resizable.PaneGroup` infrastructure
-- [ ] Drag tab to split, drag back to merge
-- [ ] `Cmd+W` to close split pane
-- [ ] Max 2–3 panes
-- [ ] Remember split state per vault
+- [x] Drag tab to split, drag back to merge
+- [x] `Cmd+W` to close split pane
+- [x] Max 2 panes (decision: no array refactor needed; source/preview is orthogonal)
+- [x] Remember split state per vault
 
 ### Editor
 
@@ -139,26 +139,44 @@
 
 ## Phase 5: Git Enhancements
 
+> Detailed subtasks in `carbide/scratch_highvalue.md` → Feature 1 (Git Remote Operations)
+
 ### Backend (Rust)
 
-- [ ] Add `git_push(vault_path, remote?)` command — detect remotes, SSH/HTTPS auth
-- [ ] Add `git_pull(vault_path, remote?)` command
+- [ ] `git_get_remotes`, `git_get_remote_url`, `git_add_remote` commands
+- [ ] `git_push(vault_path, remote?)` — push with auth
+- [ ] `git_pull(vault_path, remote?)` — fetch + merge
+- [ ] `git_fetch(vault_path, remote?)` — fetch without merge
+- [ ] `git_ahead_behind(vault_path)` — count ahead/behind vs upstream
 - [ ] SSH auth: detect `~/.ssh` keys, support ssh-agent via `git2` SSH transport
-- [ ] HTTPS: credential helper passthrough
+- [ ] HTTPS: credential helper callback
+- [ ] Human-readable error categorization (auth failure, network, conflicts, diverged)
 
 ### Frontend
 
 - [ ] Add Push/Pull buttons to `git_status_widget.svelte`
-- [ ] Show sync progress indicator during push/pull
-- [ ] Show ahead/behind counts in status bar
+- [ ] Show ahead/behind counts in git status bar
+- [ ] Sync progress indicator during push/pull
+- [ ] Error toasts with actionable messages
+- [ ] "Add Remote" dialog when no remote configured
+- [ ] Remote management in settings or git panel
+
+### Auto-commit
+
 - [ ] Auto-commit settings UI: off / on-save / every N minutes (configurable per vault)
 - [ ] Extend `git_autocommit.reactor` with interval-based auto-commit
 
+### Commands
+
+- [ ] Add to `COMMANDS_REGISTRY`: "Git Push", "Git Pull", "Git Fetch", "Add Remote"
+
 ### Testing
 
+- [ ] Unit tests for error categorization
+- [ ] Unit tests for URL validation
+- [ ] Integration test for ahead/behind counting
 - [ ] Test push/pull with SSH remote
-- [ ] Test auto-commit on save
-- [ ] Test auto-commit interval
+- [ ] Test auto-commit on save / interval
 
 ---
 
@@ -196,42 +214,134 @@
 
 ---
 
+## Phase 6a: Focus/Zen Mode
+
+> Detailed design in `carbide/scratch_highvalue.md` → Feature 4
+
+- [ ] Add `focus_mode` boolean to `UIStore`
+- [ ] Add `focus_mode_toggle` action in `ui_actions.ts`
+- [ ] Hotkey: `Cmd+Shift+Enter` to toggle
+- [ ] In `workspace_layout.svelte`: hide file tree + right panel with animated transition
+- [ ] Escape key exits focus mode (when focus is outside editor)
+- [ ] Exit focus mode on vault switch
+- [ ] Add to `COMMANDS_REGISTRY`: "Toggle Focus Mode"
+- [ ] Unit test for UIStore focus_mode toggle + reset on vault switch
+
+---
+
+## Phase 6b: Math/LaTeX Support
+
+> Detailed design in `carbide/scratch_highvalue.md` → Feature 6
+
+- [ ] Add `@milkdown/plugin-math` and `katex` dependencies
+- [ ] Register math plugin in `milkdown_adapter.ts`
+- [ ] Add KaTeX CSS import
+- [ ] Create `math_block_editor.svelte` (Enter/Space to edit, Cmd+Enter to apply, Escape to cancel)
+- [ ] Style math blocks to match editor theme
+- [ ] Exclude math nodes from wiki-link and slash-command processing
+- [ ] Add `/math` slash command
+- [ ] Add to help data: inline math `$expr$`, block math `$$expr$$`
+- [ ] Unit tests for math node roundtrip and wikilink exclusion
+
+---
+
+## Phase 6c: Contextual Command Palette
+
+> Detailed design in `carbide/scratch_highvalue.md` → Feature 3
+
+- [ ] Add `when?: (ctx: CommandContext) => boolean` to `CommandDefinition`
+- [ ] Add `CommandContext` type (has_open_note, has_git_repo, has_git_remote, is_split_view)
+- [ ] Build context from stores in omnibar action (lazy, on open)
+- [ ] Filter `COMMANDS_REGISTRY` by `when` predicate in `search_omnibar`
+- [ ] Add contextual commands (note-only, git-only, split-view)
+- [ ] Unit tests for `when` predicate evaluation and context building
+
+---
+
+## Phase 6d: AI CLI Integration
+
+> Detailed design in `carbide/scratch_highvalue.md` → Feature 2
+
+- [ ] Create `src-tauri/src/features/ai/` module
+- [ ] Port from Scratch: `get_expanded_path()`, `no_window_cmd()`, `check_cli_exists()`, `execute_ai_cli()`
+- [ ] Adapt `ai_execute_claude()`, `ai_execute_codex()`, `ai_execute_ollama()` for vault_path
+- [ ] Generalize `ai_check_cli(provider)` into single function
+- [ ] Frontend: `src/lib/features/ai/` (types, port, adapter, service, store, dialog, toast)
+- [ ] Extract `ai_markdown_parser.ts` from Scratch's parser utilities
+- [ ] Add to `COMMANDS_REGISTRY`: "AI Edit (Claude)", "AI Edit (Codex)", "AI Edit (Ollama)"
+- [ ] Unit tests for ANSI stripping, markdown parser, store state transitions
+
+---
+
+## Phase 6e: Editor Feature Ports (Remaining)
+
+> Detailed status in `carbide/scratch_highvalue.md` → Editor Feature Ports section
+> Batches 0–3 are done (commit `e8cb652`). Remaining work:
+
+### Done
+
+- [x] Batch 0: Floating UI infrastructure
+- [x] Batch 1: Table toolbar + Image resize toolbar (core functionality)
+- [x] Batch 2: Code block language picker + Mermaid preview (core functionality)
+- [x] Batch 3: Emoji shortcodes
+
+### Remaining from Batches 1–2
+
+- [ ] Table cell alignment support (Milkdown GFM schema investigation needed)
+- [ ] Image width application to actual DOM (sets attr but needs CSS hookup)
+- [ ] Mermaid serial render queue + stale result guard
+- [ ] Mermaid theme re-render on color scheme change (MutationObserver)
+
+### Batch 4: Image Context Menu + Alt Text Editor
+
+- [ ] `image_context_menu_plugin.ts` — right-click on images
+- [ ] `image_context_menu.svelte` + `image_alt_editor.svelte`
+- [ ] Actions: resize, copy image/URL, edit alt, open in browser, save as, delete
+
+### Batch 5: Touch/Formatting Toolbar
+
+- [ ] `formatting_toolbar.svelte` + `formatting_toolbar_commands.ts`
+- [ ] Toolbar: undo/redo, bold/italic/strike/code/link, H1-H3, quote, lists, code block, table, image, HR
+- [ ] Show/hide via settings toggle or responsive breakpoint
+
+---
+
 ## Phase 7: In-App Document Viewer
 
 ### Architecture
 
-- [ ] Create `DocumentViewer.svelte` — dispatches to renderer by file extension
-- [ ] Extend editor pane: show Milkdown for `.md`, appropriate viewer for other types
+- [x] Create `DocumentViewer.svelte` — dispatches to renderer by file extension
+- [x] Extend editor pane: show Milkdown for `.md`, appropriate viewer for other types
 
 ### PDF Viewer
 
-- [ ] Add `pdfjs-dist` to `package.json`
-- [ ] Render PDF in editor pane: page navigation, zoom, scroll, text search
-- [ ] "Open to Side" context menu for side-by-side PDF + notes
+- [x] Add `pdfjs-dist` to `package.json`
+- [x] Render PDF in editor pane: page navigation, zoom, scroll, text search
+- [x] "Open to Side" context menu for side-by-side PDF + notes
 
 ### Image Viewer
 
-- [ ] Display PNG, JPG, SVG, GIF, WebP in editor pane
-- [ ] Zoom/pan controls, fit-to-width default
-- [ ] Dark/light checkerboard for transparent images
+- [x] Display PNG, JPG, SVG, GIF, WebP in editor pane
+- [x] Zoom/pan controls, fit-to-width default
+- [x] Dark/light checkerboard for transparent images
 
 ### CSV/TSV Viewer
 
-- [ ] Add `papaparse` to `package.json`
-- [ ] Render as scrollable, sortable table
-- [ ] Column resize, row count display
+- [-] Add `papaparse` to `package.json` — deferred (large file DOM performance concerns)
+- [-] Render as scrollable, sortable table — deferred
+- [-] Column resize, row count display — deferred
 
 ### Code/Text Viewer
 
-- [ ] Syntax-highlighted read-only view (Shiki or highlight.js)
-- [ ] Line numbers, copy button
-- [ ] Support: `.py`, `.R`, `.rs`, `.json`, `.yaml`, `.toml`, `.sh`
+- [x] Syntax-highlighted read-only view (CodeMirror with @codemirror/language-data)
+- [x] Line numbers, copy button
+- [x] Support: `.py`, `.R`, `.rs`, `.json`, `.yaml`, `.toml`, `.sh`
 
 ### Cross-cutting
 
-- [ ] File tree icon badges by file type
-- [ ] Drag non-markdown file into note → insert markdown link
-- [ ] PDF export of notes (adapt Moraya's jsPDF)
+- [x] File tree icon badges by file type
+- [x] Drag non-markdown file into note → insert markdown link
+- [x] PDF export of notes (jsPDF + Cmd+Shift+E)
 
 ### Stretch
 
@@ -240,10 +350,12 @@
 
 ### Testing
 
-- [ ] Test PDF rendering and navigation
-- [ ] Test image viewer zoom/pan
-- [ ] Test CSV parsing and table rendering
-- [ ] Test syntax highlighting for each supported language
+- [x] Test PDF search logic (find_matches, navigate_match, make_search_state)
+- [x] Test image viewer zoom/pan (detect_file_type coverage)
+- [-] Test CSV parsing and table rendering — deferred with CSV viewer
+- [x] Test syntax highlighting for each supported language (detect_file_type)
+- [x] Test file drop link generation (image vs non-image, path handling)
+- [x] Test PDF export (heading rendering, markdown stripping, pagination)
 
 ---
 

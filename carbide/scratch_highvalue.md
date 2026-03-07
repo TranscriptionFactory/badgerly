@@ -234,41 +234,19 @@ Distraction-free writing mode that hides the sidebar and right panel. Pure CSS +
 
 **Source:** scratch.md #16 (Editor Typography Settings)
 **Effort:** Low (1-2 days)
+**Status:** DONE — implemented via commits `7985835` and `303121f` as "Editor Max Width" setting
 
-### What to build
+### What was built
 
-Otterly already has `font_family_sans`, `font_family_mono`, `font_size`, `line_height`, `heading_font_weight` in its theme system. What's missing: **editor width presets** and **bold weight**.
-
-### Design
-
-Add to `Theme` type in `src/lib/shared/types/theme.ts`:
-
-```typescript
-// New fields
-editor_width: "narrow" | "normal" | "wide" | "full";  // preset
-editor_width_custom?: number;  // px, used when editor_width === "custom" (stretch)
-```
-
-Width map (from Scratch):
-
-- `narrow`: 36rem (576px)
-- `normal`: 48rem (768px)
-- `wide`: 64rem (1024px)
-- `full`: 100%
+Editor Max Width setting with UI controls and reset button in settings dialog. Implemented as a dedicated setting rather than the preset-based approach originally planned (narrow/normal/wide/full). The current implementation is simpler and more flexible.
 
 ### Implementation
 
-- [ ] Add `editor_width` to `Theme` type with default `"normal"`
-- [ ] Add `SHARED_DEFAULTS.editor_width` = `"normal"`
-- [ ] Add CSS variable `--editor-max-width` in `apply_theme.ts`
-- [ ] Apply `max-width` to editor content container
-- [ ] Add editor width selector to settings UI (radio group or dropdown)
-- [ ] Persist in theme settings (per-vault via existing theme persistence)
-
-### Testing
-
-- [ ] Unit test for theme defaults include editor_width
-- [ ] Unit test for apply_theme generates correct CSS variable
+- [x] Add editor max width setting to app settings
+- [x] Add UI component for editor max width in settings dialog
+- [x] Add reset button for editor max width setting
+- [x] Apply max-width to editor content container
+- [x] Persist in settings (per-vault)
 
 ---
 
@@ -313,16 +291,16 @@ Inline (`$expr$`) and block (`$$expr$$`) math rendering with KaTeX. Otterly uses
 
 ## Implementation Order
 
-| #   | Feature              | Deps                         | Est.      |
-| --- | -------------------- | ---------------------------- | --------- |
-| 1   | Focus/Zen Mode       | None                         | 1-2 days  |
-| 2   | Editor Width Presets | None                         | 1-2 days  |
-| 3   | Math/LaTeX Support   | None                         | 2-3 days  |
-| 4   | Contextual Commands  | None                         | 3-5 days  |
-| 5   | Git Remote Ops       | None                         | 1 week    |
-| 6   | AI CLI Integration   | Git remote (shared patterns) | 1-2 weeks |
+| #   | Feature                  | Deps                         | Est.         | Status                      |
+| --- | ------------------------ | ---------------------------- | ------------ | --------------------------- |
+| 1   | Focus/Zen Mode           | None                         | 1-2 days     | `[ ]`                       |
+| 2   | ~~Editor Width Presets~~ | None                         | ~~1-2 days~~ | `[x]` done (`7985835`)      |
+| 3   | Math/LaTeX Support       | None                         | 2-3 days     | `[ ]`                       |
+| 4   | Contextual Commands      | None                         | 3-5 days     | `[ ]`                       |
+| 5   | Git Remote Ops           | None                         | 1 week       | `[ ]` (see TODO.md Phase 5) |
+| 6   | AI CLI Integration       | Git remote (shared patterns) | 1-2 weeks    | `[ ]`                       |
 
-Rationale: Start with the trivial UI features (Focus Mode, Editor Width), then Math/LaTeX (mostly plugin wiring + styling), then enhance the command palette (which benefits from later features adding more commands), then the heavier backend work. Wikilinks are already fully implemented — no work needed.
+Rationale: Start with Focus Mode (trivial), then Math/LaTeX (mostly plugin wiring + styling), then enhance the command palette (which benefits from later features adding more commands), then the heavier backend work. Editor Width is already done. Wikilinks are already fully implemented — no work needed.
 
 ---
 
