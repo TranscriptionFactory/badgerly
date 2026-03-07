@@ -5,6 +5,7 @@
   import { Slider } from "$lib/components/ui/slider";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
+  import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
   import PaletteIcon from "@lucide/svelte/icons/palette";
   import LayoutIcon from "@lucide/svelte/icons/layout-template";
   import FolderIcon from "@lucide/svelte/icons/folder";
@@ -17,6 +18,7 @@
     EditorSettings,
     SettingsCategory,
   } from "$lib/shared/types/editor_settings";
+  import { DEFAULT_EDITOR_SETTINGS } from "$lib/shared/types/editor_settings";
   import type { Theme } from "$lib/shared/types/theme";
   import type { HotkeyConfig, HotkeyBinding } from "$lib/features/hotkey";
 
@@ -170,6 +172,20 @@
                 <span class="text-sm tabular-nums w-10"
                   >{editor_settings.editor_max_width_ch}ch</span
                 >
+                <button
+                  type="button"
+                  class="SettingsDialog__reset"
+                  onclick={() =>
+                    update(
+                      "editor_max_width_ch",
+                      DEFAULT_EDITOR_SETTINGS.editor_max_width_ch,
+                    )}
+                  disabled={editor_settings.editor_max_width_ch ===
+                    DEFAULT_EDITOR_SETTINGS.editor_max_width_ch}
+                  title={`Reset to default (${String(DEFAULT_EDITOR_SETTINGS.editor_max_width_ch)}ch)`}
+                >
+                  <RotateCcw />
+                </button>
               </div>
             </div>
             <div class="SettingsDialog__row">
@@ -179,24 +195,40 @@
                   >Limit the number of tabs for better performance</span
                 >
               </div>
-              <Select.Root
-                type="single"
-                value={String(editor_settings.max_open_tabs)}
-                onValueChange={(v: string | undefined) => {
-                  if (v) update("max_open_tabs", Number(v));
-                }}
-              >
-                <Select.Trigger class="w-20">
-                  <span data-slot="select-value"
-                    >{editor_settings.max_open_tabs}</span
-                  >
-                </Select.Trigger>
-                <Select.Content>
-                  {#each tab_count_options as opt (opt.value)}
-                    <Select.Item value={opt.value}>{opt.label}</Select.Item>
-                  {/each}
-                </Select.Content>
-              </Select.Root>
+              <div class="flex items-center gap-3">
+                <Select.Root
+                  type="single"
+                  value={String(editor_settings.max_open_tabs)}
+                  onValueChange={(v: string | undefined) => {
+                    if (v) update("max_open_tabs", Number(v));
+                  }}
+                >
+                  <Select.Trigger class="w-20">
+                    <span data-slot="select-value"
+                      >{editor_settings.max_open_tabs}</span
+                    >
+                  </Select.Trigger>
+                  <Select.Content>
+                    {#each tab_count_options as opt (opt.value)}
+                      <Select.Item value={opt.value}>{opt.label}</Select.Item>
+                    {/each}
+                  </Select.Content>
+                </Select.Root>
+                <button
+                  type="button"
+                  class="SettingsDialog__reset"
+                  onclick={() =>
+                    update(
+                      "max_open_tabs",
+                      DEFAULT_EDITOR_SETTINGS.max_open_tabs,
+                    )}
+                  disabled={editor_settings.max_open_tabs ===
+                    DEFAULT_EDITOR_SETTINGS.max_open_tabs}
+                  title={`Reset to default (${String(DEFAULT_EDITOR_SETTINGS.max_open_tabs)})`}
+                >
+                  <RotateCcw />
+                </button>
+              </div>
             </div>
           </div>
         {:else if active_category === "files"}
@@ -449,6 +481,37 @@
     font-size: var(--text-xs);
     color: var(--muted-foreground);
     line-height: 1.4;
+  }
+
+  .SettingsDialog__reset {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast) var(--ease-default),
+      color var(--duration-fast) var(--ease-default);
+  }
+
+  .SettingsDialog__reset:hover:not(:disabled) {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  .SettingsDialog__reset:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .SettingsDialog__reset :global(svg) {
+    width: 0.9rem;
+    height: 0.9rem;
   }
 
   :global(.SettingsDialog__footer) {
