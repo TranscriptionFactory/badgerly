@@ -7,16 +7,15 @@ export function register_window_actions(
     window_port: WindowPort;
   },
 ) {
-  const { registry, window_port } = input;
+  const { registry, stores, window_port } = input;
 
   registry.register({
     id: ACTION_IDS.window_open_viewer,
     label: "Open Viewer Window",
     execute: async (...args: unknown[]) => {
-      const { vault_path, file_path } = args[0] as {
-        vault_path: string;
-        file_path: string;
-      };
+      const file_path = args[0] as string;
+      const vault_path = stores.vault.vault?.path;
+      if (!vault_path) return;
       await window_port.open_window({ kind: "viewer", vault_path, file_path });
     },
   });
@@ -24,8 +23,9 @@ export function register_window_actions(
   registry.register({
     id: ACTION_IDS.window_open_browse,
     label: "Open Browse Window",
-    execute: async (...args: unknown[]) => {
-      const { vault_path } = args[0] as { vault_path: string };
+    execute: async () => {
+      const vault_path = stores.vault.vault?.path;
+      if (!vault_path) return;
       await window_port.open_window({ kind: "browse", vault_path });
     },
   });
