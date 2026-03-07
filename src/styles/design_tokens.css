@@ -5,7 +5,7 @@
    Import this AFTER app.css in your layout.
 
    Rationale: app.css is managed by shadcn-svelte CLI,
-   so we extend and override rather than modify it.
+   so we extend and override as opposed to modifying it.
    ============================================ */
 
 :root {
