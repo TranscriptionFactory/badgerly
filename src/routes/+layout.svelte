@@ -15,18 +15,30 @@
   let { children }: { children: Snippet } = $props();
 
   onMount(() => {
+    let last_toast_time = 0;
+    const TOAST_THROTTLE_MS = 3000;
+
+    function throttled_error_toast(label: string, detail: string) {
+      log.error(label, { error: detail });
+      const now = Date.now();
+      if (now - last_toast_time < TOAST_THROTTLE_MS) return;
+      last_toast_time = now;
+      toast.error("Something went wrong");
+    }
+
     const on_error = (event: ErrorEvent) => {
       event.preventDefault();
       if (!event.error) return;
-      log.error("Unhandled error", { error: error_message(event.error) });
-      toast.error("Something went wrong");
+      throttled_error_toast("Unhandled error", error_message(event.error));
     };
 
     const on_rejection = (event: PromiseRejectionEvent) => {
       event.preventDefault();
       if (!event.reason) return;
-      log.error("Unhandled rejection", { error: error_message(event.reason) });
-      toast.error("Something went wrong");
+      throttled_error_toast(
+        "Unhandled rejection",
+        error_message(event.reason),
+      );
     };
 
     window.addEventListener("error", on_error);
