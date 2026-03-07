@@ -1,6 +1,6 @@
 <img src="./assets/icon.png" alt="Otterly" width="150">
 
-[![Release](https://github.com/ajkdrag/otterly/actions/workflows/release.yml/badge.svg)](https://github.com/ajkdrag/otterly/actions/workflows/release.yml)
+[![Release](https://github.com/TranscriptionFactory/otterly/actions/workflows/release.yml/badge.svg)](https://github.com/TranscriptionFactory/otterly/actions/workflows/release.yml)
 
 # Otterly
 
@@ -71,7 +71,7 @@ pnpm format     # Prettier
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=ajkdrag/otterly&type=date&legend=top-left)](https://www.star-history.com/#ajkdrag/otterly&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/svg?repos=TranscriptionFactory/otterly&type=date&legend=top-left)](https://www.star-history.com/#TranscriptionFactory/otterly&type=date&legend=top-left)
 
 ## License
 
