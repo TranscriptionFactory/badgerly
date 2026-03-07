@@ -39,6 +39,7 @@ export type AppMountConfig = {
   reset_app_state: boolean;
   bootstrap_default_vault_path: VaultPath | null;
   open_file_after_mount?: string | null;
+  window_kind?: "main" | "browse" | "viewer";
 };
 
 const RECENT_NOTES_KEY = "recent_notes";

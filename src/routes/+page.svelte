@@ -24,6 +24,7 @@
         ? as_vault_path(vault_path_param)
         : null,
       open_file_after_mount: file_path_param,
+      window_kind: window_init.kind,
     },
   });
 
