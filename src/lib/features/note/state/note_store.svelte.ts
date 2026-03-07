@@ -1,6 +1,10 @@
 import type { NoteId, NotePath } from "$lib/shared/types/ids";
 import type { NoteMeta } from "$lib/shared/types/note";
-import type { FolderContents, FolderStats } from "$lib/shared/types/filetree";
+import type {
+  FileMeta,
+  FolderContents,
+  FolderStats,
+} from "$lib/shared/types/filetree";
 import { paths_equal_ignore_case } from "$lib/shared/utils/path";
 
 function normalized_note_path(path: NotePath): NotePath {
@@ -39,6 +43,7 @@ function normalize_recent_notes(notes: NoteMeta[]): NoteMeta[] {
 export class NotesStore {
   notes = $state<NoteMeta[]>([]);
   folder_paths = $state<string[]>([]);
+  files = $state<FileMeta[]>([]);
   recent_notes = $state<NoteMeta[]>([]);
   starred_paths = $state<string[]>([]);
   dashboard_stats = $state<{
@@ -211,6 +216,7 @@ export class NotesStore {
   remove_folder(path: string) {
     const prefix = `${path}/`;
     this.notes = this.notes.filter((note) => !note.path.startsWith(prefix));
+    this.files = this.files.filter((file) => !file.path.startsWith(prefix));
     this.folder_paths = this.folder_paths.filter(
       (folder_path) => folder_path !== path && !folder_path.startsWith(prefix),
     );
@@ -232,6 +238,15 @@ export class NotesStore {
       };
     });
 
+    this.files = this.files.map((file) => {
+      if (!file.path.startsWith(old_prefix)) return file;
+      const updated_path = `${new_prefix}${file.path.slice(old_prefix.length)}`;
+      return {
+        ...file,
+        path: updated_path,
+      };
+    });
+
     this.folder_paths = this.folder_paths.map((folder_path) => {
       if (folder_path === old_path) return new_path;
       if (folder_path.startsWith(old_prefix)) {
@@ -245,6 +260,7 @@ export class NotesStore {
 
   merge_folder_contents(folder_path: string, contents: FolderContents) {
     const prefix = folder_path ? `${folder_path}/` : "";
+    const incoming_files = contents.files ?? [];
 
     const fresh_child_names = new Set<string>();
     for (const subfolder of contents.subfolders) {
@@ -253,6 +269,10 @@ export class NotesStore {
     }
     for (const note of contents.notes) {
       const name = note.path.slice(prefix.length).split("/")[0] ?? "";
+      fresh_child_names.add(name);
+    }
+    for (const file of incoming_files) {
+      const name = file.path.slice(prefix.length).split("/")[0] ?? "";
       fresh_child_names.add(name);
     }
 
@@ -272,6 +292,17 @@ export class NotesStore {
       }
     }
     this.notes = retained_notes.sort((a, b) => a.path.localeCompare(b.path));
+
+    const retained_files = this.files.filter((file) => !is_stale(file.path));
+    for (const file of incoming_files) {
+      const index = retained_files.findIndex((item) => item.path === file.path);
+      if (index >= 0) {
+        retained_files[index] = file;
+      } else {
+        retained_files.push(file);
+      }
+    }
+    this.files = retained_files.sort((a, b) => a.path.localeCompare(b.path));
 
     const retained_folders = this.folder_paths.filter(
       (path) => !is_stale(path),
@@ -299,6 +330,18 @@ export class NotesStore {
     }
     this.notes = retained_notes;
 
+    const incoming_files = contents.files ?? [];
+    const retained_files = [...this.files];
+    const file_paths = new Set(retained_files.map((file) => file.path));
+    for (const file of incoming_files) {
+      if (file_paths.has(file.path)) {
+        continue;
+      }
+      retained_files.push(file);
+      file_paths.add(file.path);
+    }
+    this.files = retained_files;
+
     const retained_folders = [...this.folder_paths];
     const folder_set = new Set(retained_folders);
     for (const folder_path of contents.subfolders) {
@@ -314,6 +357,7 @@ export class NotesStore {
   reset_notes_and_folders() {
     this.notes = [];
     this.folder_paths = [];
+    this.files = [];
   }
 
   set_dashboard_stats_loading() {
@@ -351,6 +395,7 @@ export class NotesStore {
   reset() {
     this.notes = [];
     this.folder_paths = [];
+    this.files = [];
     this.recent_notes = [];
     this.starred_paths = [];
     this.clear_dashboard_stats();

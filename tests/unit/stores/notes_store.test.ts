@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { NotesStore } from "$lib/features/note/state/note_store.svelte";
 import type { NoteMeta } from "$lib/shared/types/note";
 import type { NoteId, NotePath } from "$lib/shared/types/ids";
-import type { FolderContents } from "$lib/shared/types/filetree";
+import type { FileMeta, FolderContents } from "$lib/shared/types/filetree";
 
 function note(path: string): NoteMeta {
   return {
@@ -15,15 +15,22 @@ function note(path: string): NoteMeta {
   };
 }
 
+function file_meta(path: string): FileMeta {
+  const name = path.split("/").pop() ?? path;
+  const ext = name.includes(".") ? name.split(".").pop() ?? "" : "";
+  return { path, name, extension: ext, size_bytes: 0, mtime_ms: 0 };
+}
+
 function folder_contents(
   notes: NoteMeta[],
   subfolders: string[],
+  files: FileMeta[] = [],
 ): FolderContents {
   return {
     notes,
     subfolders,
-    files: [],
-    total_count: notes.length + subfolders.length,
+    files,
+    total_count: notes.length + subfolders.length + files.length,
     has_more: false,
   };
 }
@@ -152,6 +159,65 @@ describe("NotesStore.merge_folder_contents", () => {
   });
 });
 
+describe("NotesStore.merge_folder_contents — files", () => {
+  it("merges non-markdown files into store", () => {
+    const store = new NotesStore();
+
+    store.merge_folder_contents(
+      "",
+      folder_contents([note("readme.md")], [], [file_meta("doc.pdf")]),
+    );
+
+    expect(store.files.map((f) => f.path)).toEqual(["doc.pdf"]);
+    expect(store.notes.map((n) => n.path)).toEqual(["readme.md"]);
+  });
+
+  it("removes stale files on re-merge", () => {
+    const store = new NotesStore();
+
+    store.merge_folder_contents(
+      "",
+      folder_contents([], [], [file_meta("old.pdf")]),
+    );
+    store.merge_folder_contents(
+      "",
+      folder_contents([], [], [file_meta("new.png")]),
+    );
+
+    expect(store.files.map((f) => f.path)).toEqual(["new.png"]);
+  });
+
+  it("updates existing file metadata on re-merge", () => {
+    const store = new NotesStore();
+    const original = file_meta("doc.pdf");
+    const updated = { ...original, size_bytes: 999 };
+
+    store.merge_folder_contents("", folder_contents([], [], [original]));
+    store.merge_folder_contents("", folder_contents([], [], [updated]));
+
+    expect(store.files).toHaveLength(1);
+    expect(store.files[0]?.size_bytes).toBe(999);
+  });
+
+  it("preserves files in other folders during scoped merge", () => {
+    const store = new NotesStore();
+
+    store.merge_folder_contents(
+      "",
+      folder_contents([], ["sub"], [file_meta("root.pdf")]),
+    );
+    store.merge_folder_contents(
+      "sub",
+      folder_contents([], [], [file_meta("sub/nested.png")]),
+    );
+
+    expect(store.files.map((f) => f.path)).toEqual([
+      "root.pdf",
+      "sub/nested.png",
+    ]);
+  });
+});
+
 describe("NotesStore.append_folder_page", () => {
   it("appends additional items without removing prior page data", () => {
     const store = new NotesStore();
@@ -197,6 +263,28 @@ describe("NotesStore.append_folder_page", () => {
 
     expect(store.notes.map((entry) => entry.path)).toEqual(["b.md"]);
     expect(store.folder_paths).toEqual(["alpha"]);
+  });
+
+  it("appends files across pages and deduplicates", () => {
+    const store = new NotesStore();
+
+    store.append_folder_page("", {
+      notes: [],
+      subfolders: [],
+      files: [file_meta("a.pdf")],
+      total_count: 2,
+      has_more: true,
+    });
+
+    store.append_folder_page("", {
+      notes: [],
+      subfolders: [],
+      files: [file_meta("a.pdf"), file_meta("b.png")],
+      total_count: 2,
+      has_more: false,
+    });
+
+    expect(store.files.map((f) => f.path)).toEqual(["a.pdf", "b.png"]);
   });
 });
 

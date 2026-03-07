@@ -16,7 +16,7 @@
     flatten_filetree({
       notes: stores.notes.notes,
       folder_paths: stores.notes.folder_paths,
-      files: [],
+      files: stores.notes.files,
       expanded_paths: stores.ui.filetree.expanded_paths,
       load_states: stores.ui.filetree.load_states,
       error_messages: stores.ui.filetree.error_messages,
