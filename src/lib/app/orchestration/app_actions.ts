@@ -215,10 +215,15 @@ async function execute_app_mounted(input: ActionRegistrationInput) {
     bootstrap_data.vault_initialize_result.has_vault &&
     input.default_mount_config.open_file_after_mount
   ) {
-    await input.registry.execute(ACTION_IDS.note_open, {
-      note_path: as_note_path(input.default_mount_config.open_file_after_mount),
-      cleanup_if_missing: false,
-    });
+    const file_path = input.default_mount_config.open_file_after_mount;
+    if (input.default_mount_config.window_kind === "viewer") {
+      await input.registry.execute(ACTION_IDS.document_open, file_path);
+    } else {
+      await input.registry.execute(ACTION_IDS.note_open, {
+        note_path: as_note_path(file_path),
+        cleanup_if_missing: false,
+      });
+    }
   }
 
   set_startup_idle(input);
@@ -252,30 +257,6 @@ async function execute_app_check_for_updates() {
     toast.error("Failed to check for updates");
     log.error("Update check failed", { error: String(error) });
   }
-}
-
-let file_open_window_counter = 0;
-
-async function open_file_in_new_window(
-  vault_path: string,
-  relative_path: string,
-) {
-  const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-
-  const label = `file-open-${String(++file_open_window_counter)}`;
-  const params = new URLSearchParams({
-    vault_path,
-    file_path: relative_path,
-  });
-
-  const filename = relative_path.substring(relative_path.lastIndexOf("/") + 1);
-
-  new WebviewWindow(label, {
-    url: `/?${params.toString()}`,
-    title: `${filename} — otterly`,
-    width: 1200,
-    height: 820,
-  });
 }
 
 export function register_app_actions(input: ActionRegistrationInput) {
@@ -348,7 +329,7 @@ export function register_app_actions(input: ActionRegistrationInput) {
           return;
         }
 
-        await open_file_in_new_window(vault_path, relative_path);
+        await registry.execute(ACTION_IDS.window_open_viewer, relative_path);
       } catch (error) {
         log.error("Failed to handle file open", { error: String(error) });
         toast.error("Failed to open file");
