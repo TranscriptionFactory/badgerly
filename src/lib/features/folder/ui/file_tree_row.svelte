@@ -404,21 +404,23 @@
     </ContextMenu.Portal>
   </ContextMenu.Root>
 {:else if node.file_meta}
-  <ContextMenu.Root>
-    <ContextMenu.Trigger class="w-full">
-      {@render row_content()}
-    </ContextMenu.Trigger>
-    <ContextMenu.Portal>
-      <ContextMenu.Content>
-        {#if on_open_in_new_window}
+  {#if on_open_in_new_window}
+    <ContextMenu.Root>
+      <ContextMenu.Trigger class="w-full">
+        {@render row_content()}
+      </ContextMenu.Trigger>
+      <ContextMenu.Portal>
+        <ContextMenu.Content>
           <ContextMenu.Item onSelect={() => on_open_in_new_window(node.path)}>
             <AppWindow class="mr-2 h-4 w-4" />
             <span>Open in New Window</span>
           </ContextMenu.Item>
-        {/if}
-      </ContextMenu.Content>
-    </ContextMenu.Portal>
-  </ContextMenu.Root>
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+    </ContextMenu.Root>
+  {:else}
+    {@render row_content()}
+  {/if}
 {:else if node.note}
   <ContextMenu.Root>
     <ContextMenu.Trigger class="w-full">

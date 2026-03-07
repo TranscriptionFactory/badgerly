@@ -329,10 +329,7 @@
                   onSelect={() => {
                     void action_registry.execute(
                       ACTION_IDS.window_open_viewer,
-                      {
-                        vault_path: stores.vault.vault?.path ?? "",
-                        file_path: tab.file_path,
-                      },
+                      tab.file_path,
                     );
                   }}
                 >

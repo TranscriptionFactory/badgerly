@@ -3,7 +3,7 @@
   import { DocumentViewer } from "$lib/features/document";
   import { use_app_context } from "$lib/app/context/app_context.svelte";
   import { ACTION_IDS } from "$lib/app";
-  import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { make_close_window_handler } from "$lib/hooks/use_close_window.svelte";
 
   const { stores, action_registry } = use_app_context();
 
@@ -14,12 +14,7 @@
       : undefined,
   );
 
-  function handle_keydown(event: KeyboardEvent) {
-    if ((event.metaKey || event.ctrlKey) && event.key === "w") {
-      event.preventDefault();
-      void getCurrentWindow().close();
-    }
-  }
+  const handle_keydown = make_close_window_handler();
 
   onMount(() => {
     void action_registry.execute(ACTION_IDS.app_mounted);

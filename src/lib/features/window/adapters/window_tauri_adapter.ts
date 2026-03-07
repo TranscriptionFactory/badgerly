@@ -31,7 +31,12 @@ export function create_window_tauri_adapter(): WindowPort {
         width,
         height,
       });
-      await webview.once("tauri://created", () => {});
+      await Promise.race([
+        webview.once("tauri://created", () => {}),
+        webview.once("tauri://error", (e) => {
+          throw new Error(`Failed to create window: ${String(e.payload)}`);
+        }),
+      ]);
     },
   };
 }
