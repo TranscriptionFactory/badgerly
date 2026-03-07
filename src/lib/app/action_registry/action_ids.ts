@@ -180,6 +180,7 @@ export const ACTION_IDS = {
 
   document_open: "document.open",
   document_close: "document.close",
+  document_export_pdf: "document.export_pdf",
 
   window_open_viewer: "window.open_viewer",
   window_open_browse: "window.open_browse",
