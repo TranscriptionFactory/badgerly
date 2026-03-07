@@ -14,6 +14,7 @@
   import { ACTION_IDS } from "$lib/app";
   import type { Tab, TabId } from "$lib/features/tab/types/tab";
   import type { NoteMeta } from "$lib/shared/types/note";
+  import { DRAG_MIME } from "$lib/shared/constants/drag_types";
 
   const { stores, action_registry } = use_app_context();
 
@@ -100,12 +101,9 @@
     if (!event.dataTransfer) return;
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", tab.id);
-    event.dataTransfer.setData("application/x-otterly-tab", tab.id);
+    event.dataTransfer.setData(DRAG_MIME.TAB, tab.id);
     if (tab.kind === "note") {
-      event.dataTransfer.setData(
-        "application/x-otterly-note-path",
-        tab.note_path,
-      );
+      event.dataTransfer.setData(DRAG_MIME.NOTE_PATH, tab.note_path);
     }
     drag_source_id = tab.id;
     drag_source_pinned = tab.is_pinned;
@@ -161,7 +159,7 @@
 
   function handle_bar_dragover(event: DragEvent) {
     if (!event.dataTransfer) return;
-    if (event.dataTransfer.types.includes("application/x-otterly-split-pane")) {
+    if (event.dataTransfer.types.includes(DRAG_MIME.SPLIT_PANE)) {
       event.preventDefault();
       event.dataTransfer.dropEffect = "move";
     }
@@ -169,12 +167,14 @@
 
   function handle_bar_drop(event: DragEvent) {
     if (!event.dataTransfer) return;
-    const split_pane_path = event.dataTransfer.getData(
-      "application/x-otterly-split-pane",
-    );
+    const split_pane_path = event.dataTransfer.getData(DRAG_MIME.SPLIT_PANE);
     if (split_pane_path) {
       event.preventDefault();
       void action_registry.execute(ACTION_IDS.split_view_close);
+      void action_registry.execute(ACTION_IDS.note_open, {
+        note_path: split_pane_path,
+        cleanup_if_missing: false,
+      });
     }
   }
 </script>

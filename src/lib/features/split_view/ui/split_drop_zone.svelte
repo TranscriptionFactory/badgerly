@@ -2,6 +2,7 @@
   import { use_app_context } from "$lib/app/context/app_context.svelte";
   import { ACTION_IDS } from "$lib/app";
   import type { NotePath } from "$lib/shared/types/ids";
+  import { DRAG_MIME } from "$lib/shared/constants/drag_types";
 
   const { stores, action_registry } = use_app_context();
 
@@ -13,8 +14,7 @@
 
   function handle_dragover(event: DragEvent) {
     if (!event.dataTransfer) return;
-    if (!event.dataTransfer.types.includes("application/x-otterly-note-path"))
-      return;
+    if (!event.dataTransfer.types.includes(DRAG_MIME.NOTE_PATH)) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
     drag_over = true;
@@ -29,9 +29,7 @@
     drag_over = false;
 
     if (!event.dataTransfer) return;
-    const note_path = event.dataTransfer.getData(
-      "application/x-otterly-note-path",
-    );
+    const note_path = event.dataTransfer.getData(DRAG_MIME.NOTE_PATH);
     if (!note_path) return;
 
     void action_registry.execute(
@@ -58,7 +56,6 @@
   .SplitDropZone {
     position: absolute;
     inset: 0;
-    right: 0;
     left: 50%;
     z-index: var(--z-dropdown);
     display: flex;

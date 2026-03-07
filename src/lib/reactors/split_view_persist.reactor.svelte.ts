@@ -37,6 +37,8 @@ export function create_split_view_persist_reactor(
     if (timer) {
       clearTimeout(timer);
       timer = null;
+    } else {
+      return;
     }
     if (!active_vault_id) return;
     void split_view_service.save_split_state().then(() => {

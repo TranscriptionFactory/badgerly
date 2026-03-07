@@ -64,24 +64,29 @@ export function register_split_view_actions(
     },
   });
 
+  async function open_in_split(note_path: NotePath): Promise<boolean> {
+    const vault = stores.vault.vault;
+    if (!vault) return false;
+
+    try {
+      const doc = await notes_port.read_note(vault.id, note_path);
+      split_view_service.activate(to_open_note_state(doc));
+      return true;
+    } catch (error) {
+      log.error("Failed to open note in split view", {
+        note_path,
+        error: String(error),
+      });
+      return false;
+    }
+  }
+
   registry.register({
     id: ACTION_IDS.split_view_open_to_side,
     label: "Open to Side",
     execute: async (note_path_raw: unknown) => {
-      const note_path = note_path_raw as NotePath;
-      const vault = stores.vault.vault;
-      if (!vault) return;
-
-      try {
-        const doc = await notes_port.read_note(vault.id, note_path);
-        const open_note = to_open_note_state(doc);
-        split_view_service.activate(open_note);
-      } catch (error) {
-        log.error("Failed to open note in split view", {
-          error: String(error),
-        });
-        toast.error("Failed to open note in split view");
-      }
+      const ok = await open_in_split(note_path_raw as NotePath);
+      if (!ok) toast.error("Failed to open note in split view");
     },
   });
 
@@ -91,23 +96,7 @@ export function register_split_view_actions(
     execute: async () => {
       const persisted = await split_view_service.load_split_state();
       if (!persisted?.note_path) return;
-
-      const vault = stores.vault.vault;
-      if (!vault) return;
-
-      try {
-        const doc = await notes_port.read_note(
-          vault.id,
-          as_note_path(persisted.note_path),
-        );
-        const open_note = to_open_note_state(doc);
-        split_view_service.activate(open_note);
-      } catch (error) {
-        log.info("Could not restore split view note", {
-          note_path: persisted.note_path,
-          error: String(error),
-        });
-      }
+      await open_in_split(as_note_path(persisted.note_path));
     },
   });
 }

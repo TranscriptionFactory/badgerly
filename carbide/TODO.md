@@ -108,10 +108,10 @@
 - [x] `Cmd+\` to split editor area into two panes
 - [x] Each pane opens a different file independently
 - [x] Leverage existing `Resizable.PaneGroup` infrastructure
-- [ ] Drag tab to split, drag back to merge
-- [ ] `Cmd+W` to close split pane
-- [ ] Max 2–3 panes
-- [ ] Remember split state per vault
+- [x] Drag tab to split, drag back to merge
+- [x] `Cmd+W` to close split pane
+- [x] Max 2 panes (decision: no array refactor needed; source/preview is orthogonal)
+- [x] Remember split state per vault
 
 ### Editor
 

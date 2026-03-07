@@ -4,6 +4,7 @@
   import type { OpenNoteState } from "$lib/shared/types/editor";
   import XIcon from "@lucide/svelte/icons/x";
   import { Button } from "$lib/components/ui/button";
+  import { DRAG_MIME } from "$lib/shared/constants/drag_types";
 
   const { stores, action_registry } = use_app_context();
 
@@ -40,10 +41,7 @@
   function handle_header_dragstart(event: DragEvent) {
     if (!event.dataTransfer || !secondary_note) return;
     event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData(
-      "application/x-otterly-split-pane",
-      secondary_note.meta.path,
-    );
+    event.dataTransfer.setData(DRAG_MIME.SPLIT_PANE, secondary_note.meta.path);
     event.dataTransfer.setData("text/plain", secondary_note.meta.title);
   }
 </script>
