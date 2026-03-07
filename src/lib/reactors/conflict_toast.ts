@@ -13,8 +13,7 @@ export class ConflictToastManager {
   show(note_path: string, callbacks: ConflictCallbacks): void {
     if (this.active.has(note_path)) return;
 
-    const tid = toast.warning("Note modified externally", {
-      description: "Reload from disk or keep your changes?",
+    const tid = toast.warning("Note has been modified externally", {
       classes: { toast: "toast--stacked-actions" },
       duration: Infinity,
       action: {
