@@ -15,14 +15,51 @@ describe("parse_window_init", () => {
     expect(parse_window_init(params)).toEqual({ kind: "main" });
   });
 
-  it("returns browse when kind and vault_path are present", () => {
+  it("returns main with vault_path when kind is main and vault_path present", () => {
+    const params = new URLSearchParams({
+      window_kind: "main",
+      vault_path: "/home/user/notes",
+    });
+    expect(parse_window_init(params)).toEqual({
+      kind: "main",
+      vault_path: "/home/user/notes",
+    });
+  });
+
+  it("returns main with vault_path and file_path when all main params present", () => {
+    const params = new URLSearchParams({
+      window_kind: "main",
+      vault_path: "/home/user/notes",
+      file_path: "docs/note.md",
+    });
+    expect(parse_window_init(params)).toEqual({
+      kind: "main",
+      vault_path: "/home/user/notes",
+      file_path: "docs/note.md",
+    });
+  });
+
+  it("legacy browse kind with vault_path falls back to main", () => {
     const params = new URLSearchParams({
       window_kind: "browse",
       vault_path: "/home/user/notes",
     });
     expect(parse_window_init(params)).toEqual({
-      kind: "browse",
+      kind: "main",
       vault_path: "/home/user/notes",
+    });
+  });
+
+  it("legacy browse kind with vault_path and file_path falls back to main", () => {
+    const params = new URLSearchParams({
+      window_kind: "browse",
+      vault_path: "/home/user/notes",
+      file_path: "docs/note.md",
+    });
+    expect(parse_window_init(params)).toEqual({
+      kind: "main",
+      vault_path: "/home/user/notes",
+      file_path: "docs/note.md",
     });
   });
 
@@ -49,7 +86,10 @@ describe("parse_window_init", () => {
       window_kind: "viewer",
       vault_path: "/home/user/notes",
     });
-    expect(parse_window_init(params)).toEqual({ kind: "main" });
+    expect(parse_window_init(params)).toEqual({
+      kind: "main",
+      vault_path: "/home/user/notes",
+    });
   });
 
   it("returns main when viewer is missing vault_path", () => {
@@ -59,45 +99,22 @@ describe("parse_window_init", () => {
     });
     expect(parse_window_init(params)).toEqual({ kind: "main" });
   });
-
-  it("returns browse with file_path when all params are present", () => {
-    const params = new URLSearchParams({
-      window_kind: "browse",
-      vault_path: "/home/user/notes",
-      file_path: "docs/note.md",
-    });
-    expect(parse_window_init(params)).toEqual({
-      kind: "browse",
-      vault_path: "/home/user/notes",
-      file_path: "docs/note.md",
-    });
-  });
-
-  it("returns browse without file_path when file_path param is absent", () => {
-    const params = new URLSearchParams({
-      window_kind: "browse",
-      vault_path: "/home/user/notes",
-    });
-    const result = parse_window_init(params);
-    expect(result).toEqual({ kind: "browse", vault_path: "/home/user/notes" });
-    expect("file_path" in result).toBe(false);
-  });
 });
 
 describe("compute_title", () => {
-  it("returns Otterly for main", () => {
+  it("returns Otterly for main with no vault_path", () => {
     expect(compute_title({ kind: "main" })).toBe("Otterly");
   });
 
-  it("returns vault name for browse", () => {
+  it("returns vault name for main with vault_path", () => {
     expect(
-      compute_title({ kind: "browse", vault_path: "/home/user/my-notes" }),
-    ).toBe("Browse — my-notes");
+      compute_title({ kind: "main", vault_path: "/home/user/my-notes" }),
+    ).toBe("Otterly — my-notes");
   });
 
-  it("returns vault_path itself when browse path has no slash", () => {
-    expect(compute_title({ kind: "browse", vault_path: "notes" })).toBe(
-      "Browse — notes",
+  it("returns vault_path itself when main path has no slash", () => {
+    expect(compute_title({ kind: "main", vault_path: "notes" })).toBe(
+      "Otterly — notes",
     );
   });
 

@@ -183,7 +183,7 @@ export const ACTION_IDS = {
   document_export_pdf: "document.export_pdf",
 
   window_open_viewer: "window.open_viewer",
-  window_open_browse: "window.open_browse",
+  window_open_new: "window.open_new",
 } as const;
 
 export type ActionId = (typeof ACTION_IDS)[keyof typeof ACTION_IDS];

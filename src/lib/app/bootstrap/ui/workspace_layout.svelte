@@ -316,8 +316,7 @@
     {
       icon: AppWindow,
       label: "Open in New Window",
-      onclick: () =>
-        void action_registry.execute(ACTION_IDS.window_open_browse),
+      onclick: () => void action_registry.execute(ACTION_IDS.window_open_new),
     },
   ];
 
