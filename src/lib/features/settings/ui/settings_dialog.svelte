@@ -10,12 +10,14 @@
   import LayoutIcon from "@lucide/svelte/icons/layout-template";
   import FolderIcon from "@lucide/svelte/icons/folder";
   import GitBranchIcon from "@lucide/svelte/icons/git-branch";
+  import TerminalIcon from "@lucide/svelte/icons/terminal";
   import SlidersIcon from "@lucide/svelte/icons/sliders-horizontal";
   import KeyboardIcon from "@lucide/svelte/icons/keyboard";
   import { HotkeysPanel } from "$lib/features/hotkey";
   import ThemeSettings from "$lib/features/settings/ui/theme_settings.svelte";
   import type {
     EditorSettings,
+    GitAutocommitMode,
     SettingsCategory,
   } from "$lib/shared/types/editor_settings";
   import { DEFAULT_EDITOR_SETTINGS } from "$lib/shared/types/editor_settings";
@@ -79,6 +81,18 @@
     label: String(i + 1),
   }));
 
+  const autocommit_mode_options: { value: GitAutocommitMode; label: string }[] =
+    [
+      { value: "off", label: "Off" },
+      { value: "on_save", label: "On Save" },
+      { value: "interval", label: "Every N Minutes" },
+    ];
+
+  const interval_options = [1, 2, 5, 10, 15, 30].map((n) => ({
+    value: String(n),
+    label: `${String(n)} min`,
+  }));
+
   function update<K extends keyof EditorSettings>(
     key: K,
     value: EditorSettings[K],
@@ -95,6 +109,7 @@
     { id: "layout", label: "Layout", icon: LayoutIcon },
     { id: "files", label: "Files", icon: FolderIcon },
     { id: "git", label: "Git", icon: GitBranchIcon },
+    { id: "terminal", label: "Terminal", icon: TerminalIcon },
     { id: "misc", label: "Misc", icon: SlidersIcon },
     { id: "hotkeys", label: "Hotkeys", icon: KeyboardIcon },
   ];
@@ -285,17 +300,139 @@
           <div class="SettingsDialog__section-content">
             <div class="SettingsDialog__row">
               <div class="SettingsDialog__label-group">
-                <span class="SettingsDialog__label">Auto-commit</span>
+                <span class="SettingsDialog__label">Auto-commit Mode</span>
                 <span class="SettingsDialog__description"
-                  >Automatically commit saved changes to Git</span
+                  >When to automatically commit saved changes to Git</span
                 >
               </div>
-              <Switch.Root
-                checked={editor_settings.git_autocommit_enabled}
-                onCheckedChange={(v: boolean) => {
-                  update("git_autocommit_enabled", v);
-                }}
-              />
+              <div class="flex items-center gap-3">
+                <Select.Root
+                  type="single"
+                  value={editor_settings.git_autocommit_mode}
+                  onValueChange={(v: string | undefined) => {
+                    if (v)
+                      update("git_autocommit_mode", v as GitAutocommitMode);
+                  }}
+                >
+                  <Select.Trigger class="w-36">
+                    <span data-slot="select-value"
+                      >{autocommit_mode_options.find(
+                        (o) => o.value === editor_settings.git_autocommit_mode,
+                      )?.label ?? "Off"}</span
+                    >
+                  </Select.Trigger>
+                  <Select.Content>
+                    {#each autocommit_mode_options as opt (opt.value)}
+                      <Select.Item value={opt.value}>{opt.label}</Select.Item>
+                    {/each}
+                  </Select.Content>
+                </Select.Root>
+                <button
+                  type="button"
+                  class="SettingsDialog__reset"
+                  onclick={() =>
+                    update(
+                      "git_autocommit_mode",
+                      DEFAULT_EDITOR_SETTINGS.git_autocommit_mode,
+                    )}
+                  disabled={editor_settings.git_autocommit_mode ===
+                    DEFAULT_EDITOR_SETTINGS.git_autocommit_mode}
+                  title="Reset to default (Off)"
+                >
+                  <RotateCcw />
+                </button>
+              </div>
+            </div>
+            {#if editor_settings.git_autocommit_mode === "interval"}
+              <div class="SettingsDialog__row">
+                <div class="SettingsDialog__label-group">
+                  <span class="SettingsDialog__label">Auto-commit Interval</span
+                  >
+                  <span class="SettingsDialog__description"
+                    >Minutes between automatic commits</span
+                  >
+                </div>
+                <div class="flex items-center gap-3">
+                  <Select.Root
+                    type="single"
+                    value={String(
+                      editor_settings.git_autocommit_interval_minutes,
+                    )}
+                    onValueChange={(v: string | undefined) => {
+                      if (v)
+                        update("git_autocommit_interval_minutes", Number(v));
+                    }}
+                  >
+                    <Select.Trigger class="w-24">
+                      <span data-slot="select-value"
+                        >{editor_settings.git_autocommit_interval_minutes} min</span
+                      >
+                    </Select.Trigger>
+                    <Select.Content>
+                      {#each interval_options as opt (opt.value)}
+                        <Select.Item value={opt.value}>{opt.label}</Select.Item>
+                      {/each}
+                    </Select.Content>
+                  </Select.Root>
+                  <button
+                    type="button"
+                    class="SettingsDialog__reset"
+                    onclick={() =>
+                      update(
+                        "git_autocommit_interval_minutes",
+                        DEFAULT_EDITOR_SETTINGS.git_autocommit_interval_minutes,
+                      )}
+                    disabled={editor_settings.git_autocommit_interval_minutes ===
+                      DEFAULT_EDITOR_SETTINGS.git_autocommit_interval_minutes}
+                    title={`Reset to default (${String(DEFAULT_EDITOR_SETTINGS.git_autocommit_interval_minutes)} min)`}
+                  >
+                    <RotateCcw />
+                  </button>
+                </div>
+              </div>
+            {/if}
+          </div>
+        {:else if active_category === "terminal"}
+          <h2 class="SettingsDialog__content-header">Terminal</h2>
+
+          <div class="SettingsDialog__section-content">
+            <div class="SettingsDialog__row">
+              <div class="SettingsDialog__label-group">
+                <span class="SettingsDialog__label">Shell Path</span>
+                <span class="SettingsDialog__description"
+                  >Path to the shell executable used by the terminal</span
+                >
+              </div>
+              <div class="flex items-center gap-3">
+                <Input
+                  type="text"
+                  value={editor_settings.terminal_shell_path}
+                  onchange={(
+                    e: Event & { currentTarget: HTMLInputElement },
+                  ) => {
+                    update("terminal_shell_path", e.currentTarget.value);
+                  }}
+                  oninput={(e: Event & { currentTarget: HTMLInputElement }) => {
+                    update("terminal_shell_path", e.currentTarget.value);
+                  }}
+                  class="w-48"
+                  placeholder="/bin/zsh"
+                />
+                <button
+                  type="button"
+                  class="SettingsDialog__reset"
+                  onclick={() =>
+                    update(
+                      "terminal_shell_path",
+                      DEFAULT_EDITOR_SETTINGS.terminal_shell_path,
+                    )}
+                  disabled={editor_settings.terminal_shell_path ===
+                    DEFAULT_EDITOR_SETTINGS.terminal_shell_path}
+                  title={`Reset to default (${DEFAULT_EDITOR_SETTINGS.terminal_shell_path})`}
+                >
+                  <RotateCcw />
+                </button>
+              </div>
             </div>
           </div>
         {:else if active_category === "misc"}

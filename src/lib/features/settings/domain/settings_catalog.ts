@@ -54,9 +54,9 @@ export const SETTINGS_REGISTRY: SettingDefinition[] = [
     ],
   },
   {
-    key: "git_autocommit_enabled",
-    label: "Git Auto-commit",
-    description: "Automatically commit saved changes to Git",
+    key: "git_autocommit_mode",
+    label: "Auto-commit Mode",
+    description: "When to automatically commit saved changes to Git",
     category: "Git",
     keywords: [
       "git",
@@ -65,6 +65,21 @@ export const SETTINGS_REGISTRY: SettingDefinition[] = [
       "commit",
       "version",
       "automatic",
+      "mode",
+    ],
+  },
+  {
+    key: "git_autocommit_interval_minutes",
+    label: "Auto-commit Interval",
+    description: "Minutes between automatic commits (when using interval mode)",
+    category: "Git",
+    keywords: [
+      "git",
+      "autocommit",
+      "interval",
+      "minutes",
+      "timer",
+      "frequency",
     ],
   },
   {
@@ -87,5 +102,12 @@ export const SETTINGS_REGISTRY: SettingDefinition[] = [
     description: "Maximum line width for the editor content in characters",
     category: "Layout",
     keywords: ["editor", "width", "line length", "layout", "readability"],
+  },
+  {
+    key: "terminal_shell_path",
+    label: "Shell Path",
+    description: "Path to the shell executable used by the terminal",
+    category: "Terminal",
+    keywords: ["terminal", "shell", "zsh", "bash", "path", "command", "pty"],
   },
 ];

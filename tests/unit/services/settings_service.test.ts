@@ -43,7 +43,7 @@ describe("SettingsService", () => {
       global_get: (key) => {
         if (key === "show_vault_dashboard_on_open") return false;
         if (key === "autosave_enabled") return false;
-        if (key === "git_autocommit_enabled") return true;
+        if (key === "git_autocommit_mode") return "on_save";
         return null;
       },
     });
@@ -56,7 +56,7 @@ describe("SettingsService", () => {
     if (result.status !== "success") throw new Error("expected success");
     expect(result.settings.show_vault_dashboard_on_open).toBe(false);
     expect(result.settings.autosave_enabled).toBe(false);
-    expect(result.settings.git_autocommit_enabled).toBe(true);
+    expect(result.settings.git_autocommit_mode).toBe("on_save");
     expect(result.settings.max_open_tabs).toBe(8);
   });
 
@@ -67,7 +67,7 @@ describe("SettingsService", () => {
       ...DEFAULT_EDITOR_SETTINGS,
       show_vault_dashboard_on_open: false,
       autosave_enabled: false,
-      git_autocommit_enabled: true,
+      git_autocommit_mode: "on_save" as const,
     };
 
     const result = await service.save_settings(settings);
@@ -78,7 +78,7 @@ describe("SettingsService", () => {
       .calls[0]?.[2] as Record<string, unknown>;
     expect(saved_vault).not.toHaveProperty("show_vault_dashboard_on_open");
     expect(saved_vault).not.toHaveProperty("autosave_enabled");
-    expect(saved_vault).not.toHaveProperty("git_autocommit_enabled");
+    expect(saved_vault).not.toHaveProperty("git_autocommit_mode");
     expect(saved_vault).toHaveProperty("max_open_tabs");
 
     expect(settings_port.set_setting).toHaveBeenCalledWith(
@@ -90,8 +90,8 @@ describe("SettingsService", () => {
       false,
     );
     expect(settings_port.set_setting).toHaveBeenCalledWith(
-      "git_autocommit_enabled",
-      true,
+      "git_autocommit_mode",
+      "on_save",
     );
   });
 
@@ -101,7 +101,7 @@ describe("SettingsService", () => {
         max_open_tabs: 7,
         autosave_enabled: true,
         show_vault_dashboard_on_open: true,
-        git_autocommit_enabled: true,
+        git_autocommit_mode: "on_save",
       },
       global_get: () => false,
     });
@@ -116,7 +116,7 @@ describe("SettingsService", () => {
       .calls[0]?.[2] as Record<string, unknown>;
     expect(written_vault).not.toHaveProperty("show_vault_dashboard_on_open");
     expect(written_vault).not.toHaveProperty("autosave_enabled");
-    expect(written_vault).not.toHaveProperty("git_autocommit_enabled");
+    expect(written_vault).not.toHaveProperty("git_autocommit_mode");
     expect(written_vault).toHaveProperty("max_open_tabs", 7);
   });
 

@@ -21,7 +21,7 @@
   let destroyed = false;
 
   function get_shell(): string {
-    return "/bin/zsh";
+    return stores.ui.editor_settings.terminal_shell_path || "/bin/zsh";
   }
 
   function resolve_css_color(property: string, fallback: string): string {

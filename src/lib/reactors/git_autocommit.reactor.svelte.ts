@@ -4,7 +4,7 @@ import type { UIStore } from "$lib/app";
 import type { GitService } from "$lib/features/git";
 import { is_draft_note_path } from "$lib/features/note";
 
-const AUTOCOMMIT_DELAY_MS = 30_000;
+const ON_SAVE_DELAY_MS = 5_000;
 const RETRY_DELAY_WHILE_COMMITTING_MS = 1_000;
 
 export function create_git_autocommit_reactor(
@@ -24,24 +24,26 @@ export function create_git_autocommit_reactor(
       commit_handle = null;
     };
 
+    const flush_commit = () => {
+      if (!git_store.enabled) {
+        pending_paths.clear();
+        return;
+      }
+      if (pending_paths.size === 0) {
+        return;
+      }
+      if (git_store.sync_status === "committing") {
+        schedule_commit(RETRY_DELAY_WHILE_COMMITTING_MS);
+        return;
+      }
+      const paths = Array.from(pending_paths);
+      pending_paths.clear();
+      void git_service.auto_commit(paths);
+    };
+
     const schedule_commit = (delay_ms: number) => {
       clear_commit_handle();
-      commit_handle = setTimeout(() => {
-        if (!git_store.enabled) {
-          pending_paths.clear();
-          return;
-        }
-        if (pending_paths.size === 0) {
-          return;
-        }
-        if (git_store.sync_status === "committing") {
-          schedule_commit(RETRY_DELAY_WHILE_COMMITTING_MS);
-          return;
-        }
-        const paths = Array.from(pending_paths);
-        pending_paths.clear();
-        void git_service.auto_commit(paths);
-      }, delay_ms);
+      commit_handle = setTimeout(flush_commit, delay_ms);
     };
 
     $effect(() => {
@@ -53,7 +55,9 @@ export function create_git_autocommit_reactor(
 
     $effect(() => {
       if (!git_store.enabled) return;
-      if (!ui_store.editor_settings.git_autocommit_enabled) return;
+
+      const mode = ui_store.editor_settings.git_autocommit_mode;
+      if (mode === "off") return;
 
       const open_note = editor_store.open_note;
       if (!open_note) return;
@@ -69,7 +73,12 @@ export function create_git_autocommit_reactor(
 
       dirty_paths.delete(path);
       pending_paths.add(path);
-      schedule_commit(AUTOCOMMIT_DELAY_MS);
+
+      const delay_ms =
+        mode === "on_save"
+          ? ON_SAVE_DELAY_MS
+          : ui_store.editor_settings.git_autocommit_interval_minutes * 60_000;
+      schedule_commit(delay_ms);
     });
 
     return () => {

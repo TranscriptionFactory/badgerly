@@ -12,7 +12,10 @@ describe("git_autocommit.reactor", () => {
       } as never,
       { enabled: false, sync_status: "idle" } as never,
       {
-        editor_settings: { git_autocommit_enabled: true },
+        editor_settings: {
+          git_autocommit_mode: "on_save",
+          git_autocommit_interval_minutes: 5,
+        },
       } as never,
       { auto_commit: vi.fn() } as never,
     );
@@ -32,7 +35,10 @@ describe("git_autocommit.reactor", () => {
       } as never,
       { enabled: false, sync_status: "idle" } as never,
       {
-        editor_settings: { git_autocommit_enabled: true },
+        editor_settings: {
+          git_autocommit_mode: "on_save",
+          git_autocommit_interval_minutes: 5,
+        },
       } as never,
       { auto_commit } as never,
     );
@@ -52,7 +58,10 @@ describe("git_autocommit.reactor", () => {
       } as never,
       { enabled: true, sync_status: "idle" } as never,
       {
-        editor_settings: { git_autocommit_enabled: false },
+        editor_settings: {
+          git_autocommit_mode: "off",
+          git_autocommit_interval_minutes: 5,
+        },
       } as never,
       { auto_commit } as never,
     );

@@ -3,36 +3,45 @@ export type SettingsCategory =
   | "layout"
   | "files"
   | "git"
+  | "terminal"
   | "misc"
   | "hotkeys";
+
+export type GitAutocommitMode = "off" | "on_save" | "interval";
 
 export type EditorSettings = {
   attachment_folder: string;
   show_hidden_files: boolean;
   autosave_enabled: boolean;
-  git_autocommit_enabled: boolean;
+  git_autocommit_mode: GitAutocommitMode;
+  git_autocommit_interval_minutes: number;
   show_vault_dashboard_on_open: boolean;
   max_open_tabs: number;
   editor_max_width_ch: number;
+  terminal_shell_path: string;
 };
 
 export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   attachment_folder: ".assets",
   show_hidden_files: false,
   autosave_enabled: true,
-  git_autocommit_enabled: false,
+  git_autocommit_mode: "off",
+  git_autocommit_interval_minutes: 5,
   show_vault_dashboard_on_open: true,
   max_open_tabs: 5,
   editor_max_width_ch: 85,
+  terminal_shell_path: "/bin/zsh",
 };
 
 export const SETTINGS_KEY = "editor" as const;
 
 export const GLOBAL_ONLY_SETTING_KEYS: readonly (keyof EditorSettings)[] = [
   "show_vault_dashboard_on_open",
-  "git_autocommit_enabled",
+  "git_autocommit_mode",
+  "git_autocommit_interval_minutes",
   "autosave_enabled",
   "editor_max_width_ch",
+  "terminal_shell_path",
 ] as const;
 
 const GLOBAL_ONLY_SET = new Set<string>(GLOBAL_ONLY_SETTING_KEYS);
