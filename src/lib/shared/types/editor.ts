@@ -1,6 +1,8 @@
 import type { NoteDoc } from "$lib/shared/types/note";
 import type { NoteId, NotePath } from "$lib/shared/types/ids";
 
+export type EditorMode = "visual" | "source" | "split";
+
 export type OpenNoteState = NoteDoc & {
   buffer_id: string;
   is_dirty: boolean;

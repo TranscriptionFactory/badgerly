@@ -1,12 +1,16 @@
 import type { OpenNoteState, CursorInfo } from "$lib/shared/types/editor";
 import type { NoteId, NotePath } from "$lib/shared/types/ids";
 import { note_name_from_path } from "$lib/shared/utils/path";
+import type { EditorMode } from "$lib/shared/types/editor";
 
 export class EditorStore {
   open_note = $state<OpenNoteState | null>(null);
   cursor = $state<CursorInfo | null>(null);
   last_saved_at = $state<number | null>(null);
   session_revision = $state(0);
+  editor_mode = $state<EditorMode>("visual");
+  cursor_offset = $state(0);
+  scroll_fraction = $state(0);
 
   set_open_note(open_note: OpenNoteState) {
     this.open_note = open_note;
@@ -103,9 +107,29 @@ export class EditorStore {
     this.cursor = cursor;
   }
 
+  set_editor_mode(mode: EditorMode) {
+    if (this.editor_mode === mode) return;
+    this.editor_mode = mode;
+  }
+
+  toggle_editor_mode() {
+    this.editor_mode = this.editor_mode === "visual" ? "source" : "visual";
+  }
+
+  set_cursor_offset(offset: number) {
+    this.cursor_offset = offset;
+  }
+
+  set_scroll_fraction(fraction: number) {
+    this.scroll_fraction = fraction;
+  }
+
   reset() {
     this.open_note = null;
     this.cursor = null;
     this.last_saved_at = null;
+    this.editor_mode = "visual";
+    this.cursor_offset = 0;
+    this.scroll_fraction = 0;
   }
 }

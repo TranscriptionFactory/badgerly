@@ -218,4 +218,12 @@ export const DEFAULT_HOTKEYS: HotkeyBinding[] = [
     description: "Export the current note as a PDF file",
     category: "editing",
   },
+  {
+    action_id: ACTION_IDS.editor_toggle_mode,
+    key: "CmdOrCtrl+/",
+    phase: "capture",
+    label: "Toggle Editor Mode",
+    description: "Switch between visual and source editing modes",
+    category: "editing",
+  },
 ];

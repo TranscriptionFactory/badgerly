@@ -875,6 +875,9 @@
       on_git_pull={() => void action_registry.execute(ACTION_IDS.git_pull)}
       on_sync_click={() =>
         void action_registry.execute(ACTION_IDS.vault_sync_index)}
+      editor_mode={stores.editor.editor_mode}
+      on_mode_toggle={() =>
+        void action_registry.execute(ACTION_IDS.editor_toggle_mode)}
     />
   </div>
 

@@ -288,6 +288,27 @@ export function register_app_actions(input: ActionRegistrationInput) {
   });
 
   registry.register({
+    id: ACTION_IDS.editor_toggle_mode,
+    label: "Toggle Editor Mode",
+    execute: () => {
+      const editor_store = input.stores.editor;
+      if (editor_store.editor_mode === "visual") {
+        const flush_result = services.editor.flush();
+        if (flush_result) {
+          const scroll_top = services.editor.get_scroll_top();
+          const markdown_len = flush_result.markdown.length;
+          editor_store.set_scroll_fraction(
+            markdown_len > 0
+              ? Math.min(scroll_top / (markdown_len * 0.5), 1)
+              : 0,
+          );
+        }
+      }
+      editor_store.toggle_editor_mode();
+    },
+  });
+
+  registry.register({
     id: ACTION_IDS.app_check_for_updates,
     label: "Check for Updates",
     execute: async () => execute_app_check_for_updates(),

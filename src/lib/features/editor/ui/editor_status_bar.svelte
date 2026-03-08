@@ -25,12 +25,14 @@
     git_behind: number;
     is_repairing_links: boolean;
     link_repair_message: string | null;
+    editor_mode: import("$lib/shared/types/editor").EditorMode;
     on_vault_click: () => void;
     on_info_click: () => void;
     on_git_click: () => void;
     on_git_push: () => void;
     on_git_pull: () => void;
     on_sync_click: () => void;
+    on_mode_toggle: () => void;
   }
 
   let {
@@ -51,12 +53,14 @@
     git_behind,
     is_repairing_links,
     link_repair_message,
+    editor_mode,
     on_vault_click,
     on_info_click,
     on_git_click,
     on_git_push,
     on_git_pull,
     on_sync_click,
+    on_mode_toggle,
   }: Props = $props();
 
   const line = $derived(cursor_info?.line ?? null);
@@ -118,6 +122,15 @@
     <span class="StatusBar__item">
       {has_note ? line_count : "--"} lines
     </span>
+    <span class="StatusBar__separator" aria-hidden="true"></span>
+    <button
+      type="button"
+      class="StatusBar__mode-toggle"
+      onclick={on_mode_toggle}
+      aria-label="Toggle editor mode"
+    >
+      {editor_mode === "visual" ? "Visual" : "Source"}
+    </button>
     {#if saved_label}
       <span class="StatusBar__separator" aria-hidden="true"></span>
       <span class="StatusBar__item StatusBar__item--saved">{saved_label}</span>
@@ -331,6 +344,24 @@
   .StatusBar__action--active {
     color: var(--primary);
     opacity: 1;
+  }
+
+  .StatusBar__mode-toggle {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    opacity: 0.7;
+    transition:
+      opacity var(--duration-fast) var(--ease-default),
+      color var(--duration-fast) var(--ease-default);
+  }
+
+  .StatusBar__mode-toggle:hover {
+    opacity: 1;
+    color: var(--interactive);
   }
 
   :global(.StatusBar__item svg),

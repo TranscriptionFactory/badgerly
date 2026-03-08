@@ -133,16 +133,23 @@ export class EditorService {
   }
 
   flush(): EditorFlushResult | null {
-    if (!this.session || !this.active_note) return null;
+    if (!this.active_note) return null;
 
-    const markdown = this.session.get_markdown();
-    const payload: EditorFlushResult = {
+    if (this.session && this.editor_store.editor_mode === "visual") {
+      const markdown = this.session.get_markdown();
+      this.editor_store.set_markdown(
+        this.active_note.meta.id,
+        as_markdown_text(markdown),
+      );
+    }
+
+    const open_note = this.editor_store.open_note;
+    if (!open_note) return null;
+
+    return {
       note_id: this.active_note.meta.id,
-      markdown: as_markdown_text(markdown),
+      markdown: open_note.markdown,
     };
-
-    this.editor_store.set_markdown(payload.note_id, payload.markdown);
-    return payload;
   }
 
   get_scroll_top(): number {

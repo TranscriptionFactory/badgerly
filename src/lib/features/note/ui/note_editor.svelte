@@ -7,10 +7,13 @@
   import { HotkeyKey } from "$lib/features/hotkey";
   import { Button } from "$lib/components/ui/button";
   import { DocumentViewer } from "$lib/features/document";
+  import { SourceEditor } from "$lib/features/editor";
+  import { as_markdown_text } from "$lib/shared/types/ids";
 
   const { stores, action_registry } = use_app_context();
 
   const open_note = $derived(stores.editor.open_note);
+  const editor_mode = $derived(stores.editor.editor_mode);
   const active_tab = $derived(stores.tab.active_tab);
   const document_viewer_state = $derived(
     active_tab?.kind === "document"
@@ -39,7 +42,26 @@
   {#if active_tab?.kind === "document" && document_viewer_state}
     <DocumentViewer viewer_state={document_viewer_state} />
   {:else if open_note}
-    <div use:mount_editor={open_note} class="NoteEditor__content"></div>
+    {#if editor_mode === "visual"}
+      <div use:mount_editor={open_note} class="NoteEditor__content"></div>
+    {:else}
+      <SourceEditor
+        initial_markdown={open_note.markdown}
+        initial_cursor_offset={stores.editor.cursor_offset}
+        initial_scroll_fraction={stores.editor.scroll_fraction}
+        on_markdown_change={(md) =>
+          stores.editor.set_markdown(open_note.meta.id, as_markdown_text(md))}
+        on_dirty_change={(dirty) =>
+          stores.editor.set_dirty(open_note.meta.id, dirty)}
+        on_cursor_change={(cursor) =>
+          stores.editor.set_cursor(open_note.meta.id, cursor)}
+        on_outline_change={(headings) => stores.outline?.set_headings(headings)}
+        on_destroy={(state) => {
+          stores.editor.set_cursor_offset(state.cursor_offset);
+          stores.editor.set_scroll_fraction(state.scroll_fraction);
+        }}
+      />
+    {/if}
   {:else}
     <div class="NoteEditor__empty">
       <div class="NoteEditor__empty-content">
