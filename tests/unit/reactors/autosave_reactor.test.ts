@@ -13,6 +13,7 @@ describe("autosave.reactor", () => {
       {
         editor_settings: {
           autosave_enabled: true,
+          autosave_delay_ms: 2000,
         },
       } as never,
       {

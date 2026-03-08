@@ -43,6 +43,7 @@ describe("SettingsService", () => {
       global_get: (key) => {
         if (key === "show_vault_dashboard_on_open") return false;
         if (key === "autosave_enabled") return false;
+        if (key === "autosave_delay_ms") return 3500;
         if (key === "git_autocommit_mode") return "on_save";
         if (key === "ai_enabled") return false;
         if (key === "ai_default_backend") return "ollama";
@@ -60,6 +61,7 @@ describe("SettingsService", () => {
     if (result.status !== "success") throw new Error("expected success");
     expect(result.settings.show_vault_dashboard_on_open).toBe(false);
     expect(result.settings.autosave_enabled).toBe(false);
+    expect(result.settings.autosave_delay_ms).toBe(3500);
     expect(result.settings.git_autocommit_mode).toBe("on_save");
     expect(result.settings.ai_enabled).toBe(false);
     expect(result.settings.ai_default_backend).toBe("ollama");
@@ -76,6 +78,7 @@ describe("SettingsService", () => {
       ...DEFAULT_EDITOR_SETTINGS,
       show_vault_dashboard_on_open: false,
       autosave_enabled: false,
+      autosave_delay_ms: 3500,
       git_autocommit_mode: "on_save" as const,
       ai_enabled: false,
       ai_default_backend: "codex" as const,
@@ -104,6 +107,10 @@ describe("SettingsService", () => {
     expect(settings_port.set_setting).toHaveBeenCalledWith(
       "autosave_enabled",
       false,
+    );
+    expect(settings_port.set_setting).toHaveBeenCalledWith(
+      "autosave_delay_ms",
+      3500,
     );
     expect(settings_port.set_setting).toHaveBeenCalledWith(
       "git_autocommit_mode",

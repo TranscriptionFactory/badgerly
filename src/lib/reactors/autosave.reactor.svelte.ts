@@ -5,8 +5,6 @@ import type { TabService } from "$lib/features/tab";
 import { is_draft_note_path } from "$lib/features/note";
 import type { NotePath } from "$lib/shared/types/ids";
 
-const AUTOSAVE_DELAY_MS = 2000;
-
 export function create_autosave_reactor(
   editor_store: EditorStore,
   ui_store: UIStore,
@@ -25,6 +23,7 @@ export function create_autosave_reactor(
       if (is_draft_note_path(open_note.meta.path)) return;
 
       const note_path = open_note.meta.path;
+      const delay = ui_store.editor_settings.autosave_delay_ms;
 
       const handle = setTimeout(() => {
         void note_service.save_note(null, true, save_target).then((result) => {
@@ -34,7 +33,7 @@ export function create_autosave_reactor(
             }
           }
         });
-      }, AUTOSAVE_DELAY_MS);
+      }, delay);
 
       return () => {
         clearTimeout(handle);
@@ -64,6 +63,7 @@ export function create_split_view_autosave_reactor(
       }
 
       const note_path: NotePath = open_note.meta.path;
+      const delay = ui_store.editor_settings.autosave_delay_ms;
       const handle = setTimeout(() => {
         void note_service.save_note(null, true, "secondary").then((result) => {
           if (
@@ -73,7 +73,7 @@ export function create_split_view_autosave_reactor(
             secondary_store.mark_clean(note_path);
           }
         });
-      }, AUTOSAVE_DELAY_MS);
+      }, delay);
 
       return () => {
         clearTimeout(handle);

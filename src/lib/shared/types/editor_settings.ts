@@ -20,6 +20,7 @@ export type EditorSettings = {
   ignored_folders: string[];
   show_hidden_files: boolean;
   autosave_enabled: boolean;
+  autosave_delay_ms: number;
   git_autocommit_mode: GitAutocommitMode;
   git_autocommit_interval_minutes: number;
   git_pull_strategy: GitPullStrategy;
@@ -50,6 +51,7 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   ignored_folders: [],
   show_hidden_files: false,
   autosave_enabled: true,
+  autosave_delay_ms: 2000,
   git_autocommit_mode: "off",
   git_autocommit_interval_minutes: 5,
   git_pull_strategy: "merge",
@@ -84,6 +86,7 @@ export const GLOBAL_ONLY_SETTING_KEYS: readonly (keyof EditorSettings)[] = [
   "git_pull_strategy",
   "git_auto_fetch_interval_minutes",
   "autosave_enabled",
+  "autosave_delay_ms",
   "editor_max_width_ch",
   "terminal_shell_path",
   "terminal_font_size_px",
