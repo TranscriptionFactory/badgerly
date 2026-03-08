@@ -19,7 +19,7 @@ export function register_window_actions(
       const is_note = /\.(?:md|markdown|mdx)$/i.test(file_path);
       if (is_note) {
         await window_port.open_window({
-          kind: "browse",
+          kind: "main",
           vault_path,
           file_path,
         });
@@ -34,12 +34,12 @@ export function register_window_actions(
   });
 
   registry.register({
-    id: ACTION_IDS.window_open_browse,
+    id: ACTION_IDS.window_open_new,
     label: "New Window",
     execute: async () => {
       const vault_path = stores.vault.vault?.path;
       if (!vault_path) return;
-      await window_port.open_window({ kind: "browse", vault_path });
+      await window_port.open_window({ kind: "main", vault_path });
     },
   });
 }

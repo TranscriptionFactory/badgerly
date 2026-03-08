@@ -171,7 +171,7 @@ export const DEFAULT_HOTKEYS: HotkeyBinding[] = [
     category: "editing",
   },
   {
-    action_id: ACTION_IDS.window_open_browse,
+    action_id: ACTION_IDS.window_open_new,
     key: "CmdOrCtrl+Shift+N",
     phase: "capture",
     label: "New Window",
