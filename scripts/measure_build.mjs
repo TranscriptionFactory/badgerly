@@ -1,4 +1,4 @@
-import { stat, readdir } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 
 async function listFiles(root) {
@@ -19,6 +19,81 @@ async function listFiles(root) {
 
 function formatBytes(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function normalize_href(href) {
+  return href.replace(/[?#].*$/, "").replace(/^\//, "");
+}
+
+async function read_startup_modulepreloads(root, summaries) {
+  const client_root = path.dirname(path.dirname(root));
+  const html_candidates = [
+    path.join(client_root, "index.html"),
+    path.join(client_root, "200.html"),
+  ];
+
+  let html = null;
+  for (const candidate of html_candidates) {
+    try {
+      html = await readFile(candidate, "utf8");
+      break;
+    } catch {
+      continue;
+    }
+  }
+
+  if (html === null) {
+    return {
+      count: 0,
+      total_bytes: 0,
+      total_size: formatBytes(0),
+      entries: [],
+    };
+  }
+
+  const summary_by_file = new Map(
+    summaries.map((entry) => [path.normalize(entry.file), entry]),
+  );
+  const entries = [];
+  const seen = new Set();
+
+  for (const tag of html.match(/<link\b[^>]*>/g) ?? []) {
+    if (!/rel="modulepreload"/.test(tag)) {
+      continue;
+    }
+
+    const href = tag.match(/href="([^"]+)"/)?.[1];
+    if (!href) {
+      continue;
+    }
+
+    const normalized_href = normalize_href(href);
+    if (seen.has(normalized_href)) {
+      continue;
+    }
+    seen.add(normalized_href);
+
+    const file = path.join(client_root, normalized_href);
+    const summary = summary_by_file.get(path.normalize(file));
+    if (!summary) {
+      continue;
+    }
+
+    entries.push({
+      file: normalized_href,
+      bytes: summary.bytes,
+      size: formatBytes(summary.bytes),
+    });
+  }
+
+  const total_bytes = entries.reduce((sum, entry) => sum + entry.bytes, 0);
+
+  return {
+    count: entries.length,
+    total_bytes,
+    total_size: formatBytes(total_bytes),
+    entries: [...entries].sort((a, b) => b.bytes - a.bytes),
+  };
 }
 
 async function main() {
@@ -56,6 +131,10 @@ async function main() {
     /\.(js|css|mjs)$/.test(entry.file),
   );
   const totalBytes = clientFiles.reduce((sum, entry) => sum + entry.bytes, 0);
+  const startup_modulepreloads = await read_startup_modulepreloads(
+    root,
+    clientFiles,
+  );
   const largest = [...clientFiles]
     .sort((a, b) => b.bytes - a.bytes)
     .slice(0, 10)
@@ -72,6 +151,12 @@ async function main() {
         file_count: clientFiles.length,
         total_bytes: totalBytes,
         total_size: formatBytes(totalBytes),
+        startup_modulepreloads: {
+          count: startup_modulepreloads.count,
+          total_bytes: startup_modulepreloads.total_bytes,
+          total_size: startup_modulepreloads.total_size,
+          largest: startup_modulepreloads.entries.slice(0, 10),
+        },
         largest,
       },
       null,
