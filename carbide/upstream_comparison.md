@@ -33,27 +33,27 @@ The main issue is not that the new features exist. The issue is that several of 
 
 ### Client output
 
-| Revision | Client files | Client bytes | Build time |
-| --- | ---: | ---: | ---: |
-| Upstream baseline `334023a` | 24 | 2,783,331 | 10.40s |
-| Current `HEAD` | 204 | 11,284,517 | 15.89s |
+| Revision                    | Client files | Client bytes | Build time |
+| --------------------------- | -----------: | -----------: | ---------: |
+| Upstream baseline `334023a` |           24 |    2,783,331 |     10.40s |
+| Current `HEAD`              |          204 |   11,284,517 |     15.89s |
 
 ### Server output
 
-| Revision | Server bytes | Build time |
-| --- | ---: | ---: |
-| Upstream baseline `334023a` | 1,993,618 | 18.13s |
-| Current `HEAD` | 2,237,911 | 25.01s |
+| Revision                    | Server bytes | Build time |
+| --------------------------- | -----------: | ---------: |
+| Upstream baseline `334023a` |    1,993,618 |     18.13s |
+| Current `HEAD`              |    2,237,911 |     25.01s |
 
 ### Largest emitted client artifacts at current HEAD
 
-| File | Size |
-| --- | ---: |
-| `.svelte-kit/output/client/_app/immutable/chunks/DZDWBGLG.js` | 2,290,000 bytes |
+| File                                                               |            Size |
+| ------------------------------------------------------------------ | --------------: |
+| `.svelte-kit/output/client/_app/immutable/chunks/DZDWBGLG.js`      | 2,290,000 bytes |
 | `.svelte-kit/output/client/_app/immutable/assets/pdf.worker.*.mjs` | 2,209,730 bytes |
-| `.svelte-kit/output/client/_app/immutable/chunks/C7k81FS8.js` | 472,995 bytes |
-| `.svelte-kit/output/client/_app/immutable/chunks/BtgTlxKO.js` | 452,861 bytes |
-| `.svelte-kit/output/client/_app/immutable/chunks/CyJtwmzi.js` | 442,413 bytes |
+| `.svelte-kit/output/client/_app/immutable/chunks/C7k81FS8.js`      |   472,995 bytes |
+| `.svelte-kit/output/client/_app/immutable/chunks/BtgTlxKO.js`      |   452,861 bytes |
+| `.svelte-kit/output/client/_app/immutable/chunks/CyJtwmzi.js`      |   442,413 bytes |
 
 The build also emits Rollup chunk-size warnings at current HEAD.
 
@@ -93,15 +93,15 @@ That is the right direction. The problem is that the component graph is still to
 
 ## Where the Fork Regressed
 
-## 1. Startup and bundle cost regressed sharply
+### 1. Startup and bundle cost regressed sharply
 
 This is the clearest regression.
 
 The fork statically imports optional surfaces directly into the main workspace and editor shells:
 
-- `src/lib/app/bootstrap/ui/workspace_layout.svelte:12-18`
-- `src/lib/features/note/ui/note_editor.svelte:9-10`
-- `src/lib/features/terminal/ui/terminal_panel.svelte:2-5`
+- `src/lib/app/bootstrap/ui/workspace_layout.svelte:2-18` (imports TerminalPanel, SplitNoteEditor, and all feature shells at module top level)
+- `src/lib/features/note/ui/note_editor.svelte:9-10` (imports DocumentViewer, SourceEditor)
+- `src/lib/features/terminal/ui/terminal_panel.svelte:2-5` (imports xterm, addon-fit, tauri-pty, xterm CSS)
 
 The workspace layout imports `TerminalPanel` at module load time even though the terminal is conditional at runtime. `TerminalPanel` itself imports:
 
@@ -124,15 +124,22 @@ Practical effect:
 - larger initial JS/CSS parse cost
 - more memory retained even when users never open terminal, PDF, CSV, or source mode
 
+Plugin system implication:
+
+- the plugin system (`carbide/plugin_system.md`) defines contribution points for sidebar panels, status bar items, and editor contributions — all of which are optional UI surfaces
+- if these static import patterns are not resolved before plugin UI arrives, every plugin-contributed panel will inherit the same eager-loading problem
+- the fix should establish reusable optional-surface boundaries that both built-in features and future plugin-provided panels can share
+
 Best fix:
 
-1. Lazily load `TerminalPanel`, `DocumentViewer`, and `SourceEditor` with dynamic component boundaries.
+1. Lazily load `TerminalPanel`, `DocumentViewer`, and `SourceEditor` with dynamic component boundaries using a shared optional-surface host pattern.
 2. Split viewer-only code out of the main note editor path.
 3. Add explicit manual chunking for `pdfjs-dist`, xterm, Mermaid, and CodeMirror viewer code if Vite still coalesces them badly.
+4. Design the lazy boundary pattern so future plugin-hosted panels and sidebar contributions can reuse the same loading/error/teardown contract.
 
-## 2. Split view duplicates the full editor stack
+### 2. Split view duplicates the full editor stack
 
-`src/lib/features/split_view/application/split_view_service.ts:19-55` creates a second `EditorStore` and second `EditorService`, then mounts a fully independent editor session for the secondary pane.
+`src/lib/features/split_view/application/split_view_service.ts:35-54` (`mount_secondary`) creates a second `EditorStore` and second `EditorService`, then mounts a fully independent editor session for the secondary pane.
 
 That is the simplest implementation, but it is expensive because the primary editor already carries a rich plugin set:
 
@@ -158,9 +165,15 @@ Good options:
 - use a text-only or source-only fallback for large notes
 - share more derived state instead of recomputing everything in a second full session
 
-## 3. PDF viewer eagerly does full-document extraction and keeps it in memory
+Plugin system implication:
 
-`src/lib/features/document/ui/pdf_viewer.svelte:55-105` loads the full PDF, renders the first page, then immediately calls `extract_all_text(doc)`.
+- the plugin system expects editor-mediated contributions (decorations, content transforms, metadata providers)
+- without an explicit secondary editor profile, every new plugin contribution will silently double its cost when split view is active
+- the profile contract needs to exist before plugin-provided editor features land, not after
+
+### 3. PDF viewer eagerly does full-document extraction and keeps it in memory
+
+`src/lib/features/document/ui/pdf_viewer.svelte:55-106` loads the full PDF, renders the first page, then immediately calls `extract_all_text(doc)` (line 80).
 
 That extraction:
 
@@ -190,9 +203,9 @@ Best fix:
 3. Cache per-page text lazily instead of materializing the whole document at once.
 4. Consider offloading extraction/search indexing to a worker if PDF search becomes a core workflow.
 
-## 4. Document viewer state has no eviction strategy
+### 4. Document viewer state has no eviction strategy
 
-`src/lib/features/document/application/document_actions.ts:30-56` loads document content or asset URLs and stores them in `DocumentStore`.
+`src/lib/features/document/application/document_actions.ts` (the `document_open` action, lines 18-57) loads document content or asset URLs and stores them in `DocumentStore`.
 
 For text/code/CSV documents, this means the full file content is retained in store state as long as the tab stays alive. The current design is straightforward, but unlike note tabs there is no equivalent cache policy, eviction policy, or size guard.
 
@@ -204,14 +217,22 @@ Practical effect:
 - the app retains payloads longer than necessary
 - restored document sessions can repopulate heavy state easily
 
+Plugin system implication:
+
+- the plugin API (`plugin_system.md`) defines `vault.read(path)` for plugins to read file content and `metadata.getFileCache(path)` for cached metadata
+- if `DocumentStore` permanently retains full payloads, the plugin system inherits a model where every plugin-opened document bloats memory indefinitely
+- conversely, if content is evicted, `vault.read(path)` must be defined to always go through the port (not the cache), since plugin code cannot know whether content is resident
+- the metadata/content split must be designed so plugin metadata APIs do not depend on full file payloads staying resident
+
 Best fix:
 
 - treat document content like a cache, not a permanent store payload
 - keep metadata in `DocumentStore`, load content on activation, and evict inactive content past a limit
+- define `vault.read(path)` as a port-level operation independent of the document content cache, so plugins always get correct results regardless of eviction state
 
-## 5. The starred tree derivation is more expensive than it needs to be
+### 5. The starred tree derivation is more expensive than it needs to be
 
-`src/lib/app/bootstrap/ui/workspace_layout.svelte:91-185` rebuilds `starred_nodes` by:
+`src/lib/app/bootstrap/ui/workspace_layout.svelte:91-267` rebuilds `starred_nodes` (approximately 175 lines of derived logic) by:
 
 - sorting all starred paths
 - repeatedly scanning `stores.notes.notes`
@@ -232,9 +253,9 @@ Best fix:
 - derive starred nodes from a shared indexed tree representation instead of rebuilding subtree inputs ad hoc
 - pre-index note/folder membership by prefix once per file-tree revision
 
-## 6. Source editor introduces a second editing implementation with separate state flow
+### 6. Source editor introduces a second editing implementation with separate state flow
 
-`src/lib/features/note/ui/note_editor.svelte:42-64` switches between the visual editor and a completely separate `SourceEditor`.
+`src/lib/features/note/ui/note_editor.svelte` switches between the visual editor and a completely separate `SourceEditor`.
 
 That is a reasonable product feature, but it adds:
 
@@ -299,9 +320,11 @@ The fork adds several correct feature slices, but the composition root currently
 
 That is good news, because the likely fixes are mostly compositional, not fundamental rewrites.
 
+This also matters for the plugin system. The plugin roadmap (`carbide/plugin_system.md`) adds runtime-extensible commands, sidebar panels, status bar items, and editor contributions — all of which are optional surfaces that need explicit loading boundaries. The composition granularity problems identified here are exactly the problems that would compound when plugin-contributed UI arrives. Fixing them now produces infrastructure the plugin system requires.
+
 ## Priority Recommendations
 
-## Priority 1: reduce startup surface
+### Priority 1: reduce startup surface
 
 Do this first. It has the best payoff.
 
@@ -315,8 +338,9 @@ Expected result:
 
 - biggest immediate win in startup cost
 - likely the largest reduction in client output size
+- reusable optional-surface boundaries ready for plugin panel hosting
 
-## Priority 2: make document handling demand-driven
+### Priority 2: make document handling demand-driven
 
 - lazy text extraction for PDFs
 - lazy document-content loading for inactive tabs
@@ -326,8 +350,10 @@ Expected result:
 
 - better memory behavior
 - fewer CPU spikes for large files
+- stable metadata layer for plugin `metadata.getFileCache()` API
+- cache-independent `vault.read()` for reliable plugin file access
 
-## Priority 3: cheapen split view
+### Priority 3: cheapen split view
 
 - secondary editor should be a reduced-cost profile
 - disable nonessential plugins until focused
@@ -337,8 +363,9 @@ Expected result:
 
 - better responsiveness in split mode
 - lower memory and plugin overhead
+- explicit profile contract for plugin-provided editor contributions
 
-## Priority 4: stop rebuilding starred subtrees from scratch
+### Priority 4: stop rebuilding starred subtrees from scratch
 
 - cache prefix membership
 - reuse a shared indexed tree
@@ -385,11 +412,11 @@ The full `8.5 MB` gap is not a realistic optimization target. A large part of th
 
 ### Practical estimate
 
-| Scenario | Likely savings | Resulting client output |
-| --- | ---: | ---: |
-| Conservative | `2 MB` to `3 MB` | `8.3 MB` to `9.3 MB` |
-| Realistic | `3 MB` to `5 MB` | `6.3 MB` to `8.3 MB` |
-| Aggressive without feature cuts | `5 MB` to `6 MB` | `5.3 MB` to `6.3 MB` |
+| Scenario                        |   Likely savings | Resulting client output |
+| ------------------------------- | ---------------: | ----------------------: |
+| Conservative                    | `2 MB` to `3 MB` |    `8.3 MB` to `9.3 MB` |
+| Realistic                       | `3 MB` to `5 MB` |    `6.3 MB` to `8.3 MB` |
+| Aggressive without feature cuts | `5 MB` to `6 MB` |    `5.3 MB` to `6.3 MB` |
 
 The realistic planning number is `3 MB` to `5 MB`.
 
@@ -405,15 +432,15 @@ Optimization can move these costs out of the default app path and reduce duplica
 
 ### Feature-by-feature savings table
 
-| Area | Problem today | Realistic savings |
-| --- | --- | ---: |
-| Terminal feature isolation | `TerminalPanel` is imported too close to the main app path, so xterm-related code is retained in a very large shared chunk | `0.6 MB` to `1.2 MB` |
-| Document viewer isolation | `DocumentViewer` is wired into the primary editor shell, so document-viewer machinery is harder for the bundler to isolate | `0.4 MB` to `0.8 MB` |
-| Source editor isolation | `SourceEditor` is imported in the main note editor path instead of being a lazy mode boundary | `0.2 MB` to `0.5 MB` |
-| Mermaid/editor plugin chunking | Mermaid and related editor tooling are only partially isolated; some shared app chunks still retain too much of that surface | `0.8 MB` to `1.5 MB` |
-| Code viewer / CodeMirror viewer path | Viewer-oriented CodeMirror pieces can likely be split more cleanly from the default route | `0.3 MB` to `0.7 MB` |
-| Shared route-chunk cleanup | Better manual chunking and less accidental coalescing across the main route can trim the large shared app chunk | `0.5 MB` to `1.0 MB` |
-| CSS and smaller shared assets | Secondary cleanup wins after the main chunking work | `0.2 MB` to `0.5 MB` |
+| Area                                 | Problem today                                                                                                                |    Realistic savings |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | -------------------: |
+| Terminal feature isolation           | `TerminalPanel` is imported too close to the main app path, so xterm-related code is retained in a very large shared chunk   | `0.6 MB` to `1.2 MB` |
+| Document viewer isolation            | `DocumentViewer` is wired into the primary editor shell, so document-viewer machinery is harder for the bundler to isolate   | `0.4 MB` to `0.8 MB` |
+| Source editor isolation              | `SourceEditor` is imported in the main note editor path instead of being a lazy mode boundary                                | `0.2 MB` to `0.5 MB` |
+| Mermaid/editor plugin chunking       | Mermaid and related editor tooling are only partially isolated; some shared app chunks still retain too much of that surface | `0.8 MB` to `1.5 MB` |
+| Code viewer / CodeMirror viewer path | Viewer-oriented CodeMirror pieces can likely be split more cleanly from the default route                                    | `0.3 MB` to `0.7 MB` |
+| Shared route-chunk cleanup           | Better manual chunking and less accidental coalescing across the main route can trim the large shared app chunk              | `0.5 MB` to `1.0 MB` |
+| CSS and smaller shared assets        | Secondary cleanup wins after the main chunking work                                                                          | `0.2 MB` to `0.5 MB` |
 
 These ranges overlap somewhat, so they should not be summed mechanically. They describe where the recoverable size is likely hiding, not independent additive buckets.
 
@@ -427,9 +454,10 @@ Those can be made more lazy and less startup-critical, but they are still shippe
 
 ### Best path to the realistic `3 MB` to `5 MB` win
 
-1. Move `TerminalPanel`, `DocumentViewer`, and `SourceEditor` behind explicit lazy boundaries.
-2. Add manual chunking for PDF, Mermaid, xterm, and viewer-only CodeMirror surfaces.
-3. Rebuild and inspect the manifest after each step, rather than doing one large bundling refactor.
-4. Stop optional features from being imported by the main editing shell unless active.
+1. Design a reusable optional-surface host pattern that built-in features and future plugin panels share.
+2. Move `TerminalPanel`, `DocumentViewer`, and `SourceEditor` behind explicit lazy boundaries using that pattern.
+3. Add manual chunking for PDF, Mermaid, xterm, and viewer-only CodeMirror surfaces.
+4. Rebuild and inspect the manifest after each step, rather than doing one large bundling refactor.
+5. Stop optional features from being imported by the main editing shell unless active.
 
-If done well, the fork should still remain well above upstream's `2.78 MB`, but it should not need to stay near `11.28 MB`.
+If done well, the fork should still remain well above upstream's `2.78 MB`, but it should not need to stay near `11.28 MB`. More importantly, the resulting boundaries are exactly the infrastructure the plugin system needs for dynamic UI contributions.

@@ -166,14 +166,21 @@ Before changing behavior, add a repeatable measurement workflow so each later ph
 
 ### Acceptance Targets
 
-Targets should be explicit before implementation starts:
+Targets must be quantitative where possible. The comparison document provides the reference numbers.
 
-- reduce default client output materially from the current baseline
-- reduce startup-loaded optional dependency surface
-- remove eager full-document PDF text extraction on open
-- cap document-tab content retention
-- reduce split-view incremental cost
-- avoid repeated starred-tree full rescans on every relevant state change
+Bundle targets:
+
+- reduce emitted client output from `11.28 MB` to below `8.3 MB` (realistic band from comparison)
+- no single non-worker chunk above `500 kB` in the default startup path
+- optional feature dependencies (xterm, pdfjs-dist, mermaid, CodeMirror viewer) must not appear in the main app chunk
+
+Runtime targets:
+
+- cold startup must not load xterm, pdfjs-dist, mermaid, or CodeMirror viewer modules
+- PDF text extraction must not run on document open (must require explicit search activation)
+- document-tab content must have a defined eviction policy with a configurable inactive-tab limit
+- split-view secondary pane must not instantiate the full editor plugin set until focused
+- starred-tree derivation must not re-filter the full notes/folder collections per expanded root on every state change
 
 ### Notes
 
@@ -231,11 +238,28 @@ Do not start with manual chunking. It should be used to stabilize the result aft
 - no direct adapter calls from components
 - no service logic inside lazy wrappers beyond action dispatch
 
+### Plugin System Integration
+
+The optional-surface host pattern introduced here is the same boundary that plugin-contributed UI will use. Per `carbide/plugin_system.md`, the plugin system defines contribution points for:
+
+- sidebar panels (`ui.addSidebarPanel()`)
+- status bar items (`ui.addStatusBarItem()`)
+- ribbon icons (`ui.addRibbonIcon()`)
+
+Each of these is an optional UI surface that must not inflate the default app path. The lazy boundary pattern from Phase 1 should be designed so that:
+
+- built-in optional panels (terminal, document viewer) and future plugin-provided panels share the same loading/error/teardown contract
+- the workspace layout's panel slots accept both statically-known optional surfaces and dynamically-registered plugin surfaces through the same composition mechanism
+- adding a new plugin panel never requires modifying the workspace layout's import graph
+
+This prevents reopening the composition-root work when the plugin system ships.
+
 ### Expected Wins
 
 - smaller startup JS surface
 - lower parse and compile cost
 - lower idle memory on non-terminal, non-document, non-source flows
+- reusable optional-surface boundaries ready for plugin-hosted UI
 
 ## Phase 2: Make Document Handling Demand-Driven
 
@@ -329,6 +353,19 @@ Use a simple policy first:
 
 The first version should optimize for explicitness over sophistication.
 
+### Plugin API Reconciliation
+
+The plugin system (`carbide/plugin_system.md`) defines `vault.read(path)` and `metadata.getFileCache(path)` as core plugin APIs. The document cache refactor must reconcile these with content eviction:
+
+- `vault.read(path)` must always go through the port (filesystem IO), not the document content cache. Plugin code cannot know whether content is resident. This operation is inherently async and should not depend on whether a document tab happens to be open.
+- `metadata.getFileCache(path)` must return durable metadata (frontmatter, links, headings, tags) independently of whether full file content is cached. The metadata layer must be stable across content eviction cycles.
+- `DocumentStore` metadata (tab id, file path, file type, zoom, scroll position, PDF page) is viewer state, not plugin-accessible document metadata. The plugin metadata surface is a separate concern backed by the MetadataCache infrastructure defined in `plugin_system.md` Phase 2.
+
+This distinction prevents two failure modes:
+
+1. plugins silently depending on document content residency and breaking when eviction runs
+2. the metadata layer being coupled to the viewer lifecycle instead of the file/vault lifecycle
+
 ### Future-Facing Rationale
 
 This design is also the right base for the plugin system. Plugins will need stable document metadata and explicit host APIs, but they should not inherit a model where every open document permanently retains full payloads in shared app state.
@@ -378,6 +415,16 @@ For sufficiently large notes, the secondary pane should be allowed to open in a 
 - text-only fallback
 
 The exact threshold can be decided during implementation, but the policy should exist up front.
+
+### Plugin System Integration
+
+The plugin system expects editor-mediated contributions: content transforms, decorations, metadata providers. Without a profile contract, every plugin-provided editor feature will silently double its cost in split view.
+
+The profile policy must:
+
+- define which plugin contributions are active in light mode vs full mode
+- provide a declarative way for plugin-registered editor extensions to specify their profile behavior (e.g., `profile: "full-only"` or `profile: "always"`)
+- prevent the secondary pane from accumulating every new editor contribution by default
 
 ### Important Constraint
 
@@ -450,7 +497,8 @@ Performance work still needs functional tests.
 
 - lazy feature loading boundaries where practical
 - document cache load and eviction policy
-- PDF search activation behavior
+- `vault.read()` returns correct content regardless of document cache eviction state
+- PDF search activation behavior (extraction must not run until search is opened)
 - split-view mode/profile transitions
 - starred-tree derivation from shared indexed data
 
@@ -465,21 +513,22 @@ Browser-only interactions that are hard to cover in unit tests can remain in man
 
 ## Recommended Delivery Sequence
 
-1. Baseline instrumentation and acceptance targets
-2. Lazy-load terminal, document viewer, and source editor
-3. Stabilize chunking in `vite.config.ts`
-4. Refactor document state into metadata plus cache ownership
-5. Make PDF text extraction lazy and query-driven
-6. Introduce split-view light profile and focus promotion
-7. Refactor starred derivation onto shared indexed tree data
-8. Re-measure and update `carbide/upstream_comparison.md` with actual deltas
+1. Baseline instrumentation and quantitative acceptance targets
+2. Design reusable optional-surface host pattern (shared by built-in and future plugin panels)
+3. Lazy-load terminal, document viewer, and source editor using the host pattern
+4. Stabilize chunking in `vite.config.ts`
+5. Refactor document state into metadata plus cache ownership; define `vault.read()` as port-level (cache-independent)
+6. Make PDF text extraction lazy and query-driven
+7. Introduce split-view light profile, focus promotion, and plugin contribution profile policy
+8. Refactor starred derivation onto shared indexed tree data
+9. Re-measure and update `carbide/upstream_comparison.md` with actual deltas
 
 ## Non-Goals
 
 To keep the work disciplined, this plan should not expand into:
 
 - feature removal
-- plugin-system implementation
+- plugin-system implementation (but the performance work must produce boundaries and contracts that the plugin system can reuse — this is preparation, not implementation)
 - an Obsidian-compatibility layer
 - broad architecture rewrites
 - speculative workerization of every expensive path before measuring the simpler lazy-loading fixes
@@ -541,7 +590,15 @@ The following sections should be updated so the product/architecture guide stays
 
 ## Bottom Line
 
-The right plan is not to make Carbide smaller by making it less capable. The right plan is to make the app pay for optional capability only when that capability is actually used.
+The right plan is not to make Carbide smaller by making it less capable. The right plan is to make the app pay for optional capability only when that capability is actually used — and to do so in a way that directly enables the plugin system.
+
+Every performance fix in this plan produces infrastructure the plugin system needs:
+
+- optional-surface boundaries → plugin panel hosting
+- document metadata/content split → stable `metadata.getFileCache()` independent of content residency
+- cache-independent `vault.read()` → reliable plugin file access regardless of eviction state
+- split-view editor profiles → plugin editor contribution profile policy
+- demand-driven loading → the same pattern plugin-contributed features must follow
 
 The most important implementation idea is consistent across all phases:
 
@@ -549,3 +606,4 @@ The most important implementation idea is consistent across all phases:
 - keep optional code off the default path
 - keep heavy work demand-driven
 - keep future plugin and split-view development from inflating startup cost by default
+- produce reusable boundaries and contracts, not one-off performance patches
