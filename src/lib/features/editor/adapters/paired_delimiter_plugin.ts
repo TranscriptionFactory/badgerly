@@ -48,6 +48,18 @@ function move_cursor(view: EditorView, pos: number): boolean {
   return true;
 }
 
+function insert_text(
+  view: EditorView,
+  from: number,
+  to: number,
+  text: string,
+): boolean {
+  const tr = view.state.tr.insertText(text, from, to);
+  tr.setSelection(TextSelection.create(tr.doc, from + text.length));
+  view.dispatch(tr.scrollIntoView());
+  return true;
+}
+
 function insert_delimiters(
   view: EditorView,
   from: number,
@@ -104,6 +116,7 @@ export function create_paired_delimiter_prose_plugin() {
           if (before === "[") {
             return insert_wiki_delimiters(view, from, after);
           }
+          return insert_text(view, from, to, text);
         }
 
         return insert_delimiters(view, from, to, text, close);
