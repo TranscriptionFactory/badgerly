@@ -6,6 +6,7 @@
   } from "$lib/shared/types/editor";
   import type { OutlineHeading } from "$lib/features/outline";
   import { extract_headings_from_markdown } from "$lib/features/editor/domain/extract_headings";
+  import { insert_markdown_hard_break } from "$lib/features/editor/domain/markdown_line_breaks";
 
   interface Props {
     initial_markdown: string;
@@ -86,26 +87,54 @@
   });
 
   function handle_input() {
+    queue_store_sync();
+    update_cursor_state();
+    queue_outline_sync();
+  }
+
+  function queue_store_sync() {
     if (store_timer !== null) clearTimeout(store_timer);
     store_timer = setTimeout(() => {
       on_dirty_change(true);
       on_markdown_change(content);
       store_timer = null;
     }, 50);
+  }
 
+  function update_cursor_state() {
     on_cursor_change(compute_cursor_info());
     on_selection_change?.(compute_selection_snapshot());
+  }
 
-    if (on_outline_change) {
-      clearTimeout(outline_timer);
-      const cb = on_outline_change;
-      outline_timer = setTimeout(() => {
-        cb(extract_headings_from_markdown(content));
-      }, 300);
-    }
+  function queue_outline_sync() {
+    if (!on_outline_change) return;
+    clearTimeout(outline_timer);
+    const cb = on_outline_change;
+    outline_timer = setTimeout(() => {
+      cb(extract_headings_from_markdown(content));
+    }, 300);
   }
 
   function handle_keydown(event: KeyboardEvent) {
+    if (event.key === "Enter" && event.shiftKey) {
+      event.preventDefault();
+      const textarea = event.target as HTMLTextAreaElement;
+      const next_state = insert_markdown_hard_break({
+        markdown: content,
+        start: textarea.selectionStart,
+        end: textarea.selectionEnd,
+      });
+      content = next_state.markdown;
+      requestAnimationFrame(() => {
+        textarea.selectionStart = next_state.cursor_offset;
+        textarea.selectionEnd = next_state.cursor_offset;
+        update_cursor_state();
+      });
+      queue_store_sync();
+      queue_outline_sync();
+      return;
+    }
+
     if (event.key === "Tab") {
       event.preventDefault();
       const textarea = event.target as HTMLTextAreaElement;
@@ -115,7 +144,10 @@
       content = content.substring(0, start) + spaces + content.substring(end);
       requestAnimationFrame(() => {
         textarea.selectionStart = textarea.selectionEnd = start + TAB_SIZE;
+        update_cursor_state();
       });
+      queue_store_sync();
+      queue_outline_sync();
     }
   }
 

@@ -17,3 +17,8 @@ export type {
   EditorSelectionSnapshot,
 } from "$lib/shared/types/editor";
 export { extract_headings_from_markdown } from "$lib/features/editor/domain/extract_headings";
+export {
+  MARKDOWN_HARD_BREAK,
+  insert_markdown_hard_break,
+  normalize_markdown_line_breaks,
+} from "$lib/features/editor/domain/markdown_line_breaks";
