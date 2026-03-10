@@ -27,7 +27,7 @@ import { SvelteMap, SvelteSet } from "svelte/reactivity";
 
 type AsyncStatus = "idle" | "loading" | "error";
 type SidebarView = "explorer" | "dashboard" | "starred";
-type ContextRailTab = "links" | "outline";
+type ContextRailTab = "links" | "outline" | "ai";
 
 const INITIAL_DELETE_NOTE_DIALOG = { open: false, note: null } as const;
 

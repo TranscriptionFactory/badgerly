@@ -65,7 +65,7 @@ export function register_ui_actions(input: ActionRegistrationInput) {
 
   registry.register({
     id: ACTION_IDS.ui_toggle_context_rail,
-    label: "Toggle Links Panel",
+    label: "Toggle Context Panel",
     shortcut: "CmdOrCtrl+Shift+L",
     execute: () => {
       stores.ui.toggle_context_rail();
