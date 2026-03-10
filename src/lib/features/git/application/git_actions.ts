@@ -31,6 +31,7 @@ function parse_commit_restore_payload(payload: unknown): CommitRestorePayload {
 
 export function register_git_actions(input: ActionRegistrationInput) {
   const { registry, stores, services } = input;
+  const history_page_size = 20;
 
   function open_version_history_dialog() {
     const note_path = stores.editor.open_note?.meta.path ?? null;
@@ -60,6 +61,22 @@ export function register_git_actions(input: ActionRegistrationInput) {
     stores.ui.checkpoint_dialog = {
       open: false,
       description: "",
+    };
+  }
+
+  function open_add_remote_dialog() {
+    stores.git.set_error(null);
+    stores.ui.add_remote_dialog = {
+      open: true,
+      url: stores.ui.add_remote_dialog.url,
+    };
+  }
+
+  function close_add_remote_dialog() {
+    stores.git.set_error(null);
+    stores.ui.add_remote_dialog = {
+      open: false,
+      url: "",
     };
   }
 
@@ -157,7 +174,18 @@ export function register_git_actions(input: ActionRegistrationInput) {
     label: "Open Version History",
     execute: async () => {
       const note_path = open_version_history_dialog();
-      await services.git.load_history(note_path, 50);
+      await services.git.load_history(note_path, history_page_size);
+    },
+  });
+
+  registry.register({
+    id: ACTION_IDS.git_load_more_history,
+    label: "Load More Version History",
+    execute: async () => {
+      await services.git.load_more_history(
+        stores.ui.version_history_dialog.note_path,
+        history_page_size,
+      );
     },
   });
 
@@ -303,6 +331,22 @@ export function register_git_actions(input: ActionRegistrationInput) {
   });
 
   registry.register({
+    id: ACTION_IDS.git_fetch,
+    label: "Git Fetch",
+    execute: async () => {
+      const toast_id = toast.loading("Fetching...");
+      const result = await services.git.fetch_remote();
+      if (result.success) {
+        toast.success(result.message ?? "Fetched successfully", {
+          id: toast_id,
+        });
+      } else {
+        toast.error(result.error ?? "Fetch failed", { id: toast_id });
+      }
+    },
+  });
+
+  registry.register({
     id: ACTION_IDS.git_pull,
     label: "Git Pull",
     execute: async () => {
@@ -335,21 +379,47 @@ export function register_git_actions(input: ActionRegistrationInput) {
   registry.register({
     id: ACTION_IDS.git_add_remote,
     label: "Add Git Remote",
-    execute: async (payload: unknown) => {
-      const url =
-        typeof payload === "string"
-          ? payload
-          : typeof (payload as Record<string, unknown>)?.url === "string"
-            ? ((payload as Record<string, unknown>).url as string)
-            : "";
-      if (!url) return;
+    execute: () => {
+      if (stores.git.has_remote) {
+        toast.info("A git remote is already configured");
+        return;
+      }
+      open_add_remote_dialog();
+    },
+  });
+
+  registry.register({
+    id: ACTION_IDS.git_update_remote_url,
+    label: "Update Git Remote URL",
+    execute: (url: unknown) => {
+      stores.ui.add_remote_dialog.url = String(url);
+    },
+  });
+
+  registry.register({
+    id: ACTION_IDS.git_confirm_add_remote,
+    label: "Confirm Add Git Remote",
+    execute: async () => {
+      const url = stores.ui.add_remote_dialog.url.trim();
+      if (!url) {
+        return;
+      }
       const toast_id = toast.loading("Adding remote...");
       const result = await services.git.add_remote(url);
       if (result.success) {
-        toast.success("Remote added", { id: toast_id });
+        close_add_remote_dialog();
+        toast.success(result.message ?? "Remote added", { id: toast_id });
       } else {
         toast.error(result.error ?? "Failed to add remote", { id: toast_id });
       }
+    },
+  });
+
+  registry.register({
+    id: ACTION_IDS.git_cancel_add_remote,
+    label: "Cancel Add Git Remote",
+    execute: () => {
+      close_add_remote_dialog();
     },
   });
 }

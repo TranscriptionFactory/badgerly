@@ -13,7 +13,10 @@ describe("GitStore", () => {
     expect(store.error).toBeNull();
     expect(store.history).toEqual([]);
     expect(store.history_note_path).toBeNull();
+    expect(store.history_limit).toBe(0);
+    expect(store.has_more_history).toBe(false);
     expect(store.is_loading_history).toBe(false);
+    expect(store.is_loading_more_history).toBe(false);
     expect(store.selected_commit).toBeNull();
     expect(store.selected_diff).toBeNull();
     expect(store.selected_file_content).toBeNull();
@@ -99,15 +102,111 @@ describe("GitStore", () => {
       },
     ];
     store.set_loading_history(true);
-    store.set_history(commits, "notes/test.md");
+    store.set_history(commits, "notes/test.md", {
+      limit: 20,
+      has_more: true,
+    });
     expect(store.history).toEqual(commits);
     expect(store.history_note_path).toBe("notes/test.md");
+    expect(store.history_limit).toBe(20);
+    expect(store.has_more_history).toBe(true);
     expect(store.is_loading_history).toBe(true);
 
     store.clear_history();
     expect(store.history).toEqual([]);
     expect(store.history_note_path).toBeNull();
+    expect(store.history_limit).toBe(0);
+    expect(store.has_more_history).toBe(false);
     expect(store.is_loading_history).toBe(false);
+  });
+
+  it("restores cached history for a note path", () => {
+    const store = new GitStore();
+    const commits = [
+      {
+        hash: "abc123",
+        short_hash: "abc",
+        author: "test",
+        timestamp_ms: 1000,
+        message: "initial",
+      },
+    ];
+
+    store.set_history(commits, "notes/test.md", {
+      limit: 20,
+      has_more: true,
+    });
+    store.clear_history();
+
+    expect(store.restore_history_from_cache("notes/test.md", 20)).toBe(true);
+    expect(store.history).toEqual(commits);
+    expect(store.history_limit).toBe(20);
+    expect(store.has_more_history).toBe(true);
+  });
+
+  it("preserves selected commit when extending history", () => {
+    const store = new GitStore();
+    const initial_commits = [
+      {
+        hash: "abc123",
+        short_hash: "abc",
+        author: "test",
+        timestamp_ms: 1000,
+        message: "initial",
+      },
+    ];
+    const expanded_commits = [
+      ...initial_commits,
+      {
+        hash: "def456",
+        short_hash: "def",
+        author: "test",
+        timestamp_ms: 2000,
+        message: "follow-up",
+      },
+    ];
+    const diff = { additions: 2, deletions: 1, hunks: [] };
+
+    store.set_history(initial_commits, "notes/test.md", {
+      limit: 20,
+      has_more: true,
+    });
+    const selected_commit = initial_commits[0];
+    if (!selected_commit) {
+      throw new Error("expected seeded commits");
+    }
+    store.set_selected_commit(selected_commit, diff, null);
+    store.set_history(expanded_commits, "notes/test.md", {
+      limit: 40,
+      has_more: false,
+      preserve_selection: true,
+    });
+
+    expect(store.selected_commit?.hash).toBe("abc123");
+    expect(store.selected_diff).toEqual(diff);
+    expect(store.history_limit).toBe(40);
+  });
+
+  it("invalidates cached history", () => {
+    const store = new GitStore();
+    store.set_history(
+      [
+        {
+          hash: "abc123",
+          short_hash: "abc",
+          author: "test",
+          timestamp_ms: 1000,
+          message: "initial",
+        },
+      ],
+      "notes/test.md",
+      { limit: 20, has_more: true },
+    );
+
+    store.invalidate_history_cache();
+
+    expect(store.history).toEqual([]);
+    expect(store.restore_history_from_cache("notes/test.md", 20)).toBe(false);
   });
 
   it("resets all state", () => {
@@ -153,7 +252,10 @@ describe("GitStore", () => {
     expect(store.error).toBeNull();
     expect(store.history).toEqual([]);
     expect(store.history_note_path).toBeNull();
+    expect(store.history_limit).toBe(0);
+    expect(store.has_more_history).toBe(false);
     expect(store.is_loading_history).toBe(false);
+    expect(store.is_loading_more_history).toBe(false);
     expect(store.selected_commit).toBeNull();
     expect(store.selected_diff).toBeNull();
     expect(store.selected_file_content).toBeNull();

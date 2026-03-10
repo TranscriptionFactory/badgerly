@@ -20,11 +20,28 @@ export class GitStore {
 
   history = $state<GitCommit[]>([]);
   history_note_path = $state<string | null>(null);
+  history_limit = $state(0);
+  has_more_history = $state(false);
   is_loading_history = $state(false);
+  is_loading_more_history = $state(false);
   selected_commit = $state<GitCommit | null>(null);
   selected_diff = $state<GitDiff | null>(null);
   selected_file_content = $state<string | null>(null);
   is_loading_diff = $state(false);
+
+  private readonly history_cache = new Map<
+    string,
+    {
+      commits: GitCommit[];
+      note_path: string | null;
+      limit: number;
+      has_more: boolean;
+    }
+  >();
+
+  private history_key_for(note_path: string | null): string {
+    return note_path ?? "__vault__";
+  }
 
   set_status(
     branch: string,
@@ -62,16 +79,74 @@ export class GitStore {
     this.error = error;
   }
 
-  set_history(commits: GitCommit[], note_path: string | null) {
+  set_history(
+    commits: GitCommit[],
+    note_path: string | null,
+    options?: {
+      limit?: number;
+      has_more?: boolean;
+      preserve_selection?: boolean;
+    },
+  ) {
+    const history_limit = options?.limit ?? commits.length;
+    const has_more_history = options?.has_more ?? false;
+    const preserve_selection =
+      options?.preserve_selection === true &&
+      this.history_note_path === note_path &&
+      this.selected_commit !== null;
+    const selected_hash = preserve_selection
+      ? this.selected_commit?.hash
+      : null;
+    const selected_commit =
+      selected_hash === null
+        ? null
+        : (commits.find((commit) => commit.hash === selected_hash) ?? null);
+    const cache_key = this.history_key_for(note_path);
+
     this.history = commits;
     this.history_note_path = note_path;
-    this.selected_commit = null;
-    this.selected_diff = null;
-    this.selected_file_content = null;
+    this.history_limit = history_limit;
+    this.has_more_history = has_more_history;
+    if (selected_commit) {
+      this.selected_commit = selected_commit;
+    } else {
+      this.selected_commit = null;
+      this.selected_diff = null;
+      this.selected_file_content = null;
+    }
+
+    this.is_loading_diff = false;
+
+    this.history_cache.set(cache_key, {
+      commits: [...commits],
+      note_path,
+      limit: history_limit,
+      has_more: has_more_history,
+    });
+  }
+
+  restore_history_from_cache(
+    note_path: string | null,
+    minimum_limit = 0,
+  ): boolean {
+    const cached = this.history_cache.get(this.history_key_for(note_path));
+    if (!cached || cached.limit < minimum_limit) {
+      return false;
+    }
+
+    this.set_history([...cached.commits], cached.note_path, {
+      limit: cached.limit,
+      has_more: cached.has_more,
+    });
+    return true;
   }
 
   set_loading_history(loading: boolean) {
     this.is_loading_history = loading;
+  }
+
+  set_loading_more_history(loading: boolean) {
+    this.is_loading_more_history = loading;
   }
 
   set_selected_commit(
@@ -92,11 +167,19 @@ export class GitStore {
   clear_history() {
     this.history = [];
     this.history_note_path = null;
+    this.history_limit = 0;
+    this.has_more_history = false;
     this.is_loading_history = false;
+    this.is_loading_more_history = false;
     this.selected_commit = null;
     this.selected_diff = null;
     this.selected_file_content = null;
     this.is_loading_diff = false;
+  }
+
+  invalidate_history_cache() {
+    this.history_cache.clear();
+    this.clear_history();
   }
 
   reset() {
@@ -112,12 +195,7 @@ export class GitStore {
     this.sync_status = "idle";
     this.last_commit_time = null;
     this.error = null;
-    this.history = [];
-    this.history_note_path = null;
-    this.is_loading_history = false;
-    this.selected_commit = null;
-    this.selected_diff = null;
-    this.selected_file_content = null;
-    this.is_loading_diff = false;
+    this.clear_history();
+    this.history_cache.clear();
   }
 }

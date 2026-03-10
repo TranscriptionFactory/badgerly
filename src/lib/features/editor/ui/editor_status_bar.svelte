@@ -21,6 +21,7 @@
     git_pending_files: number;
     git_sync_status: GitSyncStatus;
     git_has_remote: boolean;
+    git_is_fetching: boolean;
     git_ahead: number;
     git_behind: number;
     is_repairing_links: boolean;
@@ -29,8 +30,10 @@
     on_vault_click: () => void;
     on_info_click: () => void;
     on_git_click: () => void;
+    on_git_fetch: () => void;
     on_git_push: () => void;
     on_git_pull: () => void;
+    on_git_add_remote: () => void;
     on_sync_click: () => void;
     on_mode_toggle: () => void;
   }
@@ -49,6 +52,7 @@
     git_pending_files,
     git_sync_status,
     git_has_remote,
+    git_is_fetching,
     git_ahead,
     git_behind,
     is_repairing_links,
@@ -57,8 +61,10 @@
     on_vault_click,
     on_info_click,
     on_git_click,
+    on_git_fetch,
     on_git_push,
     on_git_pull,
+    on_git_add_remote,
     on_sync_click,
     on_mode_toggle,
   }: Props = $props();
@@ -193,11 +199,14 @@
         pending_files={git_pending_files}
         sync_status={git_sync_status}
         has_remote={git_has_remote}
+        is_fetching={git_is_fetching}
         ahead={git_ahead}
         behind={git_behind}
         on_click={on_git_click}
+        on_fetch={on_git_fetch}
         on_push={on_git_push}
         on_pull={on_git_pull}
+        on_add_remote={on_git_add_remote}
       />
     {/if}
     <Tooltip.Provider delayDuration={0}>

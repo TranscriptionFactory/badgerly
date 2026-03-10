@@ -71,6 +71,11 @@ function create_mock_port() {
     show_file_at_commit,
     restore_file,
     create_tag,
+    push,
+    fetch,
+    pull,
+    add_remote,
+    push_with_upstream,
   };
 }
 
@@ -290,10 +295,120 @@ describe("GitService", () => {
       },
     ];
     log.mockResolvedValue(commits);
-    await service.load_history("notes/test.md", 50);
+    await service.load_history("notes/test.md", 20);
     expect(git_store.history).toEqual(commits);
     expect(git_store.history_note_path).toBe("notes/test.md");
+    expect(git_store.history_limit).toBe(20);
+    expect(git_store.has_more_history).toBe(false);
     expect(git_store.is_loading_history).toBe(false);
+  });
+
+  it("load_history reuses cached history for the same note", async () => {
+    const { service, log, git_store } = create_harness();
+    const commits = [
+      {
+        hash: "abc",
+        short_hash: "ab",
+        author: "test",
+        timestamp_ms: 100,
+        message: "msg",
+      },
+    ];
+    log.mockResolvedValue(commits);
+
+    await service.load_history("notes/test.md", 20);
+    git_store.clear_history();
+    await service.load_history("notes/test.md", 20);
+
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(git_store.history).toEqual(commits);
+  });
+
+  it("load_more_history requests the next page and preserves selection", async () => {
+    const { service, log, git_store } = create_harness();
+    const initial_commits = Array.from({ length: 20 }, (_, index) => ({
+      hash: `hash-${String(index)}`,
+      short_hash: `h${String(index)}`,
+      author: "test",
+      timestamp_ms: index,
+      message: `commit ${String(index)}`,
+    }));
+    const expanded_commits = Array.from({ length: 40 }, (_, index) => ({
+      hash: `hash-${String(index)}`,
+      short_hash: `h${String(index)}`,
+      author: "test",
+      timestamp_ms: index,
+      message: `commit ${String(index)}`,
+    }));
+    const selected_commit = initial_commits[0];
+    if (!selected_commit) {
+      throw new Error("expected seeded commits");
+    }
+    log
+      .mockResolvedValueOnce(initial_commits)
+      .mockResolvedValueOnce(expanded_commits);
+
+    await service.load_history("notes/test.md", 20);
+    git_store.set_selected_commit(
+      selected_commit,
+      { additions: 1, deletions: 0, hunks: [] },
+      null,
+    );
+
+    await service.load_more_history("notes/test.md", 20);
+
+    expect(log).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      "notes/test.md",
+      40,
+    );
+    expect(git_store.history).toEqual(expanded_commits);
+    expect(git_store.history_limit).toBe(40);
+    expect(git_store.has_more_history).toBe(true);
+    expect(git_store.selected_commit?.hash).toBe("hash-0");
+    expect(git_store.selected_diff).toEqual({
+      additions: 1,
+      deletions: 0,
+      hunks: [],
+    });
+  });
+
+  it("commit_all invalidates cached history after a successful commit", async () => {
+    const { service, status, log, git_store } = create_harness();
+    const commits = [
+      {
+        hash: "abc",
+        short_hash: "ab",
+        author: "test",
+        timestamp_ms: 100,
+        message: "msg",
+      },
+    ];
+    log.mockResolvedValue(commits);
+    status.mockResolvedValue({
+      branch: "main",
+      is_dirty: true,
+      ahead: 0,
+      behind: 0,
+      has_remote: false,
+      has_upstream: false,
+      remote_url: null,
+      files: [{ path: "a.md", status: "modified" }],
+    });
+
+    await service.load_history("notes/test.md", 20);
+    expect(git_store.history).toHaveLength(1);
+
+    await service.commit_all();
+
+    expect(git_store.history).toEqual([]);
+    git_store.clear_history();
+    log.mockClear();
+
+    await service.load_history("notes/test.md", 20);
+
+    expect(log).toHaveBeenCalledTimes(1);
   });
 
   it("get_diff delegates to port", async () => {
@@ -330,6 +445,59 @@ describe("GitService", () => {
     expect(op_store.get("git.restore").status).toBe("success");
     expect(git_store.sync_status).toBe("idle");
     expect(git_store.last_commit_time).toBe(1000);
+    expect(status).toHaveBeenCalled();
+  });
+
+  it("pull invalidates cached history and refreshes status", async () => {
+    const { service, pull, status, log, git_store } = create_harness();
+    log.mockResolvedValue([
+      {
+        hash: "abc",
+        short_hash: "ab",
+        author: "test",
+        timestamp_ms: 100,
+        message: "msg",
+      },
+    ]);
+
+    await service.load_history("notes/test.md", 20);
+    await service.pull();
+
+    expect(pull).toHaveBeenCalledTimes(1);
+    expect(git_store.history).toEqual([]);
+    expect(status).toHaveBeenCalled();
+  });
+
+  it("fetch_remote refreshes status without invalidating cached history", async () => {
+    const { service, fetch, status, log, git_store } = create_harness();
+    const commits = [
+      {
+        hash: "abc",
+        short_hash: "ab",
+        author: "test",
+        timestamp_ms: 100,
+        message: "msg",
+      },
+    ];
+    log.mockResolvedValue(commits);
+
+    await service.load_history("notes/test.md", 20);
+    await service.fetch_remote();
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(git_store.history).toEqual(commits);
+    expect(status).toHaveBeenCalled();
+  });
+
+  it("add_remote refreshes status on success", async () => {
+    const { service, add_remote, status } = create_harness();
+
+    await service.add_remote("git@github.com:otterly/repo.git");
+
+    expect(add_remote).toHaveBeenCalledWith(
+      expect.anything(),
+      "git@github.com:otterly/repo.git",
+    );
     expect(status).toHaveBeenCalled();
   });
 

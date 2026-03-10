@@ -56,12 +56,28 @@ function create_harness() {
       refresh_status: vi.fn().mockResolvedValue(undefined),
       commit_all: vi.fn().mockResolvedValue(undefined),
       load_history: vi.fn().mockResolvedValue(undefined),
+      load_more_history: vi.fn().mockResolvedValue(undefined),
       get_diff: vi
         .fn()
         .mockResolvedValue({ additions: 1, deletions: 0, hunks: [] }),
       get_file_at_commit: vi.fn().mockResolvedValue("# at commit"),
       restore_version: vi.fn().mockResolvedValue(undefined),
       create_checkpoint: vi.fn().mockResolvedValue({ status: "created" }),
+      push: vi
+        .fn()
+        .mockResolvedValue({ success: true, message: null, error: null }),
+      fetch_remote: vi
+        .fn()
+        .mockResolvedValue({ success: true, message: null, error: null }),
+      pull: vi
+        .fn()
+        .mockResolvedValue({ success: true, message: null, error: null }),
+      sync: vi
+        .fn()
+        .mockResolvedValue({ success: true, message: null, error: null }),
+      add_remote: vi
+        .fn()
+        .mockResolvedValue({ success: true, message: null, error: null }),
     },
   };
 
@@ -123,7 +139,22 @@ describe("register_git_actions", () => {
 
     expect(stores.ui.version_history_dialog.open).toBe(true);
     expect(stores.ui.version_history_dialog.note_path).toBe("notes/a.md");
-    expect(services.git.load_history).toHaveBeenCalledWith("notes/a.md", 50);
+    expect(services.git.load_history).toHaveBeenCalledWith("notes/a.md", 20);
+  });
+
+  it("git_load_more_history delegates to service for the active note", async () => {
+    const { registry, stores, services } = create_harness();
+    stores.ui.version_history_dialog = {
+      open: true,
+      note_path: as_note_path("notes/a.md"),
+    };
+
+    await registry.execute(ACTION_IDS.git_load_more_history);
+
+    expect(services.git.load_more_history).toHaveBeenCalledWith(
+      as_note_path("notes/a.md"),
+      20,
+    );
   });
 
   it("git_select_commit stores diff when commit has changes", async () => {
@@ -264,5 +295,108 @@ describe("register_git_actions", () => {
     );
     expect(stores.ui.version_history_dialog.open).toBe(false);
     expect(stores.ui.version_history_dialog.note_path).toBeNull();
+  });
+
+  it("git_add_remote opens dialog when no remote exists", async () => {
+    const { registry, stores } = create_harness();
+
+    await registry.execute(ACTION_IDS.git_add_remote);
+
+    expect(stores.ui.add_remote_dialog).toEqual({
+      open: true,
+      url: "",
+    });
+  });
+
+  it("git_add_remote shows info toast when remote already exists", async () => {
+    const { registry, stores } = create_harness();
+    stores.git.set_status("main", false, 0, true, false, null, 0, 0);
+
+    await registry.execute(ACTION_IDS.git_add_remote);
+
+    expect(toast.info).toHaveBeenCalledWith(
+      "A git remote is already configured",
+    );
+    expect(stores.ui.add_remote_dialog.open).toBe(false);
+  });
+
+  it("git_confirm_add_remote trims url, submits, and closes dialog on success", async () => {
+    const { registry, stores, services } = create_harness();
+    stores.ui.add_remote_dialog = {
+      open: true,
+      url: "  git@github.com:otterly/repo.git  ",
+    };
+
+    await registry.execute(ACTION_IDS.git_confirm_add_remote);
+
+    expect(services.git.add_remote).toHaveBeenCalledWith(
+      "git@github.com:otterly/repo.git",
+    );
+    expect(stores.ui.add_remote_dialog).toEqual({
+      open: false,
+      url: "",
+    });
+    expect(toast.success).toHaveBeenCalledWith("Remote added", {
+      id: "toast-id",
+    });
+  });
+
+  it("git_update_remote_url updates the dialog input state", async () => {
+    const { registry, stores } = create_harness();
+
+    await registry.execute(
+      ACTION_IDS.git_update_remote_url,
+      "git@github.com:otterly/repo.git",
+    );
+
+    expect(stores.ui.add_remote_dialog.url).toBe(
+      "git@github.com:otterly/repo.git",
+    );
+  });
+
+  it("git_confirm_add_remote keeps dialog open on failure", async () => {
+    const { registry, stores, services } = create_harness();
+    services.git.add_remote.mockResolvedValue({
+      success: false,
+      message: null,
+      error: "remote failed",
+    });
+    stores.ui.add_remote_dialog = {
+      open: true,
+      url: "git@github.com:otterly/repo.git",
+    };
+
+    await registry.execute(ACTION_IDS.git_confirm_add_remote);
+
+    expect(stores.ui.add_remote_dialog.open).toBe(true);
+    expect(toast.error).toHaveBeenCalledWith("remote failed", {
+      id: "toast-id",
+    });
+  });
+
+  it("git_cancel_add_remote resets dialog state", async () => {
+    const { registry, stores } = create_harness();
+    stores.ui.add_remote_dialog = {
+      open: true,
+      url: "git@github.com:otterly/repo.git",
+    };
+
+    await registry.execute(ACTION_IDS.git_cancel_add_remote);
+
+    expect(stores.ui.add_remote_dialog).toEqual({
+      open: false,
+      url: "",
+    });
+  });
+
+  it("git_fetch delegates to service and shows success toast", async () => {
+    const { registry, services } = create_harness();
+
+    await registry.execute(ACTION_IDS.git_fetch);
+
+    expect(services.git.fetch_remote).toHaveBeenCalledTimes(1);
+    expect(toast.success).toHaveBeenCalledWith("Fetched successfully", {
+      id: "toast-id",
+    });
   });
 });

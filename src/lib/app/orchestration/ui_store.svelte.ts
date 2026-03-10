@@ -134,6 +134,11 @@ const INITIAL_CHECKPOINT_DIALOG = {
   description: "",
 } as const;
 
+const INITIAL_ADD_REMOTE_DIALOG = {
+  open: false,
+  url: "",
+} as const;
+
 const INITIAL_HOTKEY_RECORDER: HotkeyRecorderState = {
   open: false,
   action_id: null,
@@ -322,6 +327,11 @@ export class UIStore {
     description: string;
   }>({ ...INITIAL_CHECKPOINT_DIALOG });
 
+  add_remote_dialog = $state<{
+    open: boolean;
+    url: string;
+  }>({ ...INITIAL_ADD_REMOTE_DIALOG });
+
   vault_switcher_open = $state(false);
 
   tab_drag_active = $state(false);
@@ -474,6 +484,7 @@ export class UIStore {
     this.tab_close_confirm = { ...INITIAL_TAB_CLOSE_CONFIRM };
     this.version_history_dialog = { ...INITIAL_VERSION_HISTORY_DIALOG };
     this.checkpoint_dialog = { ...INITIAL_CHECKPOINT_DIALOG };
+    this.add_remote_dialog = { ...INITIAL_ADD_REMOTE_DIALOG };
     this.vault_switcher_open = false;
     this.context_rail_open = false;
     this.context_rail_tab = "links";

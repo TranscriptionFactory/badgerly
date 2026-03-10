@@ -20,7 +20,11 @@
   import { SettingsDialog } from "$lib/features/settings";
   import { Omnibar } from "$lib/features/search";
   import { TabCloseConfirmDialog } from "$lib/features/tab";
-  import { VersionHistoryDialog, CheckpointDialog } from "$lib/features/git";
+  import {
+    VersionHistoryDialog,
+    CheckpointDialog,
+    AddRemoteDialog,
+  } from "$lib/features/git";
   import { HotkeyRecorderDialog } from "$lib/features/hotkey";
   import HelpDialog from "$lib/app/bootstrap/ui/help_dialog.svelte";
   import { use_app_context } from "$lib/app/context/app_context.svelte";
@@ -408,6 +412,8 @@
   note_path={stores.ui.version_history_dialog.note_path}
   commits={stores.git.history}
   is_loading={stores.git.is_loading_history}
+  has_more={stores.git.has_more_history}
+  is_loading_more={stores.git.is_loading_more_history}
   is_restoring={stores.op.is_pending("git.restore")}
   selected_commit={stores.git.selected_commit}
   diff={stores.git.selected_diff}
@@ -415,6 +421,8 @@
   on_close={() => void action_registry.execute(ACTION_IDS.git_close_history)}
   on_select_commit={(commit) =>
     void action_registry.execute(ACTION_IDS.git_select_commit, commit)}
+  on_load_more={() =>
+    void action_registry.execute(ACTION_IDS.git_load_more_history)}
   on_restore={(commit) =>
     void action_registry.execute(ACTION_IDS.git_restore_version, commit)}
 />
@@ -432,6 +440,19 @@
     void action_registry.execute(ACTION_IDS.git_confirm_checkpoint)}
   on_cancel={() =>
     void action_registry.execute(ACTION_IDS.git_cancel_checkpoint)}
+/>
+
+<AddRemoteDialog
+  open={stores.ui.add_remote_dialog.open}
+  url={stores.ui.add_remote_dialog.url}
+  is_loading={stores.op.is_pending("git.add_remote")}
+  error={stores.git.error}
+  on_update_url={(value) =>
+    void action_registry.execute(ACTION_IDS.git_update_remote_url, value)}
+  on_confirm={() =>
+    void action_registry.execute(ACTION_IDS.git_confirm_add_remote)}
+  on_cancel={() =>
+    void action_registry.execute(ACTION_IDS.git_cancel_add_remote)}
 />
 
 <HelpDialog

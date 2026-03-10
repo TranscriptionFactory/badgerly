@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { GitBranch, ArrowUp, ArrowDown } from "@lucide/svelte";
+  import {
+    GitBranch,
+    ArrowUp,
+    ArrowDown,
+    RefreshCw,
+    Link,
+  } from "@lucide/svelte";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import type { GitSyncStatus } from "$lib/features/git/types/git";
 
@@ -10,11 +16,14 @@
     pending_files: number;
     sync_status: GitSyncStatus;
     has_remote: boolean;
+    is_fetching: boolean;
     ahead: number;
     behind: number;
     on_click: () => void;
+    on_fetch: () => void;
     on_push: () => void;
     on_pull: () => void;
+    on_add_remote: () => void;
   }
 
   let {
@@ -24,19 +33,24 @@
     pending_files,
     sync_status,
     has_remote,
+    is_fetching,
     ahead,
     behind,
     on_click,
+    on_fetch,
     on_push,
     on_pull,
+    on_add_remote,
   }: Props = $props();
 
   const is_syncing = $derived(
-    sync_status === "committing" ||
+    is_fetching ||
+      sync_status === "committing" ||
       sync_status === "pushing" ||
       sync_status === "pulling",
   );
   const status_label = $derived.by(() => {
+    if (is_fetching) return "Fetching...";
     if (sync_status === "committing") return "Committing...";
     if (sync_status === "pushing") return "Pushing...";
     if (sync_status === "pulling") return "Pulling...";
@@ -80,6 +94,24 @@
                   {...props}
                   type="button"
                   class="GitStatusGroup__btn"
+                  onclick={on_fetch}
+                  disabled={is_syncing}
+                  aria-label="Git fetch"
+                >
+                  <RefreshCw class="GitStatusGroup__btn-icon" />
+                </button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content side="top" sideOffset={4}>Fetch</Tooltip.Content>
+          </Tooltip.Root>
+
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <button
+                  {...props}
+                  type="button"
+                  class="GitStatusGroup__btn"
                   onclick={on_pull}
                   disabled={is_syncing}
                   aria-label="Git pull{behind > 0 ? ` (${behind} behind)` : ''}"
@@ -116,6 +148,31 @@
             </Tooltip.Trigger>
             <Tooltip.Content side="top" sideOffset={4}>
               Push{ahead > 0 ? ` (${ahead} ahead)` : ""}
+            </Tooltip.Content>
+          </Tooltip.Root>
+        </Tooltip.Provider>
+      </div>
+    {:else}
+      <div class="GitStatusGroup__remote">
+        <Tooltip.Provider delayDuration={0}>
+          <Tooltip.Root>
+            <Tooltip.Trigger>
+              {#snippet child({ props })}
+                <button
+                  {...props}
+                  type="button"
+                  class="GitStatusGroup__btn GitStatusGroup__btn--add-remote"
+                  onclick={on_add_remote}
+                  disabled={is_syncing}
+                  aria-label="Add git remote"
+                >
+                  <Link class="GitStatusGroup__btn-icon" />
+                  <span>Add remote</span>
+                </button>
+              {/snippet}
+            </Tooltip.Trigger>
+            <Tooltip.Content side="top" sideOffset={4}>
+              Add remote repository
             </Tooltip.Content>
           </Tooltip.Root>
         </Tooltip.Provider>
@@ -247,5 +304,11 @@
     font-size: var(--text-xs);
     line-height: 1;
     font-feature-settings: "tnum" 1;
+  }
+
+  .GitStatusGroup__btn--add-remote {
+    gap: var(--space-1);
+    padding-inline: var(--space-1-5);
+    font-size: var(--text-xs);
   }
 </style>

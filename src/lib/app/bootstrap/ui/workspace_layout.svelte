@@ -703,6 +703,7 @@
       git_pending_files={is_vault_mode ? stores.git.pending_files : 0}
       git_sync_status={is_vault_mode ? stores.git.sync_status : "idle"}
       git_has_remote={is_vault_mode && stores.git.has_remote}
+      git_is_fetching={is_vault_mode && stores.op.is_pending("git.fetch")}
       git_ahead={is_vault_mode ? stores.git.ahead : 0}
       git_behind={is_vault_mode ? stores.git.behind : 0}
       is_repairing_links={is_vault_mode && stores.op.is_pending("links.repair")}
@@ -714,8 +715,11 @@
       on_info_click={() => (details_dialog_open = true)}
       on_git_click={() =>
         void action_registry.execute(ACTION_IDS.git_open_history)}
+      on_git_fetch={() => void action_registry.execute(ACTION_IDS.git_fetch)}
       on_git_push={() => void action_registry.execute(ACTION_IDS.git_push)}
       on_git_pull={() => void action_registry.execute(ACTION_IDS.git_pull)}
+      on_git_add_remote={() =>
+        void action_registry.execute(ACTION_IDS.git_add_remote)}
       on_sync_click={() =>
         void action_registry.execute(ACTION_IDS.vault_sync_index)}
       editor_mode={stores.editor.editor_mode}

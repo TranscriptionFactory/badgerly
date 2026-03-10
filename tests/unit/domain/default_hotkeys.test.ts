@@ -73,6 +73,10 @@ describe("DEFAULT_HOTKEYS", () => {
     expect(action_ids.has("ui.toggle_sidebar")).toBe(true);
     expect(action_ids.has("tab.close")).toBe(true);
     expect(action_ids.has("find_in_file.toggle")).toBe(true);
+    expect(action_ids.has("git.fetch")).toBe(true);
+    expect(action_ids.has("git.pull")).toBe(true);
+    expect(action_ids.has("git.push")).toBe(true);
+    expect(action_ids.has("git.add_remote")).toBe(true);
   });
 
   it("defaults are loaded on first launch (no overrides)", () => {

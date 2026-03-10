@@ -91,11 +91,17 @@ export class GitService {
 
   private async finish_git_mutation_success(
     op_key: string,
-    options?: { track_last_commit?: boolean },
+    options?: {
+      track_last_commit?: boolean;
+      invalidate_history_cache?: boolean;
+    },
   ): Promise<void> {
     this.git_store.set_sync_status("idle");
     if (options?.track_last_commit) {
       this.git_store.set_last_commit_time(this.now_ms());
+    }
+    if (options?.invalidate_history_cache) {
+      this.git_store.invalidate_history_cache();
     }
     this.op_store.succeed(op_key);
     await this.refresh_status();
@@ -130,6 +136,7 @@ export class GitService {
       await this.git_port.stage_and_commit(vault_path, message, files);
       await this.finish_git_mutation_success(op_key, {
         track_last_commit: true,
+        invalidate_history_cache: true,
       });
       return { status: "committed" };
     } catch (err) {
@@ -254,12 +261,19 @@ export class GitService {
   }
 
   async load_history(note_path: string | null, limit: number) {
+    if (this.git_store.restore_history_from_cache(note_path, limit)) {
+      return;
+    }
+
     const vault_path = this.get_vault_path();
     this.op_store.start("git.history", this.now_ms());
     this.git_store.set_loading_history(true);
     try {
       const commits = await this.git_port.log(vault_path, note_path, limit);
-      this.git_store.set_history(commits, note_path);
+      this.git_store.set_history(commits, note_path, {
+        limit,
+        has_more: commits.length >= limit,
+      });
       this.op_store.succeed("git.history");
     } catch (err) {
       const msg = error_message(err);
@@ -267,6 +281,48 @@ export class GitService {
       this.op_store.fail("git.history", msg);
     } finally {
       this.git_store.set_loading_history(false);
+    }
+  }
+
+  async load_more_history(note_path: string | null, page_size = 20) {
+    if (
+      this.git_store.is_loading_history ||
+      this.git_store.is_loading_more_history
+    ) {
+      return;
+    }
+
+    if (this.git_store.history_note_path !== note_path) {
+      await this.load_history(note_path, page_size);
+      return;
+    }
+
+    if (!this.git_store.has_more_history) {
+      return;
+    }
+
+    const next_limit = this.git_store.history_limit + page_size;
+    const vault_path = this.get_vault_path();
+    this.op_store.start("git.history_more", this.now_ms());
+    this.git_store.set_loading_more_history(true);
+    try {
+      const commits = await this.git_port.log(
+        vault_path,
+        note_path,
+        next_limit,
+      );
+      this.git_store.set_history(commits, note_path, {
+        limit: next_limit,
+        has_more: commits.length >= next_limit,
+        preserve_selection: true,
+      });
+      this.op_store.succeed("git.history_more");
+    } catch (err) {
+      const msg = error_message(err);
+      this.git_store.set_error(msg);
+      this.op_store.fail("git.history_more", msg);
+    } finally {
+      this.git_store.set_loading_more_history(false);
     }
   }
 
@@ -292,6 +348,7 @@ export class GitService {
       await this.git_port.restore_file(vault_path, file_path, commit_hash);
       await this.finish_git_mutation_success("git.restore", {
         track_last_commit: true,
+        invalidate_history_cache: true,
       });
     } catch (err) {
       if (this.is_nothing_to_commit_error(err)) {
@@ -340,6 +397,7 @@ export class GitService {
         return result;
       }
       this.git_store.set_sync_status("idle");
+      this.git_store.invalidate_history_cache();
       this.op_store.succeed("git.pull");
       await this.refresh_status();
       return result;

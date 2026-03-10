@@ -11,12 +11,15 @@
     note_path: string | null;
     commits: GitCommit[];
     is_loading: boolean;
+    has_more: boolean;
+    is_loading_more: boolean;
     is_restoring: boolean;
     selected_commit: GitCommit | null;
     diff: GitDiff | null;
     file_content: string | null;
     on_close: () => void;
     on_select_commit: (commit: GitCommit) => void;
+    on_load_more: () => void;
     on_restore: (commit: GitCommit) => void;
   }
 
@@ -25,12 +28,15 @@
     note_path,
     commits,
     is_loading,
+    has_more,
+    is_loading_more,
     is_restoring,
     selected_commit,
     diff,
     file_content,
     on_close,
     on_select_commit,
+    on_load_more,
     on_restore,
   }: Props = $props();
 </script>
@@ -83,6 +89,18 @@
               </span>
             </button>
           {/each}
+
+          {#if has_more || is_loading_more}
+            <div class="VersionHistory__load-more">
+              <Button
+                variant="outline"
+                disabled={is_loading_more}
+                onclick={on_load_more}
+              >
+                {is_loading_more ? "Loading more..." : "Load more"}
+              </Button>
+            </div>
+          {/if}
         {/if}
       </div>
 
@@ -238,6 +256,12 @@
     font-size: var(--text-xs);
     color: var(--muted-foreground);
     opacity: 0.6;
+  }
+
+  .VersionHistory__load-more {
+    display: flex;
+    justify-content: center;
+    padding-top: var(--space-2);
   }
 
   .VersionHistory__detail {

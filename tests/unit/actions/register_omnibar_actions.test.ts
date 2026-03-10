@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ActionRegistry } from "$lib/app/action_registry/action_registry";
 import { ACTION_IDS } from "$lib/app/action_registry/action_ids";
 import { register_omnibar_actions } from "$lib/features/search/application/omnibar_actions";
+import { COMMANDS_REGISTRY } from "$lib/features/search/domain/search_commands";
 import { UIStore } from "$lib/app/orchestration/ui_store.svelte";
 import { VaultStore } from "$lib/features/vault/state/vault_store.svelte";
 import { NotesStore } from "$lib/features/note/state/note_store.svelte";
@@ -346,5 +347,48 @@ describe("register_omnibar_actions", () => {
     expect(stores.ui.cross_vault_open_confirm.open).toBe(false);
     expect(execute_vault_select).not.toHaveBeenCalled();
     expect(execute_note_open).not.toHaveBeenCalled();
+  });
+
+  it("maps git command palette entries to the matching action ids", async () => {
+    const { registry, stores } = create_omnibar_actions_harness();
+    const action_spies = {
+      [ACTION_IDS.git_push]: vi.fn().mockResolvedValue(undefined),
+      [ACTION_IDS.git_pull]: vi.fn().mockResolvedValue(undefined),
+      [ACTION_IDS.git_fetch]: vi.fn().mockResolvedValue(undefined),
+      [ACTION_IDS.git_add_remote]: vi.fn().mockResolvedValue(undefined),
+    };
+
+    for (const [action_id, execute] of Object.entries(action_spies)) {
+      registry.register({
+        id: action_id,
+        label: action_id,
+        execute,
+      });
+    }
+
+    stores.ui.omnibar = { ...stores.ui.omnibar, open: true };
+
+    const cases = [
+      ["git_push", ACTION_IDS.git_push],
+      ["git_pull", ACTION_IDS.git_pull],
+      ["git_fetch", ACTION_IDS.git_fetch],
+      ["git_add_remote", ACTION_IDS.git_add_remote],
+    ] as const;
+
+    for (const [command_id, action_id] of cases) {
+      const command = COMMANDS_REGISTRY.find((item) => item.id === command_id);
+      if (!command) {
+        throw new Error(`missing command definition for ${command_id}`);
+      }
+
+      await registry.execute(ACTION_IDS.omnibar_confirm_item, {
+        kind: "command",
+        command,
+        score: 1,
+      });
+
+      expect(action_spies[action_id]).toHaveBeenCalledTimes(1);
+      stores.ui.omnibar = { ...stores.ui.omnibar, open: true };
+    }
   });
 });
