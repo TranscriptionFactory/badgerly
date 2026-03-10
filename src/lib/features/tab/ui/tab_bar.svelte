@@ -450,7 +450,7 @@
         onclick={() =>
           void action_registry.execute(ACTION_IDS.ui_toggle_context_rail)}
         aria-pressed={stores.ui.context_rail_open}
-        aria-label="Toggle links panel"
+        aria-label="Toggle context panel"
       >
         <PanelRight class="TabBar__action-icon" />
       </button>

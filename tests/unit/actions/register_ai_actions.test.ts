@@ -92,11 +92,23 @@ describe("register_ai_actions", () => {
     await registry.execute(ACTION_IDS.ai_execute);
 
     expect(ai_store.dialog.open).toBe(false);
+    expect(stores.ui.context_rail_open).toBe(false);
     expect(ai_service.check_cli).not.toHaveBeenCalled();
     expect(ai_service.execute).not.toHaveBeenCalled();
     expect(toast.info).toHaveBeenCalledWith(
       "AI Assistant is disabled in settings",
     );
+  });
+
+  it("opens the AI assistant inside the context rail", async () => {
+    const { registry, stores, ai_store, ai_service } = create_harness();
+
+    await registry.execute(ACTION_IDS.ai_open_assistant);
+
+    expect(stores.ui.context_rail_open).toBe(true);
+    expect(stores.ui.context_rail_tab).toBe("ai");
+    expect(ai_store.dialog.open).toBe(true);
+    expect(ai_service.check_cli).toHaveBeenCalledWith("claude", "claude");
   });
 
   it("updates the active provider from the assistant surface", async () => {
@@ -146,5 +158,43 @@ describe("register_ai_actions", () => {
       status: "completed",
       result: { success: true, output: "# Updated", error: null },
     });
+  });
+
+  it("reopens the rail without resetting the current note session", async () => {
+    const { registry, stores, ai_store, ai_service } = create_harness();
+    ai_service.execute = vi.fn().mockResolvedValue({
+      success: true,
+      output: "# Updated",
+      error: null,
+    });
+
+    await registry.execute(ACTION_IDS.ai_open_assistant);
+    await registry.execute(ACTION_IDS.ai_update_prompt, "Tighten this note");
+    await registry.execute(ACTION_IDS.ai_execute);
+
+    stores.ui.toggle_context_rail();
+    await registry.execute(ACTION_IDS.ai_open_assistant);
+
+    expect(stores.ui.context_rail_open).toBe(true);
+    expect(stores.ui.context_rail_tab).toBe("ai");
+    expect(ai_store.dialog.prompt).toBe("Tighten this note");
+    expect(ai_store.dialog.turns).toHaveLength(1);
+    expect(ai_store.dialog.result).toEqual({
+      success: true,
+      output: "# Updated",
+      error: null,
+    });
+    expect(ai_service.check_cli).toHaveBeenCalledTimes(1);
+  });
+
+  it("resets the AI session and closes the AI panel", async () => {
+    const { registry, stores, ai_store } = create_harness();
+
+    await registry.execute(ACTION_IDS.ai_open_assistant);
+    await registry.execute(ACTION_IDS.ai_close_dialog);
+
+    expect(ai_store.dialog.open).toBe(false);
+    expect(ai_store.dialog.context).toBeNull();
+    expect(stores.ui.context_rail_open).toBe(false);
   });
 });

@@ -92,10 +92,23 @@ Redesign Otterly's AI integration so it feels like one assistant rather than thr
   - `pnpm test` ✅
   - `cargo check` ✅
   - `pnpm format` ✅
+- Began Phase 3 by moving the assistant into the existing right-side context rail instead of keeping it as a blocking modal:
+  - added an `AI` tab to the context rail so the assistant lives beside Links and Outline
+  - rewired `ai.open_assistant` to seed/open the rail instead of mounting a dialog
+  - closing the rail now preserves the current AI session, prompt, history, and latest draft
+  - explicit session reset still clears AI state and closes the rail
+- Refactored the assistant UI into a reusable surface so dialog/panel shells do not duplicate the draft-review logic:
+  - extracted shared assistant content into `ai_assistant_content.svelte`
+  - introduced `ai_assistant_panel.svelte` for the persistent rail-hosted assistant
+  - removed the modal mounting from `app_shell_dialogs.svelte`
+- Added tests for the panel-oriented flow:
+  - opening the assistant now asserts the context rail opens on the `ai` tab
+  - reopening the rail preserves the in-progress session instead of resetting it
+  - resetting the assistant clears session state and closes the panel
 
 ## Open follow-ups
 
-- Add explicit scope switching in the assistant surface
-- Preserve session history across repeated AI runs
-- Add structured diff preview before apply
-- Consider a default backend setting or auto-selection strategy after the unified assistant flow is stable
+- Add hunk-level or partial apply on top of the current diff-first review
+- Consider a default backend setting or auto-selection strategy after the persistent assistant flow is stable
+- Improve sent-context transparency beyond the current selection/full-note summary
+- Consider a structured edit proposal contract once the panel UX is settled

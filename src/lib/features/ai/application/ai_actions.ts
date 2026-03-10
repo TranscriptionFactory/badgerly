@@ -73,7 +73,25 @@ export function register_ai_actions(
 
     const context = services.editor.get_ai_context();
     if (!context) {
+      if (ai_store.dialog.open && ai_store.dialog.context) {
+        input.stores.ui.set_context_rail_tab("ai");
+        return;
+      }
       toast.info("Open a note first to use AI editing");
+      return;
+    }
+
+    input.stores.ui.set_context_rail_tab("ai");
+
+    if (
+      ai_store.dialog.open &&
+      ai_store.dialog.provider === provider &&
+      ai_store.dialog.context?.note_path === context.note_path
+    ) {
+      if (ai_store.dialog.cli_status === "idle") {
+        const revision = ++dialog_revision;
+        await refresh_cli_status(provider, revision);
+      }
       return;
     }
 
@@ -94,6 +112,12 @@ export function register_ai_actions(
   function close_ai_dialog() {
     dialog_revision += 1;
     ai_store.close_dialog();
+    if (
+      input.stores.ui.context_rail_open &&
+      input.stores.ui.context_rail_tab === "ai"
+    ) {
+      input.stores.ui.toggle_context_rail();
+    }
   }
 
   registry.register({
@@ -130,7 +154,7 @@ export function register_ai_actions(
 
   registry.register({
     id: ACTION_IDS.ai_close_dialog,
-    label: "Close AI Dialog",
+    label: "Reset AI Assistant Session",
     execute: () => {
       close_ai_dialog();
     },
