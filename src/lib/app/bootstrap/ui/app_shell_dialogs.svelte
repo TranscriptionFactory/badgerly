@@ -485,6 +485,11 @@
   target={stores.ai.dialog.context?.target ?? "full_note"}
   note_title={stores.ai.dialog.context?.note_title ?? null}
   selection_text={stores.ai.dialog.context?.selection?.text ?? null}
+  original_text={stores.ai.dialog.context
+    ? stores.ai.dialog.context.target === "selection"
+      ? (stores.ai.dialog.context.selection?.text ?? "")
+      : stores.ai.dialog.context.note_markdown
+    : ""}
   is_executing={stores.ai.dialog.is_executing}
   turns={stores.ai.dialog.turns}
   result={stores.ai.dialog.result}

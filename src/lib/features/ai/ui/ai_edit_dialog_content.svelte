@@ -3,6 +3,11 @@
   import * as Select from "$lib/components/ui/select/index.js";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
+  import AiDiffView from "$lib/features/ai/ui/ai_diff_view.svelte";
+  import {
+    create_ai_draft_diff,
+    type AiDraftDiff,
+  } from "$lib/features/ai/domain/ai_diff";
   import {
     AI_PROVIDER_DISPLAY,
     type AiApplyTarget,
@@ -22,6 +27,7 @@
     target: AiApplyTarget;
     note_title: string | null;
     selection_text: string | null;
+    original_text: string;
     is_executing: boolean;
     turns: AiConversationTurn[];
     result: AiExecutionResult | null;
@@ -45,6 +51,7 @@
     target,
     note_title,
     selection_text,
+    original_text,
     is_executing,
     turns,
     result,
@@ -68,6 +75,15 @@
   );
   const selection_preview = $derived(
     selection_text ? selection_text.trim().slice(0, 180) : "",
+  );
+  const draft_diff = $derived<AiDraftDiff | null>(
+    result?.success
+      ? create_ai_draft_diff({
+          original_text,
+          draft_text: result.output,
+          target,
+        })
+      : null,
   );
   const execute_disabled = $derived(
     prompt.trim() === "" ||
@@ -266,14 +282,29 @@
       {#if result}
         {#if result.success}
           <div class="space-y-3">
-            <div
-              class="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground"
-            >
-              Review the generated content before applying it to the note.
-              <span class="ml-1 text-foreground">
-                Backend: {provider_display.name}
-              </span>
+            <div class="flex items-center justify-between gap-3">
+              <div
+                class="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground"
+              >
+                Review the generated content before applying it to the note.
+                <span class="ml-1 text-foreground">
+                  Backend: {provider_display.name}
+                </span>
+              </div>
+              {#if draft_diff}
+                <div class="flex items-center gap-2 text-xs">
+                  <span
+                    class="rounded-md border px-2 py-1 text-emerald-700 dark:text-emerald-400"
+                  >
+                    +{draft_diff.additions}
+                  </span>
+                  <span class="rounded-md border px-2 py-1 text-destructive">
+                    -{draft_diff.deletions}
+                  </span>
+                </div>
+              {/if}
             </div>
+            <AiDiffView diff={draft_diff} />
             <textarea
               class="min-h-80 w-full rounded-md border bg-background px-3 py-2 font-mono text-sm"
               readonly

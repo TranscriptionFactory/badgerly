@@ -82,6 +82,10 @@ Redesign Otterly's AI integration so it feels like one assistant rather than thr
   - each run is now recorded as a session turn with provider, scope, prompt, and result
   - repeated runs now read as one evolving interaction instead of unrelated one-shot edits
   - the latest draft still remains explicit and apply-gated
+- Added diff-first draft review before apply:
+  - successful AI drafts now show a line-based diff against the original selection or note
+  - additions/deletions are surfaced before apply so the draft reads as a proposal, not opaque replacement text
+  - raw draft output is still visible below the diff for exact inspection
 - Additional validation after the Phase 2 slice:
   - `pnpm check` ✅
   - `pnpm lint` ✅

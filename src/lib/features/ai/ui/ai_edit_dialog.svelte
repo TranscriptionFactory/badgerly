@@ -18,6 +18,7 @@
     target: AiApplyTarget;
     note_title: string | null;
     selection_text: string | null;
+    original_text: string;
     is_executing: boolean;
     turns: AiConversationTurn[];
     result: AiExecutionResult | null;
@@ -41,6 +42,7 @@
     target,
     note_title,
     selection_text,
+    original_text,
     is_executing,
     turns,
     result,
@@ -70,6 +72,7 @@
     target,
     note_title,
     selection_text,
+    original_text,
     is_executing,
     turns,
     result,
