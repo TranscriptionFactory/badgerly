@@ -71,6 +71,7 @@ import { mark_escape_plugin } from "./mark_escape_plugin";
 import { slash_command_plugin } from "./slash_command_plugin";
 import { outline_plugin, outline_plugin_key } from "./outline_plugin";
 import { create_file_drop_plugin } from "$lib/features/editor/domain/file_drop_plugin";
+import { normalize_markdown_line_breaks } from "$lib/features/editor/domain/markdown_line_breaks";
 import { error_message } from "$lib/shared/utils/error_message";
 import { count_words } from "$lib/shared/utils/count_words";
 import { create_logger } from "$lib/shared/utils/logger";
@@ -284,11 +285,11 @@ export function create_milkdown_editor_port(args?: {
         on_outline_change,
       } = events;
 
-      let current_markdown = initial_markdown;
+      let current_markdown = normalize_markdown(initial_markdown);
       let current_is_dirty = false;
       let editor: Editor | null = null;
       let outline_timer: ReturnType<typeof setTimeout> | undefined;
-      let is_large_note = is_large_markdown(initial_markdown);
+      let is_large_note = is_large_markdown(current_markdown);
       let current_note_path = note_path;
       let current_vault_id = vault_id;
 
@@ -304,13 +305,13 @@ export function create_milkdown_editor_port(args?: {
       let wiki_suggest_config: WikiSuggestPluginConfig | null = null;
 
       function normalize_markdown(raw: string): string {
-        return raw.includes("\u200B") ? raw.replaceAll("\u200B", "") : raw;
+        return normalize_markdown_line_breaks(raw);
       }
 
       let builder = Editor.make()
         .config((ctx) => {
           ctx.set(rootCtx, root);
-          ctx.set(defaultValueCtx, initial_markdown);
+          ctx.set(defaultValueCtx, current_markdown);
           ctx.set(editorViewOptionsCtx, { editable: () => true });
         })
 
@@ -645,9 +646,10 @@ export function create_milkdown_editor_port(args?: {
         },
         set_markdown(markdown: string) {
           if (!editor) return;
-          is_large_note = is_large_markdown(markdown);
-          current_markdown = markdown;
-          run_editor_action(replaceAll(markdown));
+          const normalized = normalize_markdown(markdown);
+          is_large_note = is_large_markdown(normalized);
+          current_markdown = normalized;
+          run_editor_action(replaceAll(normalized));
           if (!is_large_note) {
             run_editor_action((ctx) => {
               const view = ctx.get(editorViewCtx);
@@ -757,9 +759,12 @@ export function create_milkdown_editor_port(args?: {
               current_markdown = saved_entry.markdown;
               is_large_note = is_large_markdown(current_markdown);
             } else {
+              const normalized_initial_markdown = normalize_markdown(
+                next_config.initial_markdown,
+              );
               let parsed_doc: ProseNode;
               try {
-                parsed_doc = parser(next_config.initial_markdown);
+                parsed_doc = parser(normalized_initial_markdown);
               } catch {
                 parsed_doc =
                   view.state.schema.topNodeType.createAndFill() ??
@@ -773,9 +778,7 @@ export function create_milkdown_editor_port(args?: {
               });
 
               view.updateState(new_state);
-              current_markdown = normalize_markdown(
-                next_config.initial_markdown,
-              );
+              current_markdown = normalized_initial_markdown;
               is_large_note = is_large_markdown(current_markdown);
             }
 

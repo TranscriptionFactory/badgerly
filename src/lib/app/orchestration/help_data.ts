@@ -42,6 +42,7 @@ export const MARKDOWN_SYNTAX: MarkdownSyntaxEntry[] = [
   { label: "Link", syntax: "[text](url)" },
   { label: "Image", syntax: "![alt](url)" },
   { label: "Wiki Link", syntax: "[[note]]" },
+  { label: "Line Break", syntax: "line one\\\\\nline two" },
   { label: "Horizontal Rule", syntax: "---" },
   { label: "Table", syntax: "| A | B |\n|---|---|\n| 1 | 2 |" },
 ];

@@ -18,6 +18,7 @@ import type { VaultStore } from "$lib/features/vault";
 import type { OpStore } from "$lib/app";
 import type { SearchService } from "$lib/features/search";
 import type { OutlineStore } from "$lib/features/outline";
+import { normalize_markdown_line_breaks } from "$lib/features/editor/domain/markdown_line_breaks";
 import { is_draft_note_path } from "$lib/features/note";
 import { error_message } from "$lib/shared/utils/error_message";
 import { create_logger } from "$lib/shared/utils/logger";
@@ -232,9 +233,16 @@ export class EditorService {
     const open_note = this.editor_store.open_note;
     if (!open_note) return null;
 
+    const normalized_markdown = as_markdown_text(
+      normalize_markdown_line_breaks(open_note.markdown),
+    );
+    if (normalized_markdown !== open_note.markdown) {
+      this.editor_store.set_markdown(open_note.meta.id, normalized_markdown);
+    }
+
     return {
       note_id: this.active_note.meta.id,
-      markdown: open_note.markdown,
+      markdown: normalized_markdown,
     };
   }
 
