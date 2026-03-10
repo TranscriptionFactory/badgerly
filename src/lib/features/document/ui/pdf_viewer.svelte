@@ -41,7 +41,7 @@
   let loading = $state(true);
   let error_msg = $state<string | null>(null);
   let page_input_value = $state("1");
-  let rendering = $state(false);
+  let rendering = false;
 
   let search_open = $state(false);
   let search_query = $state("");
