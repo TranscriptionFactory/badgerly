@@ -18,6 +18,7 @@
   import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
   import ListTreeIcon from "@lucide/svelte/icons/list-tree";
   import FileDownIcon from "@lucide/svelte/icons/file-down";
+  import SparklesIcon from "@lucide/svelte/icons/sparkles";
   import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
   import type { OmnibarItem, OmnibarScope } from "$lib/shared/types/search";
   import type { NoteMeta } from "$lib/shared/types/note";
@@ -40,6 +41,7 @@
     "list-tree": ListTreeIcon,
     "refresh-cw": RefreshCwIcon,
     "file-down": FileDownIcon,
+    sparkles: SparklesIcon,
   };
 
   const SCOPES: OmnibarScope[] = ["current_vault", "all_vaults"];

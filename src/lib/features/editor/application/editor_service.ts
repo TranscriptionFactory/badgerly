@@ -6,6 +6,8 @@ import type {
 import type {
   OpenNoteState,
   CursorInfo,
+  EditorAiContext,
+  EditorSelectionSnapshot,
   PastedImagePayload,
 } from "$lib/shared/types/editor";
 import type { MarkdownText, NoteId, NotePath } from "$lib/shared/types/ids";
@@ -128,6 +130,85 @@ export class EditorService {
     this.session?.insert_text_at_cursor(text);
   }
 
+  get_ai_context(): EditorAiContext | null {
+    const open_note = this.editor_store.open_note;
+    if (!open_note) return null;
+
+    const markdown =
+      this.session && this.editor_store.editor_mode === "visual"
+        ? as_markdown_text(this.session.get_markdown())
+        : open_note.markdown;
+
+    if (markdown !== open_note.markdown) {
+      this.editor_store.set_markdown(open_note.meta.id, markdown);
+    }
+
+    const selection =
+      this.editor_store.editor_mode === "source"
+        ? this.editor_store.selection
+        : this.resolve_visual_selection();
+
+    return {
+      note_id: open_note.meta.id,
+      note_path: open_note.meta.path,
+      note_title: open_note.meta.title || open_note.meta.name,
+      markdown,
+      selection,
+    };
+  }
+
+  apply_ai_output(
+    target: "selection" | "full_note",
+    output: string,
+    selection: EditorSelectionSnapshot | null,
+  ): boolean {
+    const open_note = this.editor_store.open_note;
+    if (!open_note) return false;
+
+    if (target === "selection") {
+      if (this.editor_store.editor_mode === "source") {
+        if (!selection || selection.start === null || selection.end === null) {
+          return false;
+        }
+
+        const next_markdown = `${open_note.markdown.slice(0, selection.start)}${output}${open_note.markdown.slice(selection.end)}`;
+        this.editor_store.set_markdown(
+          open_note.meta.id,
+          as_markdown_text(next_markdown),
+        );
+        this.editor_store.set_dirty(open_note.meta.id, true);
+        this.editor_store.set_selection(open_note.meta.id, {
+          text: output,
+          start: selection.start,
+          end: selection.start + output.length,
+        });
+        return true;
+      }
+
+      if (this.session?.replace_selection) {
+        this.session.replace_selection(output);
+        this.editor_store.set_dirty(open_note.meta.id, true);
+        return true;
+      }
+
+      if (this.session) {
+        this.session.insert_text_at_cursor(output);
+        this.editor_store.set_dirty(open_note.meta.id, true);
+        return true;
+      }
+
+      return false;
+    }
+
+    if (this.session && this.editor_store.editor_mode === "visual") {
+      this.session.set_markdown(output);
+    }
+    this.editor_store.set_markdown(open_note.meta.id, as_markdown_text(output));
+    this.editor_store.set_dirty(open_note.meta.id, true);
+    this.editor_store.set_selection(open_note.meta.id, null);
+    return true;
+  }
+
   mark_clean() {
     this.session?.mark_clean();
   }
@@ -178,6 +259,16 @@ export class EditorService {
 
   scroll_to_position(pos: number) {
     this.session?.scroll_to_position?.(pos);
+  }
+
+  private resolve_visual_selection(): EditorSelectionSnapshot | null {
+    const text = this.session?.get_selected_text?.();
+    if (!text || text.trim() === "") return null;
+    return {
+      text,
+      start: null,
+      end: null,
+    };
   }
 
   private next_session_generation(): number {

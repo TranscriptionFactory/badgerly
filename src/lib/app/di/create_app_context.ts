@@ -30,6 +30,7 @@ import {
   register_document_actions,
 } from "$lib/features/document";
 import { register_window_actions } from "$lib/features/window";
+import { AiService, register_ai_actions } from "$lib/features/ai";
 import { WatcherService } from "$lib/features/watcher";
 import { mount_reactors } from "$lib/reactors";
 
@@ -200,6 +201,12 @@ export function create_app_context(input: {
     now_ms,
   );
 
+  const ai_service = new AiService(
+    input.ports.ai,
+    input.ports.settings,
+    stores.vault,
+  );
+
   const base_action_input = {
     registry: action_registry,
     stores: {
@@ -253,6 +260,12 @@ export function create_app_context(input: {
   register_window_actions({
     ...base_action_input,
     window_port: input.ports.window,
+  });
+
+  register_ai_actions({
+    ...base_action_input,
+    ai_store: stores.ai,
+    ai_service,
   });
 
   const cleanup_reactors = mount_reactors({

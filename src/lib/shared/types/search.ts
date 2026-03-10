@@ -16,6 +16,9 @@ export type SearchCommandDefinition = {
     | "git_pull"
     | "git_fetch"
     | "git_add_remote"
+    | "ai_edit_claude"
+    | "ai_edit_codex"
+    | "ai_edit_ollama"
     | "toggle_links_panel"
     | "toggle_outline_panel"
     | "check_for_updates"
@@ -34,7 +37,8 @@ export type SearchCommandDefinition = {
     | "link"
     | "list-tree"
     | "refresh-cw"
-    | "file-down";
+    | "file-down"
+    | "sparkles";
 };
 
 export type SearchSettingDefinition = {

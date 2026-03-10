@@ -1,0 +1,38 @@
+import { describe, expect, it } from "vitest";
+import { build_ai_prompt } from "$lib/features/ai";
+import { as_markdown_text, as_note_path } from "$lib/shared/types/ids";
+
+describe("build_ai_prompt", () => {
+  it("builds a full-note rewrite prompt", () => {
+    const prompt = build_ai_prompt({
+      note_path: as_note_path("docs/demo.md"),
+      note_markdown: as_markdown_text("# Demo\n\nHello"),
+      selection: null,
+      user_prompt: "Make it more concise",
+      target: "full_note",
+    });
+
+    expect(prompt).toContain("Return ONLY the complete edited markdown");
+    expect(prompt).toContain("<current_markdown>");
+    expect(prompt).toContain("Make it more concise");
+  });
+
+  it("builds a selection-only replacement prompt", () => {
+    const prompt = build_ai_prompt({
+      note_path: as_note_path("docs/demo.md"),
+      note_markdown: as_markdown_text("# Demo\n\nHello world"),
+      selection: {
+        text: "Hello world",
+        start: 8,
+        end: 19,
+      },
+      user_prompt: "Turn this into a bullet",
+      target: "selection",
+    });
+
+    expect(prompt).toContain("Return ONLY the replacement text");
+    expect(prompt).toContain("<selected_text>");
+    expect(prompt).toContain("Hello world");
+    expect(prompt).toContain("<full_note_context>");
+  });
+});

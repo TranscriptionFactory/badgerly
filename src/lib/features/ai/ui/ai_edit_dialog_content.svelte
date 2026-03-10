@@ -1,0 +1,228 @@
+<script lang="ts">
+  import * as Dialog from "$lib/components/ui/dialog/index.js";
+  import { Button } from "$lib/components/ui/button";
+  import { Input } from "$lib/components/ui/input";
+  import {
+    AI_PROVIDER_DISPLAY,
+    type AiApplyTarget,
+    type AiCliStatus,
+    type AiExecutionResult,
+    type AiProvider,
+  } from "$lib/features/ai/domain/ai_types";
+
+  type Props = {
+    open: boolean;
+    provider: AiProvider;
+    prompt: string;
+    ollama_model: string;
+    cli_status: AiCliStatus;
+    cli_error: string | null;
+    target: AiApplyTarget;
+    note_title: string | null;
+    selection_text: string | null;
+    is_executing: boolean;
+    result: AiExecutionResult | null;
+    on_open_change: (open: boolean) => void;
+    on_prompt_change: (prompt: string) => void;
+    on_ollama_model_change: (model: string) => void;
+    on_execute: () => void;
+    on_apply: () => void;
+    on_clear_result: () => void;
+  };
+
+  let {
+    open,
+    provider,
+    prompt,
+    ollama_model,
+    cli_status,
+    cli_error,
+    target,
+    note_title,
+    selection_text,
+    is_executing,
+    result,
+    on_open_change,
+    on_prompt_change,
+    on_ollama_model_change,
+    on_execute,
+    on_apply,
+    on_clear_result,
+  }: Props = $props();
+
+  const provider_display = $derived(AI_PROVIDER_DISPLAY[provider]);
+  const selection_preview = $derived(
+    selection_text ? selection_text.trim().slice(0, 180) : "",
+  );
+  const execute_disabled = $derived(
+    prompt.trim() === "" ||
+      is_executing ||
+      cli_status !== "available" ||
+      (provider === "ollama" && ollama_model.trim() === ""),
+  );
+
+  function handle_prompt_keydown(event: KeyboardEvent) {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      if (!execute_disabled) {
+        on_execute();
+      }
+    }
+  }
+</script>
+
+<Dialog.Root {open} onOpenChange={on_open_change}>
+  <Dialog.Content class="max-w-3xl">
+    <Dialog.Header>
+      <Dialog.Title>{provider_display.name} AI Edit</Dialog.Title>
+      <Dialog.Description>
+        {#if note_title}
+          {target === "selection"
+            ? `Editing a selection in ${note_title}`
+            : `Editing ${note_title}`}
+        {:else}
+          AI edit review
+        {/if}
+      </Dialog.Description>
+    </Dialog.Header>
+
+    {#if result}
+      {#if result.success}
+        <div class="space-y-3 py-2">
+          <div
+            class="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground"
+          >
+            Review the generated content before applying it to the note.
+          </div>
+          <textarea
+            class="min-h-80 w-full rounded-md border bg-background px-3 py-2 font-mono text-sm"
+            readonly
+            value={result.output}
+          ></textarea>
+        </div>
+
+        <Dialog.Footer>
+          <Button variant="outline" onclick={on_clear_result}>Back</Button>
+          <Button variant="outline" onclick={() => on_open_change(false)}>
+            Close
+          </Button>
+          <Button onclick={on_apply}>
+            {target === "selection" ? "Apply to Selection" : "Replace Note"}
+          </Button>
+        </Dialog.Footer>
+      {:else}
+        <div class="space-y-3 py-2">
+          <div
+            class="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+          >
+            {result.error ??
+              `${provider_display.name} failed to edit the note.`}
+          </div>
+        </div>
+
+        <Dialog.Footer>
+          <Button variant="outline" onclick={on_clear_result}>Back</Button>
+          <Button variant="outline" onclick={() => on_open_change(false)}>
+            Close
+          </Button>
+        </Dialog.Footer>
+      {/if}
+    {:else}
+      <div class="space-y-4 py-2">
+        {#if cli_status === "checking"}
+          <div
+            class="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground"
+          >
+            Checking for {provider_display.cli_name}…
+          </div>
+        {:else if cli_status === "unavailable"}
+          <div
+            class="rounded-md border border-orange-500/40 bg-orange-500/10 p-3 text-sm text-orange-700 dark:text-orange-400"
+          >
+            <p class="font-medium">{provider_display.cli_name} not found</p>
+            <p>
+              Install it from
+              <a
+                class="font-medium underline underline-offset-4"
+                href={provider_display.install_url}
+                rel="noreferrer"
+                target="_blank"
+              >
+                {provider_display.install_url}
+              </a>
+              and restart Otterly.
+            </p>
+          </div>
+        {:else if cli_status === "error"}
+          <div
+            class="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+          >
+            {cli_error ?? `Failed to check ${provider_display.cli_name}.`}
+          </div>
+        {/if}
+
+        {#if provider === "ollama"}
+          <div class="space-y-2">
+            <label class="text-sm font-medium" for="ai-ollama-model">
+              Ollama model
+            </label>
+            <Input
+              id="ai-ollama-model"
+              value={ollama_model}
+              oninput={(event) =>
+                on_ollama_model_change(event.currentTarget.value)}
+              disabled={is_executing}
+            />
+          </div>
+        {/if}
+
+        <div
+          class="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground"
+        >
+          <p>
+            Scope:
+            <span class="font-medium text-foreground">
+              {target === "selection" ? " selection" : " full note"}
+            </span>
+          </p>
+          {#if target === "selection" && selection_preview}
+            <p
+              class="mt-2 line-clamp-4 whitespace-pre-wrap font-mono text-xs text-muted-foreground"
+            >
+              {selection_preview}
+            </p>
+          {/if}
+        </div>
+
+        <div class="space-y-2">
+          <label class="text-sm font-medium" for="ai-prompt">
+            Instructions
+          </label>
+          <textarea
+            id="ai-prompt"
+            class="min-h-36 w-full rounded-md border bg-background px-3 py-2 text-sm"
+            placeholder="Describe how you want to edit the note…"
+            value={prompt}
+            oninput={(event) => on_prompt_change(event.currentTarget.value)}
+            onkeydown={handle_prompt_keydown}
+            disabled={is_executing || cli_status === "unavailable"}
+          ></textarea>
+          <p class="text-xs text-muted-foreground">
+            Press Cmd/Ctrl+Enter to run.
+          </p>
+        </div>
+      </div>
+
+      <Dialog.Footer>
+        <Button variant="outline" onclick={() => on_open_change(false)}>
+          Cancel
+        </Button>
+        <Button onclick={on_execute} disabled={execute_disabled}>
+          {is_executing
+            ? `Running ${provider_display.name}…`
+            : `Run ${provider_display.name}`}
+        </Button>
+      </Dialog.Footer>
+    {/if}
+  </Dialog.Content>
+</Dialog.Root>

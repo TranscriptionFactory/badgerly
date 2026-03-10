@@ -60,6 +60,10 @@ pub fn run() {
                 .build(),
         )
         .invoke_handler(tauri::generate_handler![
+            features::ai::service::ai_check_cli,
+            features::ai::service::ai_execute_claude,
+            features::ai::service::ai_execute_codex,
+            features::ai::service::ai_execute_ollama,
             features::vault::service::open_vault,
             features::vault::service::open_vault_by_id,
             features::vault::service::open_folder,

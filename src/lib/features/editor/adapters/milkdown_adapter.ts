@@ -637,6 +637,44 @@ export function create_milkdown_editor_port(args?: {
             }
           });
         },
+        replace_selection(text: string) {
+          if (!editor) return;
+          run_editor_action((ctx) => {
+            const view = ctx.get(editorViewCtx);
+            const { state } = view;
+            try {
+              const parser = ctx.get(parserCtx);
+              const doc = parser(text);
+              const tr = state.tr.replaceSelection(
+                new Slice(doc.content, 0, 0),
+              );
+              view.dispatch(tr);
+              view.focus();
+            } catch {
+              const tr = state.tr.insertText(
+                text,
+                state.selection.from,
+                state.selection.to,
+              );
+              view.dispatch(tr.scrollIntoView());
+              view.focus();
+            }
+          });
+        },
+        get_selected_text() {
+          if (!editor) return null;
+          let text: string | null = null;
+          run_editor_action((ctx) => {
+            const view = ctx.get(editorViewCtx);
+            const { from, to } = view.state.selection;
+            if (from === to) {
+              text = null;
+              return;
+            }
+            text = view.state.doc.textBetween(from, to, "\n", "\n");
+          });
+          return text;
+        },
         mark_clean,
         is_dirty() {
           return current_is_dirty;

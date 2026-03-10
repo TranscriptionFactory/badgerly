@@ -33,8 +33,11 @@ function create_open_note(note_path: string, markdown: string): OpenNoteState {
   };
 }
 
-function create_session(initial_markdown: string): EditorSession {
+function create_session(initial_markdown: string): EditorSession & {
+  _set_selected_text(value: string | null): void;
+} {
   let current_markdown = initial_markdown;
+  let selected_text: string | null = null;
   return {
     destroy: vi.fn(),
     set_markdown: vi.fn((markdown: string) => {
@@ -42,6 +45,8 @@ function create_session(initial_markdown: string): EditorSession {
     }),
     get_markdown: vi.fn(() => current_markdown),
     insert_text_at_cursor: vi.fn(),
+    replace_selection: vi.fn(),
+    get_selected_text: vi.fn(() => selected_text),
     mark_clean: vi.fn(),
     is_dirty: vi.fn(() => false),
     focus: vi.fn(),
@@ -50,6 +55,9 @@ function create_session(initial_markdown: string): EditorSession {
     }),
     rename_buffer: vi.fn(),
     close_buffer: vi.fn(),
+    _set_selected_text(value: string | null) {
+      selected_text = value;
+    },
   };
 }
 
@@ -478,5 +486,52 @@ describe("EditorService", () => {
 
     expect(op_store.get("editor.mount").status).toBe("error");
     expect(op_store.get("editor.mount").error).toBe("boom");
+  });
+
+  it("returns AI context with the current visual selection", async () => {
+    const session = create_session("# Alpha");
+    const { service, editor_store } = create_setup(() =>
+      Promise.resolve(session),
+    );
+    const root = {} as HTMLDivElement;
+    const note = create_open_note("docs/alpha.md", "# Alpha");
+
+    editor_store.set_open_note(note);
+    await service.mount({ root, note });
+    session._set_selected_text("Alpha");
+
+    const context = service.get_ai_context();
+
+    expect(context).toMatchObject({
+      note_path: as_note_path("docs/alpha.md"),
+      note_title: "docs/alpha",
+      selection: {
+        text: "Alpha",
+        start: null,
+        end: null,
+      },
+    });
+  });
+
+  it("applies selection-scoped AI output in source mode", () => {
+    const { service, editor_store } = create_setup(() =>
+      Promise.resolve(create_session("# Alpha")),
+    );
+    const note = create_open_note("docs/alpha.md", "Hello world");
+
+    editor_store.set_open_note(note);
+    editor_store.set_editor_mode("source");
+
+    const applied = service.apply_ai_output("selection", "- world", {
+      text: "world",
+      start: 6,
+      end: 11,
+    });
+
+    expect(applied).toBe(true);
+    expect(editor_store.open_note?.markdown).toBe(
+      as_markdown_text("Hello - world"),
+    );
+    expect(editor_store.open_note?.is_dirty).toBe(true);
   });
 });

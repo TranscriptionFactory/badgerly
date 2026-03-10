@@ -1,6 +1,9 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import type { CursorInfo } from "$lib/shared/types/editor";
+  import type {
+    CursorInfo,
+    EditorSelectionSnapshot,
+  } from "$lib/shared/types/editor";
   import type { OutlineHeading } from "$lib/features/outline";
   import { extract_headings_from_markdown } from "$lib/features/editor/domain/extract_headings";
 
@@ -11,6 +14,7 @@
     on_markdown_change: (markdown: string) => void;
     on_dirty_change: (is_dirty: boolean) => void;
     on_cursor_change: (info: CursorInfo) => void;
+    on_selection_change?: (selection: EditorSelectionSnapshot | null) => void;
     on_outline_change?: (headings: OutlineHeading[]) => void;
     on_destroy?: (state: {
       cursor_offset: number;
@@ -25,13 +29,14 @@
     on_markdown_change,
     on_dirty_change,
     on_cursor_change,
+    on_selection_change,
     on_outline_change,
     on_destroy,
   }: Props = $props();
 
   const TAB_SIZE = 4;
 
-  let content = $state(initial_markdown);
+  let content = $state("");
   let textarea_el: HTMLTextAreaElement | undefined = $state();
   let ghost_el: HTMLDivElement | undefined = $state();
 
@@ -74,6 +79,12 @@
     sync_ghost();
   });
 
+  $effect(() => {
+    if (initial_markdown === content) return;
+    content = initial_markdown;
+    on_selection_change?.(compute_selection_snapshot());
+  });
+
   function handle_input() {
     if (store_timer !== null) clearTimeout(store_timer);
     store_timer = setTimeout(() => {
@@ -83,6 +94,7 @@
     }, 50);
 
     on_cursor_change(compute_cursor_info());
+    on_selection_change?.(compute_selection_snapshot());
 
     if (on_outline_change) {
       clearTimeout(outline_timer);
@@ -109,6 +121,19 @@
 
   function handle_select() {
     on_cursor_change(compute_cursor_info());
+    on_selection_change?.(compute_selection_snapshot());
+  }
+
+  function compute_selection_snapshot(): EditorSelectionSnapshot | null {
+    if (!textarea_el) return null;
+    const start = textarea_el.selectionStart;
+    const end = textarea_el.selectionEnd;
+    if (start === end) return null;
+    return {
+      text: content.slice(start, end),
+      start,
+      end,
+    };
   }
 
   onMount(() => {
@@ -136,6 +161,7 @@
         });
       }
     }
+    on_selection_change?.(compute_selection_snapshot());
   });
 
   onDestroy(() => {

@@ -25,6 +25,7 @@
     CheckpointDialog,
     AddRemoteDialog,
   } from "$lib/features/git";
+  import { AiEditDialog } from "$lib/features/ai";
   import { HotkeyRecorderDialog } from "$lib/features/hotkey";
   import HelpDialog from "$lib/app/bootstrap/ui/help_dialog.svelte";
   import { use_app_context } from "$lib/app/context/app_context.svelte";
@@ -453,6 +454,33 @@
     void action_registry.execute(ACTION_IDS.git_confirm_add_remote)}
   on_cancel={() =>
     void action_registry.execute(ACTION_IDS.git_cancel_add_remote)}
+/>
+
+<AiEditDialog
+  open={stores.ai.dialog.open}
+  provider={stores.ai.dialog.provider}
+  prompt={stores.ai.dialog.prompt}
+  ollama_model={stores.ai.dialog.ollama_model}
+  cli_status={stores.ai.dialog.cli_status}
+  cli_error={stores.ai.dialog.cli_error}
+  target={stores.ai.dialog.context?.target ?? "full_note"}
+  note_title={stores.ai.dialog.context?.note_title ?? null}
+  selection_text={stores.ai.dialog.context?.selection?.text ?? null}
+  is_executing={stores.ai.dialog.is_executing}
+  result={stores.ai.dialog.result}
+  on_open_change={(open) => {
+    if (!open) {
+      void action_registry.execute(ACTION_IDS.ai_close_dialog);
+    }
+  }}
+  on_prompt_change={(value) =>
+    void action_registry.execute(ACTION_IDS.ai_update_prompt, value)}
+  on_ollama_model_change={(value) =>
+    void action_registry.execute(ACTION_IDS.ai_update_ollama_model, value)}
+  on_execute={() => void action_registry.execute(ACTION_IDS.ai_execute)}
+  on_apply={() => void action_registry.execute(ACTION_IDS.ai_apply_result)}
+  on_clear_result={() =>
+    void action_registry.execute(ACTION_IDS.ai_clear_result)}
 />
 
 <HelpDialog

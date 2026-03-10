@@ -9,6 +9,7 @@ import type { VaultPort, VaultSettingsPort } from "$lib/features/vault";
 import type { DocumentPort } from "$lib/features/document";
 import type { WindowPort } from "$lib/features/window";
 import type { WatcherPort } from "$lib/features/watcher";
+import type { AiPort } from "$lib/features/ai";
 
 export type Ports = {
   vault: VaultPort;
@@ -25,4 +26,5 @@ export type Ports = {
   document: DocumentPort;
   window: WindowPort;
   watcher: WatcherPort;
+  ai: AiPort;
 };

@@ -11,4 +11,8 @@ export { create_lazy_milkdown_editor_port as create_milkdown_editor_port } from 
 export { default as EditorStatusBar } from "$lib/features/editor/ui/editor_status_bar.svelte";
 export { default as SourceEditor } from "$lib/features/editor/ui/source_editor.svelte";
 export type { EditorMode } from "$lib/features/editor/domain/editor_mode";
+export type {
+  EditorAiContext,
+  EditorSelectionSnapshot,
+} from "$lib/shared/types/editor";
 export { extract_headings_from_markdown } from "$lib/features/editor/domain/extract_headings";

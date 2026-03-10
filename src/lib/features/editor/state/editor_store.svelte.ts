@@ -1,4 +1,8 @@
-import type { OpenNoteState, CursorInfo } from "$lib/shared/types/editor";
+import type {
+  OpenNoteState,
+  CursorInfo,
+  EditorSelectionSnapshot,
+} from "$lib/shared/types/editor";
 import type { NoteId, NotePath } from "$lib/shared/types/ids";
 import { note_name_from_path } from "$lib/shared/utils/path";
 import type { EditorMode } from "$lib/shared/types/editor";
@@ -11,17 +15,20 @@ export class EditorStore {
   editor_mode = $state<EditorMode>("visual");
   cursor_offset = $state(0);
   scroll_fraction = $state(0);
+  selection = $state<EditorSelectionSnapshot | null>(null);
 
   set_open_note(open_note: OpenNoteState) {
     this.open_note = open_note;
     this.cursor = null;
     this.last_saved_at = open_note.meta.mtime_ms || null;
+    this.selection = null;
   }
 
   clear_open_note() {
     this.open_note = null;
     this.cursor = null;
     this.last_saved_at = null;
+    this.selection = null;
   }
 
   set_markdown(note_id: NoteId, markdown: OpenNoteState["markdown"]) {
@@ -107,6 +114,12 @@ export class EditorStore {
     this.cursor = cursor;
   }
 
+  set_selection(note_id: NoteId, selection: EditorSelectionSnapshot | null) {
+    if (!this.open_note) return;
+    if (this.open_note.meta.id !== note_id) return;
+    this.selection = selection;
+  }
+
   set_editor_mode(mode: EditorMode) {
     if (this.editor_mode === mode) return;
     this.editor_mode = mode;
@@ -131,5 +144,6 @@ export class EditorStore {
     this.editor_mode = "visual";
     this.cursor_offset = 0;
     this.scroll_fraction = 0;
+    this.selection = null;
   }
 }

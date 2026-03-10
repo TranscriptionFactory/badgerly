@@ -1,5 +1,5 @@
 import type { NoteDoc } from "$lib/shared/types/note";
-import type { NoteId, NotePath } from "$lib/shared/types/ids";
+import type { MarkdownText, NoteId, NotePath } from "$lib/shared/types/ids";
 
 export type EditorMode = "visual" | "source" | "split";
 
@@ -13,6 +13,20 @@ export type CursorInfo = {
   column: number;
   total_lines: number;
   total_words: number;
+};
+
+export type EditorSelectionSnapshot = {
+  text: string;
+  start: number | null;
+  end: number | null;
+};
+
+export type EditorAiContext = {
+  note_id: NoteId;
+  note_path: NotePath;
+  note_title: string;
+  markdown: MarkdownText;
+  selection: EditorSelectionSnapshot | null;
 };
 
 export type PastedImagePayload = {

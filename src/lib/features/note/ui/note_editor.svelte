@@ -63,6 +63,8 @@
           stores.editor.set_dirty(open_note.meta.id, dirty)}
         on_cursor_change={(cursor) =>
           stores.editor.set_cursor(open_note.meta.id, cursor)}
+        on_selection_change={(selection) =>
+          stores.editor.set_selection(open_note.meta.id, selection)}
         on_outline_change={(headings) => stores.outline?.set_headings(headings)}
         on_destroy={(state) => {
           stores.editor.set_cursor_offset(state.cursor_offset);

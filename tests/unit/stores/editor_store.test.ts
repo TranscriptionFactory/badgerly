@@ -96,4 +96,26 @@ describe("EditorStore", () => {
 
     expect(store.last_saved_at).toBeNull();
   });
+
+  it("tracks and clears selection for the open note", () => {
+    const store = new EditorStore();
+    const note = create_test_note("docs/note", "note");
+
+    store.set_open_note(create_open_note_state(note));
+    store.set_selection(note.id, {
+      text: "note",
+      start: 0,
+      end: 4,
+    });
+
+    expect(store.selection).toEqual({
+      text: "note",
+      start: 0,
+      end: 4,
+    });
+
+    store.clear_open_note();
+
+    expect(store.selection).toBeNull();
+  });
 });

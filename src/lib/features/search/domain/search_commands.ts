@@ -108,6 +108,27 @@ export const COMMANDS_REGISTRY: CommandDefinition[] = [
     icon: "link",
   },
   {
+    id: "ai_edit_claude",
+    label: "AI Edit (Claude)",
+    description: "Edit the current note with Claude Code",
+    keywords: ["ai", "claude", "edit", "rewrite", "assistant", "llm"],
+    icon: "sparkles",
+  },
+  {
+    id: "ai_edit_codex",
+    label: "AI Edit (Codex)",
+    description: "Edit the current note with Codex",
+    keywords: ["ai", "codex", "edit", "rewrite", "assistant", "llm"],
+    icon: "sparkles",
+  },
+  {
+    id: "ai_edit_ollama",
+    label: "AI Edit (Ollama)",
+    description: "Edit the current note with a local Ollama model",
+    keywords: ["ai", "ollama", "edit", "rewrite", "assistant", "llm", "local"],
+    icon: "sparkles",
+  },
+  {
     id: "toggle_links_panel",
     label: "Toggle Links Panel",
     description: "Show or hide backlinks and outlinks panel",
