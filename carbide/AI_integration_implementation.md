@@ -105,10 +105,18 @@ Redesign Otterly's AI integration so it feels like one assistant rather than thr
   - opening the assistant now asserts the context rail opens on the `ai` tab
   - reopening the rail preserves the in-progress session instead of resetting it
   - resetting the assistant clears session state and closes the panel
+- Added partial-apply controls on top of the diff-first review:
+  - split AI diffs into separate hunks when edits are far apart
+  - let users select which change groups to apply
+  - generate a partial draft preview from the selected hunks before apply
+  - route partial apply through the same explicit editor apply boundary
+- Added focused tests for:
+  - diff hunk splitting and partial draft reconstruction
+  - applying an AI result override through the assistant action path
 
 ## Open follow-ups
 
-- Add hunk-level or partial apply on top of the current diff-first review
 - Consider a default backend setting or auto-selection strategy after the persistent assistant flow is stable
 - Improve sent-context transparency beyond the current selection/full-note summary
 - Consider a structured edit proposal contract once the panel UX is settled
+- Consider preserving hunk selections across panel hide/show cycles if users need longer review sessions

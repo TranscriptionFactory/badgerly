@@ -4,6 +4,7 @@
   import { Input } from "$lib/components/ui/input";
   import AiDiffView from "$lib/features/ai/ui/ai_diff_view.svelte";
   import {
+    apply_ai_draft_hunk_selection,
     create_ai_draft_diff,
     type AiDraftDiff,
   } from "$lib/features/ai/domain/ai_diff";
@@ -37,7 +38,7 @@
     on_prompt_change: (prompt: string) => void;
     on_ollama_model_change: (model: string) => void;
     on_execute: () => void;
-    on_apply: () => void;
+    on_apply: (output?: string) => void;
     on_clear_result: () => void;
     on_close: () => void;
   };
@@ -102,6 +103,39 @@
       cli_status !== "available" ||
       (provider === "ollama" && ollama_model.trim() === ""),
   );
+  let selected_hunk_ids = $state<string[]>([]);
+  let last_diff_signature = $state("");
+  const selected_output = $derived(
+    draft_diff
+      ? apply_ai_draft_hunk_selection({
+          diff: draft_diff,
+          selected_hunk_ids,
+        })
+      : null,
+  );
+  const partial_selection_active = $derived(
+    draft_diff !== null &&
+      draft_diff.hunks.length > 1 &&
+      selected_hunk_ids.length > 0 &&
+      selected_hunk_ids.length < draft_diff.hunks.length,
+  );
+
+  $effect(() => {
+    const signature = draft_diff
+      ? `${result?.output ?? ""}::${draft_diff.hunks.map((hunk) => hunk.id).join(",")}`
+      : "";
+
+    if (signature === last_diff_signature) {
+      return;
+    }
+
+    last_diff_signature = signature;
+    selected_hunk_ids.splice(
+      0,
+      selected_hunk_ids.length,
+      ...(draft_diff ? draft_diff.hunks.map((hunk) => hunk.id) : []),
+    );
+  });
 
   function handle_prompt_keydown(event: KeyboardEvent) {
     if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
@@ -110,6 +144,36 @@
         on_execute();
       }
     }
+  }
+
+  function toggle_hunk(hunk_id: string) {
+    const index = selected_hunk_ids.indexOf(hunk_id);
+    if (index >= 0) {
+      selected_hunk_ids.splice(index, 1);
+      return;
+    }
+
+    selected_hunk_ids.push(hunk_id);
+  }
+
+  function select_all_hunks() {
+    if (!draft_diff) {
+      return;
+    }
+
+    selected_hunk_ids.splice(
+      0,
+      selected_hunk_ids.length,
+      ...draft_diff.hunks.map((hunk) => hunk.id),
+    );
+  }
+
+  function clear_hunk_selection() {
+    selected_hunk_ids.splice(0, selected_hunk_ids.length);
+  }
+
+  function apply_current_selection() {
+    on_apply(selected_output ?? undefined);
   }
 </script>
 
@@ -301,11 +365,31 @@
               </div>
             {/if}
           </div>
-          <AiDiffView diff={draft_diff} />
+          {#if draft_diff && draft_diff.hunks.length > 1}
+            <div
+              class="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground"
+            >
+              Select the change groups you want to apply. Unselected hunks keep
+              the original note content.
+            </div>
+          {/if}
+          <AiDiffView
+            diff={draft_diff}
+            {selected_hunk_ids}
+            on_toggle_hunk={draft_diff && draft_diff.hunks.length > 1
+              ? toggle_hunk
+              : undefined}
+            on_select_all={draft_diff && draft_diff.hunks.length > 1
+              ? select_all_hunks
+              : undefined}
+            on_clear_selection={draft_diff && draft_diff.hunks.length > 1
+              ? clear_hunk_selection
+              : undefined}
+          />
           <textarea
             class="min-h-80 w-full rounded-md border bg-background px-3 py-2 font-mono text-sm"
             readonly
-            value={result.output}
+            value={selected_output ?? result.output}
           ></textarea>
         </div>
       {:else}
@@ -324,8 +408,15 @@
     {/if}
     <Button variant="outline" onclick={on_close}>{close_label}</Button>
     {#if result?.success}
-      <Button onclick={on_apply}>
-        {target === "selection" ? "Apply to Selection" : "Replace Note"}
+      <Button
+        onclick={apply_current_selection}
+        disabled={draft_diff ? selected_hunk_ids.length === 0 : false}
+      >
+        {#if partial_selection_active}
+          Apply Selected Changes
+        {:else}
+          {target === "selection" ? "Apply to Selection" : "Replace Note"}
+        {/if}
       </Button>
     {/if}
     <Button onclick={on_execute} disabled={execute_disabled}>

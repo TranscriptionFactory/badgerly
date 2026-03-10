@@ -275,13 +275,17 @@ export function register_ai_actions(
   registry.register({
     id: ACTION_IDS.ai_apply_result,
     label: "Apply AI Result",
-    execute: () => {
+    execute: (output_override: unknown) => {
       const dialog = ai_store.dialog;
       if (!dialog.open || !dialog.context || !dialog.result?.success) return;
+      const output =
+        typeof output_override === "string"
+          ? output_override
+          : dialog.result.output;
 
       const applied = services.editor.apply_ai_output(
         dialog.context.target,
-        dialog.result.output,
+        output,
         dialog.context.selection,
       );
 

@@ -1,18 +1,78 @@
 <script lang="ts">
+  import { Button } from "$lib/components/ui/button";
   import type { AiDraftDiff } from "$lib/features/ai/domain/ai_diff";
 
   type Props = {
     diff: AiDraftDiff | null;
+    selected_hunk_ids?: string[] | undefined;
+    on_toggle_hunk?: ((hunk_id: string) => void) | undefined;
+    on_select_all?: (() => void) | undefined;
+    on_clear_selection?: (() => void) | undefined;
   };
 
-  let { diff }: Props = $props();
+  let {
+    diff,
+    selected_hunk_ids = [],
+    on_toggle_hunk,
+    on_select_all,
+    on_clear_selection,
+  }: Props = $props();
+
+  function is_selected(hunk_id: string) {
+    return selected_hunk_ids.includes(hunk_id);
+  }
 </script>
 
 {#if diff && diff.hunks.length > 0}
   <div class="AiDiffView">
+    {#if on_toggle_hunk && diff.hunks.length > 1}
+      <div class="AiDiffView__controls">
+        <span class="AiDiffView__controls-label">
+          {selected_hunk_ids.length} of {diff.hunks.length} change groups selected
+        </span>
+        <div class="AiDiffView__controls-actions">
+          <Button variant="ghost" size="sm" onclick={on_select_all}>
+            Select All
+          </Button>
+          <Button variant="ghost" size="sm" onclick={on_clear_selection}>
+            Clear
+          </Button>
+        </div>
+      </div>
+    {/if}
     {#each diff.hunks as hunk}
       <div class="AiDiffView__hunk">
-        <div class="AiDiffView__header">{hunk.header}</div>
+        <div class="AiDiffView__header">
+          <div class="AiDiffView__header-copy">
+            {#if on_toggle_hunk}
+              <label class="AiDiffView__toggle">
+                <input
+                  type="checkbox"
+                  checked={is_selected(hunk.id)}
+                  onchange={() => on_toggle_hunk(hunk.id)}
+                />
+                <span>Apply</span>
+              </label>
+            {/if}
+            <span>{hunk.header}</span>
+          </div>
+          <div class="AiDiffView__summary">
+            {#if hunk.additions > 0}
+              <span
+                class="AiDiffView__summary-chip AiDiffView__summary-chip--addition"
+              >
+                +{hunk.additions}
+              </span>
+            {/if}
+            {#if hunk.deletions > 0}
+              <span
+                class="AiDiffView__summary-chip AiDiffView__summary-chip--deletion"
+              >
+                -{hunk.deletions}
+              </span>
+            {/if}
+          </div>
+        </div>
         {#each hunk.lines as line}
           <div
             class="AiDiffView__line"
@@ -60,6 +120,28 @@
     font-size: var(--text-sm);
   }
 
+  .AiDiffView__controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border);
+    background-color: color-mix(in oklch, var(--muted) 55%, transparent);
+  }
+
+  .AiDiffView__controls-label {
+    color: var(--muted-foreground);
+    font-family: var(--font-sans, sans-serif);
+    font-size: var(--text-xs);
+  }
+
+  .AiDiffView__controls-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
   .AiDiffView__hunk {
     border-bottom: 1px solid var(--border);
   }
@@ -69,11 +151,53 @@
   }
 
   .AiDiffView__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
     padding: var(--space-1) var(--space-3);
     background-color: var(--muted);
     color: var(--muted-foreground);
     font-size: var(--text-xs);
     user-select: none;
+  }
+
+  .AiDiffView__header-copy {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-width: 0;
+  }
+
+  .AiDiffView__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-family: var(--font-sans, sans-serif);
+    color: var(--foreground);
+  }
+
+  .AiDiffView__summary {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .AiDiffView__summary-chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0 var(--space-1);
+    font-family: var(--font-sans, sans-serif);
+  }
+
+  .AiDiffView__summary-chip--addition {
+    color: oklch(0.62 0.17 149);
+  }
+
+  .AiDiffView__summary-chip--deletion {
+    color: var(--destructive);
   }
 
   .AiDiffView__line {

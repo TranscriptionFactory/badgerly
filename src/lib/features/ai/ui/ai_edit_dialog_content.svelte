@@ -29,7 +29,7 @@
     on_prompt_change: (prompt: string) => void;
     on_ollama_model_change: (model: string) => void;
     on_execute: () => void;
-    on_apply: () => void;
+    on_apply: (output?: string) => void;
     on_clear_result: () => void;
   };
 

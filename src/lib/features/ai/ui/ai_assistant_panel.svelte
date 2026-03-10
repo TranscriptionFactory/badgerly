@@ -74,7 +74,8 @@
     on_ollama_model_change={(value) =>
       void action_registry.execute(ACTION_IDS.ai_update_ollama_model, value)}
     on_execute={() => void action_registry.execute(ACTION_IDS.ai_execute)}
-    on_apply={() => void action_registry.execute(ACTION_IDS.ai_apply_result)}
+    on_apply={(output) =>
+      void action_registry.execute(ACTION_IDS.ai_apply_result, output)}
     on_clear_result={() =>
       void action_registry.execute(ACTION_IDS.ai_clear_result)}
     on_close={hide_panel}

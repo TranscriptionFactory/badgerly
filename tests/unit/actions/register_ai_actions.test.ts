@@ -197,4 +197,24 @@ describe("register_ai_actions", () => {
     expect(ai_store.dialog.context).toBeNull();
     expect(stores.ui.context_rail_open).toBe(false);
   });
+
+  it("applies a partial draft when the assistant provides an output override", async () => {
+    const { registry, services, ai_service } = create_harness();
+    ai_service.execute = vi.fn().mockResolvedValue({
+      success: true,
+      output: "# Updated\nLine 2\nLine 3",
+      error: null,
+    });
+
+    await registry.execute(ACTION_IDS.ai_open_assistant);
+    await registry.execute(ACTION_IDS.ai_update_prompt, "Refine this note");
+    await registry.execute(ACTION_IDS.ai_execute);
+    await registry.execute(ACTION_IDS.ai_apply_result, "# Updated\nLine 2");
+
+    expect(services.editor.apply_ai_output).toHaveBeenCalledWith(
+      "full_note",
+      "# Updated\nLine 2",
+      null,
+    );
+  });
 });
