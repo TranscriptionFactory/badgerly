@@ -72,6 +72,8 @@ Likely touch points:
 
 ### Phase 3: local file link handling
 
+Status: in progress
+
 - stop dead-clicking local non-note links
 - route local files to:
   - document viewer when supported
@@ -105,7 +107,10 @@ Likely touch points:
 
 ## Immediate implementation in this change
 
-- Phase 1 only
+- Phase 1 shipped
+- Phase 2 shipped
+- Phase 3 started:
+  - rendered Markdown links now allow local file targets
+  - supported local files open in the document viewer
+  - unsupported local files open via the system default app
 - no migration assistant yet
-- no local file click support yet
-- no editor metadata split yet
