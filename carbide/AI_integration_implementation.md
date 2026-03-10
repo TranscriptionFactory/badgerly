@@ -118,9 +118,18 @@ Redesign Otterly's AI integration so it feels like one assistant rather than thr
   - users can expand a payload preview to inspect the exact source text before running the assistant
   - selection mode still keeps a compact inline preview when the payload drawer is collapsed
 - Added a pure context-preview helper with unit tests so the trust metadata stays deterministic and easy to evolve
+- Added backend defaults and auto-selection:
+  - new `ai_default_backend` setting supports `Auto`, `Claude`, `Codex`, or `Ollama`
+  - `Auto` probes available CLIs in a fixed priority order and opens the assistant on the first available backend
+  - explicit backend defaults do not silently fall back, so availability problems remain visible and predictable
+  - existing in-session provider switching still works and persists for the active session
+- Added tests for:
+  - backend-order and auto-selection helper behavior
+  - assistant open flow honoring configured defaults and auto fallback
+  - global settings load/save behavior for the new default-backend key
 
 ## Open follow-ups
 
-- Consider a default backend setting or auto-selection strategy after the persistent assistant flow is stable
 - Consider a structured edit proposal contract once the panel UX is settled
 - Consider preserving hunk selections across panel hide/show cycles if users need longer review sessions
+- Consider showing a small “Auto-selected backend” hint the first time the assistant opens in auto mode
