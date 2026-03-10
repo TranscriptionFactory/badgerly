@@ -1,8 +1,8 @@
 {
-  "name": "otterly",
+  "name": "otterly-carbide",
   "private": true,
   "type": "module",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "packageManager": "pnpm@10.27.0",
   "engines": {
     "node": ">=20"
