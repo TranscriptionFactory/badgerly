@@ -62,7 +62,7 @@ function call_handle_text_input(
 }
 
 describe("create_paired_delimiter_prose_plugin", () => {
-  it("autocompletes wiki link delimiters after a second opening bracket", () => {
+  it("waits for a second opening bracket before expanding a wiki link", () => {
     const schema = create_schema();
     const plugin = create_paired_delimiter_prose_plugin();
     const state = EditorState.create({
@@ -75,7 +75,7 @@ describe("create_paired_delimiter_prose_plugin", () => {
     expect(call_handle_text_input(plugin, view, 1, 1, "[")).toBe(true);
     expect(
       view.state.doc.textBetween(1, view.state.doc.content.size, "\n"),
-    ).toBe("[]");
+    ).toBe("[");
     expect(view.state.selection.from).toBe(2);
 
     expect(
