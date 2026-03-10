@@ -795,6 +795,77 @@ describe("NoteService", () => {
     expect(op_store.get("note.save").status).not.toBe("failed");
   });
 
+  it("saves markdown notes in browse mode without requiring the search index", async () => {
+    const vault_store = new VaultStore();
+    const notes_store = new NotesStore();
+    const editor_store = new EditorStore();
+    const op_store = new OpStore();
+    vault_store.set_vault(create_test_vault({ mode: "browse" }));
+
+    editor_store.set_open_note({
+      meta: {
+        id: as_note_path("docs/alpha.md"),
+        path: as_note_path("docs/alpha.md"),
+        name: "alpha",
+        title: "alpha",
+        mtime_ms: 1_700_000_000_000,
+        size_bytes: 0,
+      },
+      markdown: as_markdown_text("# Alpha"),
+      buffer_id: "alpha-buffer",
+      is_dirty: true,
+    });
+
+    const notes_port = create_mock_notes_port();
+    const write_note = vi.fn().mockResolvedValue(1_700_000_000_500);
+    notes_port.write_note = write_note;
+
+    const index_port = create_mock_index_port();
+    const upsert_note = vi
+      .fn()
+      .mockRejectedValue(new Error("vault worker not found"));
+    index_port.upsert_note = upsert_note;
+
+    const assets_port = {
+      resolve_asset_url: vi.fn(),
+      write_image_asset: vi.fn(),
+    } as unknown as AssetsPort;
+    const editor_service = {
+      flush: vi.fn().mockReturnValue(null),
+      mark_clean: vi.fn(),
+      rename_buffer: vi.fn(),
+    } as unknown as EditorService;
+
+    const service = new NoteService(
+      notes_port,
+      index_port,
+      assets_port,
+      vault_store,
+      notes_store,
+      editor_store,
+      op_store,
+      editor_service,
+      () => 1,
+    );
+
+    const result = await service.save_note(null, true);
+
+    expect(result).toEqual({
+      status: "saved",
+      saved_path: as_note_path("docs/alpha.md"),
+    });
+    expect(write_note.mock.calls).toEqual([
+      [
+        vault_store.vault?.id,
+        as_note_path("docs/alpha.md"),
+        as_markdown_text("# Alpha"),
+        1_700_000_000_000,
+      ],
+    ]);
+    expect(upsert_note.mock.calls).toEqual([]);
+    expect(editor_store.open_note?.is_dirty).toBe(false);
+  });
+
   it("saves untitled note to a new path", async () => {
     const vault_store = new VaultStore();
     const notes_store = new NotesStore();

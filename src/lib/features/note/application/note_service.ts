@@ -96,6 +96,15 @@ export class NoteService {
     return this.vault_store.vault?.id ?? null;
   }
 
+  private async run_index_update(
+    operation: () => Promise<void>,
+  ): Promise<void> {
+    if (!this.vault_store.is_vault_mode) {
+      return;
+    }
+    await operation();
+  }
+
   private start_operation(operation_key: string): void {
     this.op_store.start(operation_key, this.now_ms());
   }
@@ -119,6 +128,10 @@ export class NoteService {
     vault_id: VaultId,
     path_map: Map<string, string>,
   ): Promise<void> {
+    if (!this.vault_store.is_vault_mode) {
+      return;
+    }
+
     await run_link_repair_operation({
       link_repair: this.link_repair,
       vault_id,
@@ -158,7 +171,9 @@ export class NoteService {
           path,
           as_markdown_text(""),
         );
-        await this.index_port.upsert_note(vault_id, meta.id);
+        await this.run_index_update(() =>
+          this.index_port.upsert_note(vault_id, meta.id),
+        );
         return { meta, markdown: as_markdown_text("") };
       } catch (create_error) {
         if (error_message(create_error).includes("note already exists")) {
@@ -217,7 +232,13 @@ export class NoteService {
 
       this.apply_opened_note(doc, options);
       if (options?.force_reload) {
-        await this.index_port.upsert_note(vault_id, resolved_path);
+        const opened_path = resolved_path;
+        if (!opened_path) {
+          throw new Error("resolved note path missing after open");
+        }
+        await this.run_index_update(() =>
+          this.index_port.upsert_note(vault_id, opened_path),
+        );
       }
       this.succeed_operation(op_key);
       return this.open_note_result(resolved_path);
@@ -304,7 +325,9 @@ export class NoteService {
 
     try {
       await this.notes_port.delete_note(vault_id, note.id);
-      await this.index_port.remove_note(vault_id, note.id);
+      await this.run_index_update(() =>
+        this.index_port.remove_note(vault_id, note.id),
+      );
 
       const is_open_note = this.editor_store.open_note?.meta.id === note.id;
       this.notes_store.remove_note(note.id);
@@ -357,7 +380,9 @@ export class NoteService {
         new_path,
         overwrite,
       );
-      await this.index_port.rename_note_path(vault_id, note.id, new_path);
+      await this.run_index_update(() =>
+        this.index_port.rename_note_path(vault_id, note.id, new_path),
+      );
 
       const path_map = new Map([[note.id as string, new_path as string]]);
       await this.run_link_repair(vault_id, path_map);
@@ -518,14 +543,16 @@ export class NoteService {
     vault_id: VaultId,
     note_path: NotePath,
   ) {
-    await this.index_port
-      .remove_note(vault_id, note_path)
-      .catch((error: unknown) => {
-        log.error("Stale index cleanup failed", {
-          path: String(note_path),
-          error,
-        });
-      });
+    await this.run_index_update(() =>
+      this.index_port
+        .remove_note(vault_id, note_path)
+        .catch((error: unknown) => {
+          log.error("Stale index cleanup failed", {
+            path: String(note_path),
+            error,
+          });
+        }),
+    );
     this.notes_store.remove_note(note_path);
     this.notes_store.remove_recent_note(note_path);
   }
@@ -620,7 +647,9 @@ export class NoteService {
       open_note.markdown,
       open_note.meta.mtime_ms ?? undefined,
     );
-    await this.index_port.upsert_note(vault_id, open_note.meta.id);
+    await this.run_index_update(() =>
+      this.index_port.upsert_note(vault_id, open_note.meta.id),
+    );
     this.editor_store.mark_clean(open_note.meta.id, new_mtime);
   }
 
@@ -690,7 +719,9 @@ export class NoteService {
         target_path,
         open_note.markdown,
       );
-      await this.index_port.upsert_note(vault_id, created_meta.id);
+      await this.run_index_update(() =>
+        this.index_port.upsert_note(vault_id, created_meta.id),
+      );
       this.notes_store.add_note(created_meta);
       this.editor_service.rename_buffer(old_path, target_path);
       this.editor_store.update_open_note_path(target_path);
@@ -712,7 +743,9 @@ export class NoteService {
       target_path,
       open_note.markdown,
     );
-    await this.index_port.upsert_note(vault_id, target_path);
+    await this.run_index_update(() =>
+      this.index_port.upsert_note(vault_id, target_path),
+    );
     const written = await this.notes_port.read_note(vault_id, target_path);
     this.notes_store.add_note(written.meta);
     this.editor_service.rename_buffer(old_path, target_path);
@@ -751,7 +784,9 @@ export class NoteService {
     }
 
     await this.notes_port.delete_note(vault_id, to_path);
-    await this.index_port.remove_note(vault_id, to_path);
+    await this.run_index_update(() =>
+      this.index_port.remove_note(vault_id, to_path),
+    );
     this.notes_store.remove_note(to_path);
     this.notes_store.remove_recent_note(to_path);
     await this.notes_port.rename_note(vault_id, from_path, to_path);
