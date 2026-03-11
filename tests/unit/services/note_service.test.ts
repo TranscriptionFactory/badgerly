@@ -112,7 +112,7 @@ describe("NoteService", () => {
     const notes_port = create_mock_notes_port();
     notes_port.read_note = vi.fn().mockResolvedValue({
       meta: note_meta,
-      markdown: as_markdown_text("one\\\ntwo"),
+      markdown: as_markdown_text("one<br />\ntwo"),
     });
 
     const index_port = create_mock_index_port();
@@ -142,7 +142,7 @@ describe("NoteService", () => {
     await service.open_note("docs/alpha.md", false);
 
     expect(editor_store.open_note?.markdown).toBe(
-      as_markdown_text("one<br />\ntwo"),
+      as_markdown_text("one\\\ntwo"),
     );
   });
 
