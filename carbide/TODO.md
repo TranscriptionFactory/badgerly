@@ -13,6 +13,14 @@
 - [x] Verify `cargo tauri dev` builds and runs cleanly
 - [ ] Rebrand: app name, window title, asset URI scheme, config paths
 
+## Cross-cutting otterly-carbide compatibility guardrails
+
+- [ ] Keep note storage Obsidian-flavored Markdown and add a WYSIWYG table editing helper instead of inventing a proprietary table format
+- [ ] Keep JSON Canvas explicitly on the roadmap as a storage format, while shipping Excalidraw-only canvas support for now
+- [ ] Build a vault-wide alphanumeric suffix-link index with rename-safe backlink rewrites and homonym disambiguation via shortest required prefixes plus synced filename aliases
+- [ ] Preserve single-root vault scope; do not support broadening a vault by wrapping multiple independent vaults in one parent directory
+- [ ] Evaluate optional ecosystem features: cross-platform support, P2P sync/collab, secondary YAML metadata, metadata views (graph/base/orphans/homonyms), and icon-enhanced links/file explorer
+
 ---
 
 ## Phase 1: Vault Switcher (Dropdown)

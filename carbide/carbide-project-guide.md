@@ -6,6 +6,18 @@ Building from scratch is a multi-month time sink during a PhD. The faster path:
 
 carbide-project-guide.md
 
+## otterly-carbide ecosystem guardrails
+
+The otterly-carbide fork should treat the following as non-negotiable compatibility constraints for fitting into the broader Markdown knowledge-work ecosystem:
+
+- Notes stay on disk as Obsidian-flavored Markdown. Rich editing can use any frontend or internal representation during editing, but storage stays Markdown and table UX should come from a WYSIWYG table editing helper rather than a proprietary format.
+- JSON Canvas must remain on the roadmap as a storage format, even if the editor uses a different transient model at runtime.
+- Excalidraw is the only drawing format in scope for now, but JSON Canvas should remain the planned future storage target for canvas-style content.
+- The native link handler maintains an alphanumerically sorted vault-path index and resolves note links by path suffix. Backlinks must be rewritten automatically on rename.
+- When adding or renaming a path introduces a suffix homonym, existing links that pointed at the lowest-ranking homonym should gain the shortest prefix needed to stay unique, and a synced alias matching the base filename should hide that prefix in reading view.
+- Vault scope stays fixed to a single vault root. We should not expand scope by combining separate vaults through a shared parent folder.
+- Optional compatibility roadmap items include cross-platform support, P2P sync/collaboration, secondary YAML metadata, metadata views (graph/base/orphans/homonyms), and icon-enhanced links or file explorer affordances.
+
 1. **Fork Otterly** as the foundation — it already has the vault model, file tree, Tauri v2 + Milkdown stack, local-first `.md` storage, image paste-to-assets, **git integration (git2 crate with full UI)**, **multiple vault support**, and **resizable split panes**. This gives us most of the core for free.
 2. **Study Moraya's codebase** for specific features Otterly lacks — Moraya has working implementations of: outline view, macOS default-app file associations, and PDF export. Extract the architectural patterns and adapt them into the Otterly fork.
 3. **Build the genuinely novel pieces ourselves** — plugin system, terminal panel, PDF _viewing_ (not just export), and document-level split view (Otterly's split is layout panes, not side-by-side docs).

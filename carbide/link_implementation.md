@@ -7,6 +7,15 @@
 - preserve Otterly conveniences where they do not corrupt Markdown semantics
 - stage the rollout so we can ship improvements without a risky one-shot rewrite
 
+## otterly-carbide interoperability constraints
+
+- standard Markdown links keep standard Markdown path semantics; the extra suffix-index behavior applies to otterly-carbide native note-link resolution and rename repair flows
+- native note-link lookup uses an alphanumerically sorted vault-path index and resolves targets by path suffix
+- renaming a note or folder must rewrite backlinks automatically
+- if adding or renaming a path creates a suffix homonym, existing links to the previously lowest-ranking homonym should be prefixed just enough to stay unique
+- a synced alias matching the base filename should hide that disambiguation prefix in reading view
+- link resolution operates inside the active vault root and must not depend on broadening vault scope to parent folders that contain multiple independent vaults
+
 ## Product rules
 
 ### Markdown links
