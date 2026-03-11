@@ -433,6 +433,259 @@ The order should be:
 4. treat tasks/kanban/calendar as views over a stronger underlying model
 5. build the plugin host natively rather than trying to inherit Lokus runtime code
 
+## Base-Switch Decision: Otterly vs Rebuilding on a Lokus Clone
+
+The practical question is whether Carbide should:
+
+1. continue on Otterly and port selected Lokus ideas, or
+2. clone Lokus and replay Carbide-specific work such as vault/global settings, CLI AI integration, and terminal improvements onto it
+
+### Recommendation
+
+Carbide should stay on Otterly.
+
+Lokus is the better source of product inspiration. Otterly is the better implementation base.
+
+### Why Otterly Is the Better Long-Term Base
+
+#### 1. Better architectural extensibility
+
+Otterly is structurally cleaner:
+
+- explicit ports/adapters for IO
+- synchronous state stores
+- service-owned async workflows
+- reactors as the only persistent side-effect observers
+- a clear composition root in `create_app_context`
+
+That is a better foundation for the next major Carbide systems:
+
+- graph
+- bases
+- plugin host
+- richer metadata surfaces
+- task/calendar domains
+
+Lokus has broader subsystems now, but they are more entangled with large React views, global runtime state, and cross-feature assumptions.
+
+#### 2. Better fit for Carbide’s settings and compatibility goals
+
+Carbide already cares about vault-scoped vs global settings, ecosystem compatibility, and future plugin boundaries.
+
+Otterly already supports that direction:
+
+- `src/lib/features/settings/application/settings_service.ts`
+- `src/lib/shared/types/editor_settings.ts`
+- `src/lib/features/settings/domain/settings_catalog.ts`
+
+Lokus’s config model is much more global and less disciplined. Its `ConfigManager.update(..., target)` ignores the target and writes globally. That is a poor fit for Carbide’s current direction.
+
+#### 3. Better future-proofing for efficiency work
+
+Otterly has current performance issues in this fork, but they are mostly issues of loading strategy and composition boundaries. Those are fixable.
+
+Lokus’s breadth is attractive, but more of its complexity is baked into how the app is organized:
+
+- large workspace shell assumptions
+- centralized editor/layout state
+- heavy global preferences model
+- richer but more entangled task/calendar/plugin systems
+
+That makes Lokus the faster path to breadth, but the weaker path to sustained efficiency and maintainability.
+
+### When Switching to Lokus Would Make Sense
+
+It would only make sense if Carbide’s top priority changed to:
+
+- shipping maximum feature breadth in the shortest time
+- accepting more architectural debt
+- tolerating a later core refactor
+
+That is a rational demo strategy, but not the best long-term platform strategy.
+
+### Area-by-Area Base Comparison
+
+| Concern | Better Short-Term Surface | Better Long-Term Base |
+| --- | --- | --- |
+| Graph | Lokus | Otterly |
+| Bases | Lokus | Otterly, after foundation work |
+| Extensions | Lokus has more surface | Otterly for a clean native host |
+| Tasks/Kanban/Calendar | Lokus | Otterly if built on a stronger domain model |
+| Vault/global settings | Otterly | Otterly |
+| AI CLI integration | roughly neutral | Otterly |
+| Terminal panel | roughly neutral | Otterly |
+| Future efficiency work | Lokus has more to untangle | Otterly |
+| Future extensibility | Lokus has more existing breadth | Otterly |
+
+### Final Verdict
+
+If the question is:
+
+> which app is more future-proof in efficiency and extensibility?
+
+the answer is Otterly.
+
+If the question is:
+
+> which app already has more flashy product surface?
+
+the answer is Lokus.
+
+For Carbide, the right strategy is:
+
+- keep Otterly as the base
+- keep using Lokus as a design and systems reference
+
+## Lokus Design and Vault/Workspace Assumptions
+
+Lokus can open Obsidian-style folders and uses “vault” language in some user-facing places, but its actual implementation model is a **single active workspace root**.
+
+That assumption is important because it influences graph, bases, task boards, calendar, plugins, session restore, and MCP integration.
+
+### 1. Singular active workspace assumption
+
+The central runtime assumption is one current workspace path.
+
+Evidence:
+
+- `src/views/Workspace.jsx` receives a single `path`
+- `FolderScopeProvider` and `BasesProvider` are both initialized from that one path
+- workspace bootstrap writes `window.__WORKSPACE_PATH__ = path`
+- many subsystems receive `workspacePath` as a single argument
+
+Examples:
+
+- `src/features/workspace/useWorkspaceSession.js`
+- `src/features/workspace/useWorkspaceEvents.js`
+- `src/views/Workspace.jsx`
+
+Lokus may track recent workspaces, but it runs one active workspace at a time.
+
+### 2. Workspace identity is root-folder centric
+
+Lokus’s native object is not a multi-root vault graph. It is a directory root treated as the workspace.
+
+Evidence:
+
+- `src/core/vault/vault.js`
+- `src/mcp-server/utils/workspaceManager.js`
+
+Notable behaviors:
+
+- local storage stores one current path under `lokus.workspace.path`
+- opening or creating a workspace centers everything around that root folder
+- a `.lokus` directory is created/ensured inside the workspace root
+- a `notes/` folder is created for new workspaces
+
+This is a stronger product opinion than Otterly’s current model.
+
+### 3. “Any directory can become a workspace” assumption
+
+Lokus is permissive about what counts as a workspace.
+
+In `WorkspaceManager.validateWorkspace(...)`:
+
+- a directory with `.lokus` is a confirmed workspace
+- a directory with multiple markdown files may be treated as a workspace
+- failing that, a valid directory may still be accepted in production
+
+That is convenient UX, but it means the workspace model is not strict.
+
+For Carbide, this has tradeoffs:
+
+- good for importing existing note folders
+- weaker guarantees about internal structure
+- easier for feature code to silently assume conventions that might not exist
+
+### 4. Internal state is keyed to the current workspace root
+
+A large amount of Lokus behavior keys off the active workspace path:
+
+- session restore and persistence
+- file tree
+- graph updates
+- kanban initialization
+- bases provider
+- daily note resolution
+- MCP workspace context
+
+Examples:
+
+- `invoke("save_session_state", { workspacePath, ... })`
+- `invoke("read_workspace_files", { workspacePath })`
+- `invoke("initialize_workspace_kanban", { workspacePath: path })`
+
+This is convenient, but it bakes the single-root assumption deeply into the app.
+
+### 5. Bases assume one workspace-local metadata universe
+
+Lokus bases are conceptually workspace-scoped:
+
+- base definitions are associated with the workspace
+- frontmatter scanning resolves against the active workspace
+- base data managers and base providers are initialized from that root
+
+That makes bases powerful, but it also means:
+
+- no obvious multi-root data model
+- no clean separation between one workspace’s metadata universe and another beyond swapping the active root
+
+### 6. Kanban and calendar also assume one active workspace context
+
+Kanban and calendar are not modeled as globally addressable, workspace-agnostic services.
+
+They bind to the active workspace:
+
+- kanban initialization happens on workspace boot
+- calendar task scheduling resolves tasks and boards through the current workspace
+- task board discovery uses workspace-scoped commands such as `list_kanban_boards`
+
+That means these features are not trivially portable into a multi-vault or mixed-scope architecture.
+
+### 7. MCP and tooling assume one current workspace context
+
+Lokus’s MCP server also leans into a single current workspace model:
+
+- `workspace-context`
+- “current workspace”
+- automatic workspace detection and setting
+
+This is practical for AI tools, but again reinforces that Lokus is designed around a current-root model rather than a richer vault topology.
+
+### 8. Vault vocabulary is product-facing, workspace vocabulary is implementation-facing
+
+Lokus uses both “vault” and “workspace,” but the implementation is more clearly “workspace-root plus app metadata.”
+
+Examples:
+
+- onboarding says “Configure your vault and preferences”
+- internal APIs, managers, and MCP tooling consistently say `workspacePath`
+
+This mismatch is not fatal, but it does matter when evaluating future-proofing:
+
+- product language suggests Obsidian-style flexibility
+- implementation is more opinionated and root-centric
+
+### 9. Implication for Carbide
+
+Carbide currently wants:
+
+- strong Markdown/vault compatibility
+- explicit vault/global settings boundaries
+- future metadata views like graph/base/orphans/homonyms
+- a plugin host that aligns with the existing feature-slice architecture
+
+Those goals fit Otterly better than Lokus’s workspace-root assumptions.
+
+Lokus’s assumptions are not wrong. They are just more opinionated:
+
+- one active root
+- root-centric services
+- global config bias
+- broad feature systems built around that assumption
+
+That makes Lokus a strong source of ideas, but a weaker direct base for Carbide.
+
 ## Key Reference Files
 
 ### Lokus
@@ -464,4 +717,3 @@ The order should be:
 - `src/lib/shared/types/editor_settings.ts`
 - `src/lib/features/settings/ui/theme_settings.svelte`
 - `src/lib/features/links/application/links_service.ts`
-
