@@ -114,6 +114,9 @@ export function register_theme_actions(input: ActionRegistrationInput) {
     label: "Rename Theme",
     execute: (args: unknown) => {
       const { id, name } = args as { id: string; name: string };
+      const current = stores.ui.user_themes.find((t) => t.id === id);
+      if (!current) return;
+      if (current.name === name) return;
       mark_theme_draft();
       const updated = stores.ui.user_themes.map((t) =>
         t.id === id ? { ...t, name } : t,
@@ -128,6 +131,7 @@ export function register_theme_actions(input: ActionRegistrationInput) {
     execute: (theme_id: unknown) => {
       if (typeof theme_id !== "string") return;
       if (BUILTIN_THEMES.some((t) => t.id === theme_id)) return;
+      if (!stores.ui.user_themes.some((t) => t.id === theme_id)) return;
       mark_theme_draft();
       const updated = stores.ui.user_themes.filter((t) => t.id !== theme_id);
       stores.ui.set_user_themes(updated);

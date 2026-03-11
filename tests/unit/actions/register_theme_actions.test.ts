@@ -74,6 +74,24 @@ describe("register_theme_actions", () => {
     expect(theme_service.save_active_theme_id).not.toHaveBeenCalled();
   });
 
+  it("does not create a draft for no-op rename or missing delete", async () => {
+    const { registry, ui, theme_service } = create_harness();
+    const theme = create_theme("custom-a", "Custom A");
+    ui.set_user_themes([theme]);
+    ui.set_active_theme_id(theme.id);
+
+    await registry.execute(ACTION_IDS.theme_rename, {
+      id: theme.id,
+      name: theme.name,
+    });
+    await registry.execute(ACTION_IDS.theme_delete, "missing-theme");
+
+    expect(ui.theme_has_draft).toBe(false);
+    expect(ui.user_themes).toEqual([theme]);
+    expect(theme_service.save_user_themes).not.toHaveBeenCalled();
+    expect(theme_service.save_active_theme_id).not.toHaveBeenCalled();
+  });
+
   it("does not create a draft when switching to the active theme", async () => {
     const { registry, ui, theme_service } = create_harness();
     const theme = create_theme("custom-a", "Custom A");
