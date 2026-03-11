@@ -14,6 +14,7 @@ function suppressed_path_key(path: string): string {
 export class WatcherService {
   private unsubscribe: (() => void) | null = null;
   private suppressed = new Map<string, ReturnType<typeof setTimeout>>();
+  private lifecycle = Promise.resolve();
 
   constructor(private readonly port: WatcherPort) {}
 
@@ -32,15 +33,32 @@ export class WatcherService {
   }
 
   async start(vault_id: VaultId): Promise<void> {
-    await this.stop();
-    try {
-      await this.port.watch_vault(vault_id);
-    } catch (error) {
-      log.from_error("Failed to start vault watcher", error);
-    }
+    await this.run_lifecycle(async () => {
+      await this.unwatch();
+      try {
+        await this.port.watch_vault(vault_id);
+      } catch (error) {
+        log.from_error("Failed to start vault watcher", error);
+      }
+    });
   }
 
   async stop(): Promise<void> {
+    await this.run_lifecycle(async () => {
+      await this.unwatch();
+    });
+  }
+
+  private run_lifecycle(operation: () => Promise<void>): Promise<void> {
+    const next = this.lifecycle.then(operation, operation);
+    this.lifecycle = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    return next;
+  }
+
+  private async unwatch(): Promise<void> {
     this.unsubscribe?.();
     this.unsubscribe = null;
     try {

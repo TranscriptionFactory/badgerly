@@ -106,7 +106,10 @@ function build_token_entries(theme: Theme): [string, string][] {
 
 let applied_property_keys: string[] = [];
 
-export function apply_theme(theme: Theme): void {
+export function apply_theme(
+  theme: Theme,
+  options: { persist_to_cache?: boolean } = {},
+): void {
   if (typeof document === "undefined") return;
 
   const root = document.documentElement;
@@ -125,7 +128,9 @@ export function apply_theme(theme: Theme): void {
     root.style.setProperty(key, value);
   }
 
-  cache_theme_for_fouc(theme, entries);
+  if (options.persist_to_cache !== false) {
+    cache_theme_for_fouc(theme, entries);
+  }
 }
 
 function cache_theme_for_fouc(theme: Theme, entries: [string, string][]): void {

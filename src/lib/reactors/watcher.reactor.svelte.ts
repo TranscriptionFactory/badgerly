@@ -182,6 +182,7 @@ export function create_watcher_reactor(
           clearTimeout(tree_refresh_timer);
           tree_refresh_timer = null;
         }
+        void watcher_service.stop();
       };
     });
   });

@@ -274,6 +274,26 @@ describe("draggable", () => {
     expect(on_drag_start).not.toHaveBeenCalled();
   });
 
+  it("ignores clicks on role-based interactive elements", () => {
+    const on_drag_start = vi.fn();
+    const tab = document.createElement("div");
+    tab.setAttribute("role", "tab");
+    node.appendChild(tab);
+
+    draggable(node, { on_drag_start });
+
+    tab.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        clientX: 150,
+        clientY: 150,
+        button: 0,
+        bubbles: true,
+      }),
+    );
+
+    expect(on_drag_start).not.toHaveBeenCalled();
+  });
+
   it("drags from non-interactive children", () => {
     const on_drag_start = vi.fn();
     const panel = document.createElement("div");

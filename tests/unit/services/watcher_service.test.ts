@@ -122,4 +122,49 @@ describe("WatcherService", () => {
     expect(handler_1).not.toHaveBeenCalled();
     expect(handler_2).toHaveBeenCalledOnce();
   });
+
+  it("serializes stop before a later start", async () => {
+    const calls: string[] = [];
+    let resolve_first_unwatch: (() => void) | null = null;
+    let unwatch_count = 0;
+    const deferred_port = {
+      watch_vault: vi.fn((vault_id: VaultId) => {
+        calls.push(`watch:${String(vault_id)}`);
+        return Promise.resolve();
+      }),
+      unwatch_vault: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            unwatch_count += 1;
+            if (unwatch_count === 1) {
+              resolve_first_unwatch = () => {
+                calls.push("unwatch");
+                resolve();
+              };
+              return;
+            }
+            calls.push("unwatch");
+            resolve();
+          }),
+      ),
+      subscribe_fs_events: vi.fn(() => () => {}),
+    };
+    const deferred_service = new WatcherService(deferred_port);
+
+    const stop_promise = deferred_service.stop();
+    const start_promise = deferred_service.start("vault-2" as VaultId);
+    await Promise.resolve();
+
+    expect(deferred_port.watch_vault).not.toHaveBeenCalled();
+
+    const release_first_unwatch = resolve_first_unwatch;
+    if (typeof release_first_unwatch !== "function") {
+      throw new Error("expected first unwatch to be pending");
+    }
+    (release_first_unwatch as () => void)();
+    await stop_promise;
+    await start_promise;
+
+    expect(calls).toEqual(["unwatch", "unwatch", "watch:vault-2"]);
+  });
 });

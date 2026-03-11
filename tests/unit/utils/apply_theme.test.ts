@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { apply_theme } from "$lib/shared/utils/apply_theme";
 import {
   BUILTIN_NORDIC_DARK,
@@ -9,6 +9,7 @@ describe("apply_theme", () => {
   const original_document = globalThis.document;
   let store: Map<string, string>;
   let attributes: Map<string, string>;
+  let set_item: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     store = new Map<string, string>();
@@ -30,9 +31,10 @@ describe("apply_theme", () => {
     const document_stub = { documentElement: root };
     globalThis.document = document_stub as Document;
 
+    set_item = vi.fn();
     const localStorage_stub = {
       getItem: () => null,
-      setItem: () => {},
+      setItem: set_item,
     };
     Object.defineProperty(globalThis, "localStorage", {
       value: localStorage_stub,
@@ -126,5 +128,10 @@ describe("apply_theme", () => {
       apply_theme(BUILTIN_NORDIC_DARK);
     }).not.toThrow();
     globalThis.document = original_document;
+  });
+
+  it("can skip localStorage cache writes for draft previews", () => {
+    apply_theme(BUILTIN_NORDIC_DARK, { persist_to_cache: false });
+    expect(set_item).not.toHaveBeenCalled();
   });
 });

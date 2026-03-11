@@ -228,7 +228,9 @@
     if (!dialog_element) return;
 
     const element = dialog_element;
-    const action = draggable(element, {});
+    const action = draggable(element, {
+      handle_selector: ".SettingsDialog__drag-handle",
+    });
 
     return () => {
       action.destroy();
@@ -258,7 +260,9 @@
 
     <div class="SettingsDialog__panels">
       <nav class="SettingsDialog__nav">
-        <div class="SettingsDialog__nav-header">Settings</div>
+        <div class="SettingsDialog__nav-header SettingsDialog__drag-handle">
+          Settings
+        </div>
         {#each categories as cat (cat.id)}
           <button
             class="SettingsDialog__nav-item"
@@ -383,11 +387,6 @@
                 <Input
                   type="text"
                   value={editor_settings.ai_ollama_model}
-                  onchange={(
-                    e: Event & { currentTarget: HTMLInputElement },
-                  ) => {
-                    update("ai_ollama_model", e.currentTarget.value);
-                  }}
                   oninput={(e: Event & { currentTarget: HTMLInputElement }) => {
                     update("ai_ollama_model", e.currentTarget.value);
                   }}
@@ -424,11 +423,6 @@
                 <Input
                   type="text"
                   value={editor_settings.ai_claude_command}
-                  onchange={(
-                    e: Event & { currentTarget: HTMLInputElement },
-                  ) => {
-                    update("ai_claude_command", e.currentTarget.value);
-                  }}
                   oninput={(e: Event & { currentTarget: HTMLInputElement }) => {
                     update("ai_claude_command", e.currentTarget.value);
                   }}
@@ -465,11 +459,6 @@
                 <Input
                   type="text"
                   value={editor_settings.ai_codex_command}
-                  onchange={(
-                    e: Event & { currentTarget: HTMLInputElement },
-                  ) => {
-                    update("ai_codex_command", e.currentTarget.value);
-                  }}
                   oninput={(e: Event & { currentTarget: HTMLInputElement }) => {
                     update("ai_codex_command", e.currentTarget.value);
                   }}
@@ -506,11 +495,6 @@
                 <Input
                   type="text"
                   value={editor_settings.ai_ollama_command}
-                  onchange={(
-                    e: Event & { currentTarget: HTMLInputElement },
-                  ) => {
-                    update("ai_ollama_command", e.currentTarget.value);
-                  }}
                   oninput={(e: Event & { currentTarget: HTMLInputElement }) => {
                     update("ai_ollama_command", e.currentTarget.value);
                   }}
@@ -682,9 +666,6 @@
               <Input
                 type="text"
                 value={editor_settings.attachment_folder}
-                onchange={(e: Event & { currentTarget: HTMLInputElement }) => {
-                  update("attachment_folder", e.currentTarget.value);
-                }}
                 oninput={(e: Event & { currentTarget: HTMLInputElement }) => {
                   update("attachment_folder", e.currentTarget.value);
                 }}
@@ -704,14 +685,6 @@
                 class="SettingsDialog__textarea"
                 value={format_ignored_folders(editor_settings.ignored_folders)}
                 oninput={(
-                  e: Event & { currentTarget: HTMLTextAreaElement },
-                ) => {
-                  update(
-                    "ignored_folders",
-                    parse_ignored_folders(e.currentTarget.value),
-                  );
-                }}
-                onchange={(
                   e: Event & { currentTarget: HTMLTextAreaElement },
                 ) => {
                   update(
@@ -811,11 +784,6 @@
                 <Input
                   type="text"
                   value={git_remote_url}
-                  onchange={(
-                    e: Event & { currentTarget: HTMLInputElement },
-                  ) => {
-                    on_git_remote_url_change(e.currentTarget.value);
-                  }}
                   oninput={(e: Event & { currentTarget: HTMLInputElement }) => {
                     on_git_remote_url_change(e.currentTarget.value);
                   }}
@@ -1194,11 +1162,6 @@
                 <Input
                   type="text"
                   value={editor_settings.terminal_shell_path}
-                  onchange={(
-                    e: Event & { currentTarget: HTMLInputElement },
-                  ) => {
-                    update("terminal_shell_path", e.currentTarget.value);
-                  }}
                   oninput={(e: Event & { currentTarget: HTMLInputElement }) => {
                     update("terminal_shell_path", e.currentTarget.value);
                   }}
@@ -1408,7 +1371,6 @@
     padding: 0;
     gap: 0;
     overflow: hidden;
-    cursor: grab;
   }
 
   .SettingsDialog__panels {
@@ -1435,6 +1397,10 @@
     color: var(--foreground);
     padding: var(--space-2) var(--space-2) var(--space-3);
     user-select: none;
+  }
+
+  .SettingsDialog__drag-handle {
+    cursor: grab;
   }
 
   .SettingsDialog__nav-item {

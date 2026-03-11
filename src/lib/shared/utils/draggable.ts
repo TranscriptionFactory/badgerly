@@ -9,8 +9,10 @@ export type DraggableOptions = {
 const INTERACTIVE_SELECTOR =
   "a[href], button, input, select, textarea, label, " +
   "[contenteditable], " +
-  '[role="slider"], [role="switch"], [role="checkbox"], ' +
-  '[role="combobox"], [role="radio"], [role="spinbutton"], [role="textbox"]';
+  '[role="button"], [role="checkbox"], [role="combobox"], [role="menuitem"], ' +
+  '[role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], ' +
+  '[role="radio"], [role="slider"], [role="spinbutton"], [role="switch"], ' +
+  '[role="tab"], [role="textbox"]';
 
 export function draggable(
   node: HTMLElement,
@@ -21,6 +23,7 @@ export function draggable(
   let active_pointer_id: number | null = null;
   let start_pointer: Position = { x: 0, y: 0 };
   let start_position: Position = { x: 0, y: 0 };
+  let node_size = { width: 0, height: 0 };
 
   function get_handle(): HTMLElement {
     if (current_options.handle_selector) {
@@ -39,15 +42,20 @@ export function draggable(
   }
 
   function clamp_to_viewport(pos: Position): Position {
-    const rect = node.getBoundingClientRect();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
     const min_visible = 100;
 
     return {
-      x: Math.max(min_visible - rect.width, Math.min(pos.x, vw - min_visible)),
-      y: Math.max(min_visible - rect.height, Math.min(pos.y, vh - min_visible)),
+      x: Math.max(
+        min_visible - node_size.width,
+        Math.min(pos.x, vw - min_visible),
+      ),
+      y: Math.max(
+        min_visible - node_size.height,
+        Math.min(pos.y, vh - min_visible),
+      ),
     };
   }
 
@@ -95,6 +103,7 @@ export function draggable(
 
     const rect = node.getBoundingClientRect();
     start_position = { x: rect.left, y: rect.top };
+    node_size = { width: rect.width, height: rect.height };
 
     node.style.transition = "none";
     node.style.transform = "none";

@@ -4,7 +4,9 @@ import type { UIStore } from "$lib/app";
 export function create_theme_reactor(ui_store: UIStore): () => void {
   return $effect.root(() => {
     $effect(() => {
-      apply_theme(ui_store.active_theme);
+      apply_theme(ui_store.active_theme, {
+        persist_to_cache: !ui_store.theme_has_draft,
+      });
     });
   });
 }
