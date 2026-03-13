@@ -32,19 +32,13 @@ import {
   DocumentService,
   register_document_actions,
 } from "$lib/features/document";
-import {
-  GraphService,
-  register_graph_actions,
-} from "$lib/features/graph";
+import { GraphService, register_graph_actions } from "$lib/features/graph";
 import { register_window_actions } from "$lib/features/window";
 import { AiService, register_ai_actions } from "$lib/features/ai";
 import { BasesService } from "$lib/features/bases";
 import { WatcherService } from "$lib/features/watcher";
 import { TaskService } from "$lib/features/task";
-import {
-  PluginService,
-  register_plugin_actions,
-} from "$lib/features/plugin";
+import { PluginService, register_plugin_actions } from "$lib/features/plugin";
 import PluginManager from "$lib/features/plugin/ui/plugin_manager.svelte";
 import { mount_reactors } from "$lib/reactors";
 import { Blocks } from "@lucide/svelte";
@@ -99,6 +93,7 @@ export function create_app_context(input: {
       return true;
     },
     input.ports.index,
+    stores.plugin,
   );
 
   const editor_callbacks: EditorServiceCallbacks = {

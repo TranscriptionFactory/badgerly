@@ -14,21 +14,17 @@
 
   let iframe_element: HTMLIFrameElement | null = $state(null);
 
-  // In a real implementation, we would serve the plugin files from a custom protocol
-  // or a local web server to avoid CORS/filesystem issues.
-  // For now, we'll use a placeholder URL.
   const src = $derived(
     `otterly-plugin://${plugin_id}/index.html?vault=${encodeURIComponent(vault_path)}`,
   );
 
+  const expected_origin = $derived(`otterly-plugin://${plugin_id}`);
+
   $effect(() => {
     const handle_message = (event: MessageEvent) => {
-      // Security: Validate origin when we have a real protocol
-      // if (event.origin !== "otterly-plugin://...") return;
-
-      if (event.source === iframe_element?.contentWindow) {
-        on_message(event.data);
-      }
+      if (event.origin !== expected_origin) return;
+      if (event.source !== iframe_element?.contentWindow) return;
+      on_message(event.data);
     };
 
     window.addEventListener("message", handle_message);
@@ -58,7 +54,7 @@
   });
 
   export function post_message(message: any) {
-    iframe_element?.contentWindow?.postMessage(message, "*");
+    iframe_element?.contentWindow?.postMessage(message, expected_origin);
   }
 </script>
 

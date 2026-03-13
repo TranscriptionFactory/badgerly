@@ -13,13 +13,16 @@ export interface PluginManifest {
 
 export interface PluginInfo {
   manifest: PluginManifest;
+  path: string;
   enabled: boolean;
   status: "idle" | "loading" | "active" | "error";
   error?: string;
 }
 
+export type DiscoveredPlugin = Pick<PluginInfo, "manifest" | "path">;
+
 export interface PluginHostPort {
-  discover(vault_path: string): Promise<PluginManifest[]>;
+  discover(vault_path: string): Promise<DiscoveredPlugin[]>;
   load(id: string): Promise<void>;
   unload(id: string): Promise<void>;
 }

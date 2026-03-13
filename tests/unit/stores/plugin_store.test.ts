@@ -33,7 +33,7 @@ describe("PluginStore", () => {
       keywords: [],
       icon: "settings" as any,
     });
-    
+
     store.reset_registries();
     expect(store.commands).toHaveLength(0);
   });
@@ -41,16 +41,39 @@ describe("PluginStore", () => {
   it("should track active plugin ids", () => {
     store.plugins.set("p1", {
       manifest: { id: "p1" } as any,
+      path: "/plugins/p1",
       enabled: true,
       status: "active",
     });
-    
+
     store.plugins.set("p2", {
       manifest: { id: "p2" } as any,
+      path: "/plugins/p2",
       enabled: false,
       status: "idle",
     });
 
     expect(store.active_plugin_ids).toEqual(["p1"]);
+  });
+
+  it("should update status bar item props reactively", () => {
+    const item = {
+      id: "test:bar",
+      priority: 1,
+      component: {} as any,
+      props: { text: "hello" },
+    };
+    store.register_status_bar_item(item);
+
+    store.update_status_bar_item("test:bar", { text: "world" });
+
+    const updated = store.status_bar_items.find(
+      (i: any) => i.id === "test:bar",
+    );
+    expect(updated?.props).toEqual({ text: "world" });
+  });
+
+  it("should not fail when updating non-existent status bar item", () => {
+    store.update_status_bar_item("nonexistent", { text: "noop" });
   });
 });

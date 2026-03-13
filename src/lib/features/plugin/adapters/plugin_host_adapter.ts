@@ -1,15 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { PluginHostPort, PluginManifest } from "../ports";
+import type { PluginHostPort, DiscoveredPlugin } from "../ports";
 
-/**
- * Milestone 1-2 adapter.
- * Discovery via Tauri command.
- * Deferring real iframe/RPC to Milestone 3.
- */
 export class PluginHostAdapter implements PluginHostPort {
-  async discover(vault_path: string): Promise<PluginManifest[]> {
+  async discover(vault_path: string): Promise<DiscoveredPlugin[]> {
     try {
-      return await invoke<PluginManifest[]>("plugin_discover", {
+      return await invoke<DiscoveredPlugin[]>("plugin_discover", {
         vault_path,
       });
     } catch (e) {

@@ -1,5 +1,5 @@
 import type { PluginStore } from "../state/plugin_store.svelte";
-import type { PluginHostPort, SidebarView, StatusBarItem, PluginManifest } from "../ports";
+import type { PluginHostPort, SidebarView, StatusBarItem } from "../ports";
 import type { CommandDefinition } from "$lib/features/search/types/command_palette";
 import type { VaultStore } from "$lib/features/vault";
 import type { RpcRequest, RpcResponse } from "./plugin_rpc_handler";
@@ -39,6 +39,10 @@ export class PluginService {
     this.store.unregister_status_bar_item(id);
   }
 
+  update_status_bar_item(id: string, props: Record<string, any>) {
+    this.store.update_status_bar_item(id, props);
+  }
+
   // Sidebar registration
   register_sidebar_view(view: SidebarView) {
     this.store.register_sidebar_view(view);
@@ -53,20 +57,20 @@ export class PluginService {
     const vault_path = this.vault_store.vault?.path;
     if (!vault_path) return [];
 
-    const manifests = await this.host_port.discover(vault_path);
+    const discovered = await this.host_port.discover(vault_path);
 
-    // Update store with discovered plugins
-    for (const manifest of manifests) {
+    for (const { manifest, path } of discovered) {
       if (!this.store.plugins.has(manifest.id)) {
         this.store.plugins.set(manifest.id, {
           manifest,
+          path,
           enabled: false,
           status: "idle",
         });
       }
     }
 
-    return manifests;
+    return discovered;
   }
 
   async load_plugin(id: string) {
@@ -77,34 +81,43 @@ export class PluginService {
   async unload_plugin(id: string) {
     // Milestone 3
     await this.host_port.unload(id);
-    
+
     // Cleanup dynamic contributions from this plugin
+    // Collect IDs first to avoid mutating while iterating
     const prefix = `${id}:`;
-    this.store.commands
+    const command_ids = this.store.commands
       .filter((c) => c.id.startsWith(prefix))
-      .forEach((c) => this.unregister_command(c.id));
-    
-    this.store.status_bar_items
+      .map((c) => c.id);
+    const status_bar_ids = this.store.status_bar_items
       .filter((i) => i.id.startsWith(prefix))
-      .forEach((i) => this.unregister_status_bar_item(i.id));
-      
-    this.store.sidebar_views
+      .map((i) => i.id);
+    const sidebar_ids = this.store.sidebar_views
       .filter((v) => v.id.startsWith(prefix))
-      .forEach((v) => this.unregister_sidebar_view(v.id));
+      .map((v) => v.id);
+
+    command_ids.forEach((id) => this.unregister_command(id));
+    status_bar_ids.forEach((id) => this.unregister_status_bar_item(id));
+    sidebar_ids.forEach((id) => this.unregister_sidebar_view(id));
   }
 
   async enable_plugin(id: string) {
     const plugin = this.store.plugins.get(id);
     if (!plugin) return;
 
-    plugin.status = "loading";
+    this.store.plugins.set(id, { ...plugin, status: "loading" });
     try {
       await this.load_plugin(id);
-      plugin.enabled = true;
-      plugin.status = "active";
+      this.store.plugins.set(id, {
+        ...plugin,
+        enabled: true,
+        status: "active",
+      });
     } catch (e) {
-      plugin.status = "error";
-      plugin.error = e instanceof Error ? e.message : String(e);
+      this.store.plugins.set(id, {
+        ...plugin,
+        status: "error",
+        error: e instanceof Error ? e.message : String(e),
+      });
     }
   }
 
@@ -114,11 +127,13 @@ export class PluginService {
 
     try {
       await this.unload_plugin(id);
-      plugin.enabled = false;
-      plugin.status = "idle";
+      this.store.plugins.set(id, { ...plugin, enabled: false, status: "idle" });
     } catch (e) {
-      plugin.status = "error";
-      plugin.error = e instanceof Error ? e.message : String(e);
+      this.store.plugins.set(id, {
+        ...plugin,
+        status: "error",
+        error: e instanceof Error ? e.message : String(e),
+      });
     }
   }
 

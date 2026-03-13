@@ -1,8 +1,4 @@
-import type {
-  PluginInfo,
-  StatusBarItem,
-  SidebarView,
-} from "../ports";
+import type { PluginInfo, StatusBarItem, SidebarView } from "../ports";
 import type { CommandDefinition } from "$lib/features/search/types/command_palette";
 import { SvelteMap } from "svelte/reactivity";
 
@@ -35,11 +31,11 @@ export class PluginStore {
   }
 
   // Status bar registry
-  get status_bar_items(): StatusBarItem[] {
+  status_bar_items = $derived.by(() => {
     return Array.from(this._status_bar_items.values()).sort(
       (a, b) => a.priority - b.priority,
     );
-  }
+  });
 
   register_status_bar_item(item: StatusBarItem) {
     this._status_bar_items.set(item.id, item);
@@ -47,6 +43,15 @@ export class PluginStore {
 
   unregister_status_bar_item(id: string) {
     this._status_bar_items.delete(id);
+  }
+
+  update_status_bar_item(id: string, props: Record<string, any>) {
+    const item = this._status_bar_items.get(id);
+    if (!item) return;
+    this._status_bar_items.set(id, {
+      ...item,
+      props: { ...item.props, ...props },
+    });
   }
 
   // Sidebar registry

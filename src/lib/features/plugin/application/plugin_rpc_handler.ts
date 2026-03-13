@@ -78,27 +78,43 @@ export class PluginRpcHandler {
     action: string,
     params: any[],
   ): Promise<any> {
-    if (!manifest.permissions.includes("fs:read") && !manifest.permissions.includes("fs:write")) {
-        throw new Error("Missing vault permissions (fs:read or fs:write)");
+    if (
+      !manifest.permissions.includes("fs:read") &&
+      !manifest.permissions.includes("fs:write")
+    ) {
+      throw new Error("Missing vault permissions (fs:read or fs:write)");
     }
 
     switch (action) {
       case "read":
-        return (this.context.services.note as any).read_note(as_note_path(params[0]));
+        return (this.context.services.note as any).read_note(
+          as_note_path(params[0]),
+        );
       case "create":
-        if (!manifest.permissions.includes("fs:write")) throw new Error("Missing fs:write permission");
-        return (this.context.services.note as any).create_note(as_note_path(params[0]), as_markdown_text(params[1] ?? ""));
+        if (!manifest.permissions.includes("fs:write"))
+          throw new Error("Missing fs:write permission");
+        return (this.context.services.note as any).create_note(
+          as_note_path(params[0]),
+          as_markdown_text(params[1] ?? ""),
+        );
       case "modify":
-        if (!manifest.permissions.includes("fs:write")) throw new Error("Missing fs:write permission");
-        return (this.context.services.note as any).write_note(as_note_path(params[0]), as_markdown_text(params[1]));
+        if (!manifest.permissions.includes("fs:write"))
+          throw new Error("Missing fs:write permission");
+        return (this.context.services.note as any).write_note(
+          as_note_path(params[0]),
+          as_markdown_text(params[1]),
+        );
       case "delete":
-        if (!manifest.permissions.includes("fs:write")) throw new Error("Missing fs:write permission");
+        if (!manifest.permissions.includes("fs:write"))
+          throw new Error("Missing fs:write permission");
         // Simplified delete
-        const meta = this.context.stores.notes.notes.find(n => n.path === params[0]);
+        const meta = this.context.stores.notes.notes.find(
+          (n) => n.path === params[0],
+        );
         if (!meta) throw new Error("Note not found");
         return this.context.services.note.delete_note(meta);
       case "list":
-        return this.context.stores.notes.notes.map(n => n.path);
+        return this.context.stores.notes.notes.map((n) => n.path);
       default:
         throw new Error(`Unknown vault action: ${action}`);
     }
@@ -109,8 +125,13 @@ export class PluginRpcHandler {
     action: string,
     params: any[],
   ): Promise<any> {
-    if (!manifest.permissions.includes("editor:read") && !manifest.permissions.includes("editor:modify")) {
-        throw new Error("Missing editor permissions (editor:read or editor:modify)");
+    if (
+      !manifest.permissions.includes("editor:read") &&
+      !manifest.permissions.includes("editor:modify")
+    ) {
+      throw new Error(
+        "Missing editor permissions (editor:read or editor:modify)",
+      );
     }
 
     const open_note = this.context.stores.editor.open_note;
@@ -120,16 +141,27 @@ export class PluginRpcHandler {
       case "get_value":
         return open_note.markdown;
       case "set_value":
-        if (!manifest.permissions.includes("editor:modify")) throw new Error("Missing editor:modify permission");
-        this.context.services.editor.apply_ai_output("full_note", params[0], null);
+        if (!manifest.permissions.includes("editor:modify"))
+          throw new Error("Missing editor:modify permission");
+        this.context.services.editor.apply_ai_output(
+          "full_note",
+          params[0],
+          null,
+        );
         return { success: true };
       case "get_selection":
         const ctx = this.context.services.editor.get_ai_context();
         return ctx?.selection?.text ?? "";
       case "replace_selection":
-        if (!manifest.permissions.includes("editor:modify")) throw new Error("Missing editor:modify permission");
-        const snapshot = this.context.services.editor.get_ai_context()?.selection;
-        this.context.services.editor.apply_ai_output("selection", params[0], snapshot ?? null);
+        if (!manifest.permissions.includes("editor:modify"))
+          throw new Error("Missing editor:modify permission");
+        const snapshot =
+          this.context.services.editor.get_ai_context()?.selection;
+        this.context.services.editor.apply_ai_output(
+          "selection",
+          params[0],
+          snapshot ?? null,
+        );
         return { success: true };
       default:
         throw new Error(`Unknown editor action: ${action}`);
@@ -143,7 +175,7 @@ export class PluginRpcHandler {
     params: any[],
   ): Promise<any> {
     if (!manifest.permissions.includes("commands:register")) {
-        throw new Error("Missing commands:register permission");
+      throw new Error("Missing commands:register permission");
     }
 
     switch (action) {
@@ -165,23 +197,24 @@ export class PluginRpcHandler {
   ): Promise<any> {
     switch (action) {
       case "add_statusbar_item":
-        if (!manifest.permissions.includes("ui:statusbar")) throw new Error("Missing ui:statusbar permission");
+        if (!manifest.permissions.includes("ui:statusbar"))
+          throw new Error("Missing ui:statusbar permission");
         const { id, priority, initial_text } = params[0];
         const namespaced_id = `${plugin_id}:${id}`;
         this.context.services.plugin.register_status_bar_item({
           id: namespaced_id,
           priority,
           component: PluginStatusBarItem,
-          props: { id: namespaced_id, text: initial_text }
+          props: { id: namespaced_id, text: initial_text },
         });
         return { success: true };
       case "update_statusbar_item":
-        if (!manifest.permissions.includes("ui:statusbar")) throw new Error("Missing ui:statusbar permission");
+        if (!manifest.permissions.includes("ui:statusbar"))
+          throw new Error("Missing ui:statusbar permission");
         const target_id = `${plugin_id}:${params[0]}`;
-        const item = this.context.stores.plugin.status_bar_items.find(i => i.id === target_id);
-        if (item) {
-          item.props = { ...item.props, text: params[1] };
-        }
+        this.context.services.plugin.update_status_bar_item(target_id, {
+          text: params[1],
+        });
         return { success: true };
       default:
         throw new Error(`Unknown ui action: ${action}`);
