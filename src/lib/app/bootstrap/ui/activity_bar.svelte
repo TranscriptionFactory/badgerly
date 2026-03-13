@@ -5,10 +5,9 @@
     Settings,
     Star,
     CircleHelp,
-    CheckCircle2,
   } from "@lucide/svelte";
 
-  type SidebarView = "explorer" | "dashboard" | "starred" | "tasks";
+  type SidebarView = "explorer" | "dashboard" | "starred";
 
   type Props = {
     sidebar_open: boolean;
@@ -17,7 +16,6 @@
     on_open_explorer: () => void;
     on_open_dashboard: () => void;
     on_open_starred: () => void;
-    on_open_tasks: () => void;
     on_open_help: () => void;
     on_open_settings: () => void;
   };
@@ -29,7 +27,6 @@
     on_open_explorer,
     on_open_dashboard,
     on_open_starred,
-    on_open_tasks,
     on_open_help,
     on_open_settings,
   }: Props = $props();
@@ -60,18 +57,6 @@
         aria-label="Dashboard"
       >
         <LayoutDashboard class="ActivityBar__icon" />
-      </button>
-
-      <button
-        type="button"
-        class="ActivityBar__button"
-        class:ActivityBar__button--active={sidebar_open &&
-          active_view === "tasks"}
-        onclick={on_open_tasks}
-        aria-pressed={sidebar_open && active_view === "tasks"}
-        aria-label="Tasks"
-      >
-        <CheckCircle2 class="ActivityBar__icon" />
       </button>
 
       <button

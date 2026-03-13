@@ -10,8 +10,9 @@
   const columns = $derived.by(() => {
     if (taskStore.grouping === "status" || taskStore.grouping === "none") {
       return [
-        { id: "todo", label: "To Do", tasks: tasks.filter(t => !t.completed) },
-        { id: "done", label: "Done", tasks: tasks.filter(t => t.completed) }
+        { id: "todo", label: "To Do", tasks: tasks.filter(t => t.status === "todo") },
+        { id: "doing", label: "Doing", tasks: tasks.filter(t => t.status === "doing") },
+        { id: "done", label: "Done", tasks: tasks.filter(t => t.status === "done") }
       ];
     }
     

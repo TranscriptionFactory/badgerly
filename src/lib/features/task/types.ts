@@ -1,8 +1,10 @@
+export type TaskStatus = 'todo' | 'doing' | 'done';
+
 export interface Task {
   id: string;
   path: string;
   text: string;
-  completed: boolean;
+  status: TaskStatus;
   due_date: string | null;
   line_number: number;
   section: string | null;
@@ -11,11 +13,11 @@ export interface Task {
 export interface TaskUpdate {
   path: string;
   line_number: number;
-  completed: boolean;
+  status: TaskStatus;
 }
 
 export type TaskFilter = {
-  completed?: boolean;
+  status?: TaskStatus;
 };
 
 export type TaskGrouping = 'none' | 'note' | 'section' | 'due_date' | 'status';

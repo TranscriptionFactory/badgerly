@@ -1,7 +1,7 @@
 import type { TaskPort } from '../ports';
 import type { TaskStore } from '../state/task_store.svelte';
 import type { VaultStore } from '$lib/features/vault/state/vault_store.svelte';
-import type { TaskFilter, TaskUpdate } from '../types';
+import type { TaskFilter, TaskStatus } from '../types';
 
 export class TaskService {
   constructor(
@@ -44,16 +44,15 @@ export class TaskService {
     }
   }
 
-  async toggleTask(path: string, lineNumber: number, completed: boolean) {
+  async updateTaskStatus(path: string, lineNumber: number, status: TaskStatus) {
     const vault = this.vaultStore.vault;
     if (!vault) return;
 
     try {
-      await this.port.updateTaskState(vault.id, { path, line_number: lineNumber, completed });
-      // Re-query to update state (ideally we'd optimistically update or wait for watcher)
+      await this.port.updateTaskState(vault.id, { path, line_number: lineNumber, status });
       await this.queryTasks();
     } catch (e) {
-      console.error(`Failed to toggle task:`, e);
+      console.error(`Failed to update task status:`, e);
       this.store.setError(e instanceof Error ? e.message : String(e));
     }
   }
