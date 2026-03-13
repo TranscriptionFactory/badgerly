@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { RefreshCw, Target, X } from "@lucide/svelte";
+  import { RefreshCw, Target, X, ArrowLeftRight } from "@lucide/svelte";
   import { ACTION_IDS } from "$lib/app";
   import { use_app_context } from "$lib/app/context/app_context.svelte";
   import { Button } from "$lib/components/ui/button";
@@ -23,6 +23,16 @@
     await action_registry.execute(ACTION_IDS.note_open_wiki_link, path);
     await action_registry.execute(ACTION_IDS.graph_focus_active_note);
   }
+
+  function toggle_side() {
+    if (stores.ui.sidebar_view === "graph") {
+      void action_registry.execute(ACTION_IDS.ui_set_sidebar_view, "explorer");
+      stores.ui.set_context_rail_tab("graph");
+    } else {
+      stores.ui.close_context_rail("graph");
+      void action_registry.execute(ACTION_IDS.ui_set_sidebar_view, "graph");
+    }
+  }
 </script>
 
 <div class="GraphPanel">
@@ -38,26 +48,31 @@
       <Button
         variant="ghost"
         size="icon"
-        class="GraphPanel__icon_button"
+        onclick={toggle_side}
+        title="Move to other side"
+      >
+        <ArrowLeftRight size={14} />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
         onclick={() => void action_registry.execute(ACTION_IDS.graph_focus_active_note)}
       >
-        <Target class="GraphPanel__icon" />
+        <Target size={14} />
       </Button>
       <Button
         variant="ghost"
         size="icon"
-        class="GraphPanel__icon_button"
         onclick={() => void action_registry.execute(ACTION_IDS.graph_refresh)}
       >
-        <RefreshCw class="GraphPanel__icon" />
+        <RefreshCw size={14} />
       </Button>
       <Button
         variant="ghost"
         size="icon"
-        class="GraphPanel__icon_button"
         onclick={() => void action_registry.execute(ACTION_IDS.graph_close)}
       >
-        <X class="GraphPanel__icon" />
+        <X size={14} />
       </Button>
     </div>
   </div>

@@ -12,10 +12,12 @@
   import Kanban from "@lucide/svelte/icons/kanban";
   import Calendar from "@lucide/svelte/icons/calendar";
   import Columns from "@lucide/svelte/icons/columns";
+  import ArrowLeftRight from "@lucide/svelte/icons/arrow-left-right";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
+  import { ACTION_IDS } from "$lib/app";
 
-  const { stores, services } = use_app_context();
+  const { stores, services, action_registry } = use_app_context();
   const taskStore = stores.task;
   const taskService = services.task;
 
@@ -45,6 +47,16 @@
     { value: "note", label: "By Note" },
     { value: "section", label: "By Section" },
   ] as const;
+
+  function toggle_side() {
+    if (stores.ui.sidebar_view === "tasks") {
+      void action_registry.execute(ACTION_IDS.ui_set_sidebar_view, "explorer");
+      stores.ui.set_context_rail_tab("tasks");
+    } else {
+      stores.ui.close_context_rail("tasks");
+      void action_registry.execute(ACTION_IDS.ui_set_sidebar_view, "tasks");
+    }
+  }
 </script>
 
 <div class="flex flex-col h-full bg-background border-r">
@@ -55,6 +67,15 @@
         Tasks
       </h2>
       <div class="flex items-center gap-1">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          class="h-6 w-6" 
+          onclick={toggle_side}
+          title="Move to other side"
+        >
+          <ArrowLeftRight size={14} />
+        </Button>
         <Button 
           variant="ghost" 
           size="icon" 

@@ -26,7 +26,7 @@ import type {
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
 
 type AsyncStatus = "idle" | "loading" | "error";
-type SidebarView = "explorer" | "dashboard" | "starred";
+type SidebarView = "explorer" | "dashboard" | "starred" | "graph" | "tasks";
 type ContextRailTab = "links" | "outline" | "ai" | "graph" | "tasks";
 
 const INITIAL_DELETE_NOTE_DIALOG = { open: false, note: null } as const;
@@ -344,6 +344,7 @@ export class UIStore {
 
   context_rail_open = $state(false);
   context_rail_tab = $state<ContextRailTab>("links");
+  context_rail_side = $state<"left" | "right">("right");
 
   hotkeys_config = $state<HotkeyConfig>({ bindings: [] });
 
