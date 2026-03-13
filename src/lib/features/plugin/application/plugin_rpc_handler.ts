@@ -2,6 +2,7 @@ import type { AppContext } from "$lib/app/di/create_app_context";
 import type { PluginManifest } from "../ports";
 import { as_markdown_text, as_note_path } from "$lib/shared/types/ids";
 import PluginStatusBarItem from "../ui/plugin_status_bar_item.svelte";
+import PluginSidebarPanel from "../ui/plugin_sidebar_panel.svelte";
 
 export interface RpcRequest {
   id: string;
@@ -184,6 +185,11 @@ export class PluginRpcHandler {
         command.id = `${plugin_id}:${command.id}`;
         this.context.services.plugin.register_command(command);
         return { success: true };
+      case "remove": {
+        const namespaced_id = `${plugin_id}:${params[0]}`;
+        this.context.services.plugin.unregister_command(namespaced_id);
+        return { success: true };
+      }
       default:
         throw new Error(`Unknown commands action: ${action}`);
     }
@@ -216,6 +222,33 @@ export class PluginRpcHandler {
           text: params[1],
         });
         return { success: true };
+      case "remove_statusbar_item": {
+        if (!manifest.permissions.includes("ui:statusbar"))
+          throw new Error("Missing ui:statusbar permission");
+        const remove_id = `${plugin_id}:${params[0]}`;
+        this.context.services.plugin.unregister_status_bar_item(remove_id);
+        return { success: true };
+      }
+      case "add_sidebar_panel": {
+        if (!manifest.permissions.includes("ui:panel"))
+          throw new Error("Missing ui:panel permission");
+        const { id: panel_id, label, icon } = params[0];
+        const namespaced_panel_id = `${plugin_id}:${panel_id}`;
+        this.context.services.plugin.register_sidebar_view({
+          id: namespaced_panel_id,
+          label,
+          icon,
+          panel: PluginSidebarPanel,
+        });
+        return { success: true };
+      }
+      case "remove_sidebar_panel": {
+        if (!manifest.permissions.includes("ui:panel"))
+          throw new Error("Missing ui:panel permission");
+        const remove_panel_id = `${plugin_id}:${params[0]}`;
+        this.context.services.plugin.unregister_sidebar_view(remove_panel_id);
+        return { success: true };
+      }
       default:
         throw new Error(`Unknown ui action: ${action}`);
     }
