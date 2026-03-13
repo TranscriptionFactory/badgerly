@@ -27,4 +27,10 @@ export interface VaultSettingsPort {
     key: string,
     value: unknown,
   ): Promise<void>;
+  get_local_setting<T>(vault_id: VaultId, key: string): Promise<T | null>;
+  set_local_setting(
+    vault_id: VaultId,
+    key: string,
+    value: unknown,
+  ): Promise<void>;
 }

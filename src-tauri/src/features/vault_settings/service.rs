@@ -4,9 +4,10 @@ use crate::shared::storage::{load_store, vault_path_by_id};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 const SETTINGS_FILE: &str = "settings.json";
+const LOCAL_STATE_FILE: &str = "local_state.json";
 
 fn vault_settings_path(app: &AppHandle, vault_id: &str) -> Result<PathBuf, String> {
     let store = load_store(app)?;
@@ -16,28 +17,47 @@ fn vault_settings_path(app: &AppHandle, vault_id: &str) -> Result<PathBuf, Strin
     Ok(settings_dir.join(SETTINGS_FILE))
 }
 
-fn load_vault_settings(app: &AppHandle, vault_id: &str) -> Result<HashMap<String, Value>, String> {
-    let path = vault_settings_path(app, vault_id)?;
-    let Some(bytes) = read_vault_settings_file(&path)? else {
-        return Ok(HashMap::new());
-    };
-    parse_vault_settings(&bytes)
+fn local_state_path(app: &AppHandle, vault_id: &str) -> Result<PathBuf, String> {
+    let dir = app
+        .path()
+        .home_dir()
+        .map_err(|e| e.to_string())?
+        .join(".otterly")
+        .join("local_state");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir.join(format!("{}.json", vault_id)))
 }
 
-pub(crate) fn parse_vault_settings(bytes: &[u8]) -> Result<HashMap<String, Value>, String> {
+fn load_vault_settings(app: &AppHandle, vault_id: &str) -> Result<HashMap<String, Value>, String> {
+    let path = vault_settings_path(app, vault_id)?;
+    let Some(bytes) = read_settings_file(&path)? else {
+        return Ok(HashMap::new());
+    };
+    parse_settings(&bytes, "Vault")
+}
+
+fn load_local_settings(app: &AppHandle, vault_id: &str) -> Result<HashMap<String, Value>, String> {
+    let path = local_state_path(app, vault_id)?;
+    let Some(bytes) = read_settings_file(&path)? else {
+        return Ok(HashMap::new());
+    };
+    parse_settings(&bytes, "Local")
+}
+
+pub(crate) fn parse_settings(bytes: &[u8], label: &str) -> Result<HashMap<String, Value>, String> {
     let mut stream = serde_json::Deserializer::from_slice(bytes).into_iter::<Value>();
     let first = stream
         .next()
-        .ok_or_else(|| "EOF while parsing a value".to_string())
+        .ok_or_else(|| format!("{} settings: EOF while parsing a value", label))
         .and_then(|result| result.map_err(|e| e.to_string()))?;
 
     if stream.next().is_some() {
-        log::warn!("Vault settings contained trailing content; ignoring trailing bytes");
+        log::warn!("{} settings contained trailing content; ignoring trailing bytes", label);
     }
 
     let settings = first
         .as_object()
-        .ok_or_else(|| "Vault settings root must be a JSON object".to_string())?
+        .ok_or_else(|| format!("{} settings root must be a JSON object", label))?
         .iter()
         .map(|(key, value)| (key.clone(), value.clone()))
         .collect::<HashMap<String, Value>>();
@@ -45,7 +65,7 @@ pub(crate) fn parse_vault_settings(bytes: &[u8]) -> Result<HashMap<String, Value
     Ok(settings)
 }
 
-fn read_vault_settings_file(path: &Path) -> Result<Option<Vec<u8>>, String> {
+fn read_settings_file(path: &Path) -> Result<Option<Vec<u8>>, String> {
     match std::fs::read(path) {
         Ok(bytes) => Ok(Some(bytes)),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
@@ -53,7 +73,7 @@ fn read_vault_settings_file(path: &Path) -> Result<Option<Vec<u8>>, String> {
     }
 }
 
-fn write_vault_settings_file(path: &Path, bytes: &[u8]) -> Result<(), String> {
+fn write_settings_file(path: &Path, bytes: &[u8]) -> Result<(), String> {
     io_utils::atomic_write(path, bytes)
 }
 
@@ -64,7 +84,17 @@ fn save_vault_settings(
 ) -> Result<(), String> {
     let path = vault_settings_path(app, vault_id)?;
     let bytes = serde_json::to_vec_pretty(settings).map_err(|e| e.to_string())?;
-    write_vault_settings_file(&path, &bytes)
+    write_settings_file(&path, &bytes)
+}
+
+fn save_local_settings(
+    app: &AppHandle,
+    vault_id: &str,
+    settings: &HashMap<String, Value>,
+) -> Result<(), String> {
+    let path = local_state_path(app, vault_id)?;
+    let bytes = serde_json::to_vec_pretty(settings).map_err(|e| e.to_string())?;
+    write_settings_file(&path, &bytes)
 }
 
 pub(crate) fn get_vault_setting_value(
@@ -97,5 +127,30 @@ pub async fn set_vault_setting(
     let mut settings = load_vault_settings(&app, &vault_id)?;
     settings.insert(key, value);
     save_vault_settings(&app, &vault_id, &settings)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_local_setting(
+    vault_id: String,
+    key: String,
+    app: AppHandle,
+) -> Result<Option<Value>, String> {
+    log::debug!("Getting local setting vault_id={} key={}", vault_id, key);
+    let settings = load_local_settings(&app, &vault_id)?;
+    Ok(settings.get(&key).cloned())
+}
+
+#[tauri::command]
+pub async fn set_local_setting(
+    vault_id: String,
+    key: String,
+    value: Value,
+    app: AppHandle,
+) -> Result<(), String> {
+    log::debug!("Setting local setting vault_id={} key={}", vault_id, key);
+    let mut settings = load_local_settings(&app, &vault_id)?;
+    settings.insert(key, value);
+    save_local_settings(&app, &vault_id, &settings)?;
     Ok(())
 }

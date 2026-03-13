@@ -10,23 +10,22 @@ function subscribe_vault_fs_events(
   let unlisten_fn: (() => void) | null = null;
   let is_disposed = false;
 
-  const promise = listen<VaultFsEvent>("vault_fs_event", (event) => {
+  void listen<VaultFsEvent>("vault_fs_event", (event) => {
     if (is_disposed) {
       return;
     }
     callback(event.payload);
-  }).catch((err) => {
-    console.error("Failed to setup vault_fs_event listener", err);
-    return () => {};
-  });
-
-  promise.then((fn_ref) => {
-    if (is_disposed) {
-      fn_ref();
-      return;
-    }
-    unlisten_fn = fn_ref;
-  });
+  })
+    .then((fn_ref) => {
+      if (is_disposed) {
+        fn_ref();
+        return;
+      }
+      unlisten_fn = fn_ref;
+    })
+    .catch((error: unknown) => {
+      console.error("Failed to setup vault_fs_event listener", error);
+    });
 
   return () => {
     is_disposed = true;
@@ -34,7 +33,7 @@ function subscribe_vault_fs_events(
       unlisten_fn();
       unlisten_fn = null;
     } else {
-      // If we haven't gotten the unlisten function yet, 
+      // If we haven't gotten the unlisten function yet,
       // the promise resolution will handle it via is_disposed check.
     }
   };

@@ -12,6 +12,8 @@ function create_setup() {
   const vault_settings_port = {
     get_vault_setting: vi.fn().mockResolvedValue(null),
     set_vault_setting: vi.fn().mockResolvedValue(undefined),
+    get_local_setting: vi.fn().mockResolvedValue(null),
+    set_local_setting: vi.fn().mockResolvedValue(undefined),
   };
   const vault_store = new VaultStore();
   vault_store.set_vault(create_test_vault({ id: as_vault_id("vault-a") }));
@@ -71,7 +73,7 @@ describe("TabService", () => {
 
       await service.save_tabs();
 
-      expect(vault_settings_port.set_vault_setting).toHaveBeenCalledWith(
+      expect(vault_settings_port.set_local_setting).toHaveBeenCalledWith(
         as_vault_id("vault-a"),
         "open_tabs",
         {
@@ -129,7 +131,7 @@ describe("TabService", () => {
 
       await service.save_tabs();
 
-      expect(vault_settings_port.set_vault_setting).toHaveBeenCalledWith(
+      expect(vault_settings_port.set_local_setting).toHaveBeenCalledWith(
         as_vault_id("vault-a"),
         "open_tabs",
         {
@@ -174,7 +176,7 @@ describe("TabService", () => {
 
       await service.save_tabs();
 
-      expect(vault_settings_port.set_vault_setting).toHaveBeenCalledWith(
+      expect(vault_settings_port.set_local_setting).toHaveBeenCalledWith(
         as_vault_id("vault-a"),
         "open_tabs",
         {
@@ -217,7 +219,7 @@ describe("TabService", () => {
 
       await service.save_tabs();
 
-      expect(vault_settings_port.set_vault_setting).toHaveBeenCalledWith(
+      expect(vault_settings_port.set_local_setting).toHaveBeenCalledWith(
         as_vault_id("vault-a"),
         "open_tabs",
         {
@@ -371,7 +373,7 @@ describe("TabService", () => {
 
       await service.save_tabs();
 
-      const saved_call = vault_settings_port.set_vault_setting.mock.calls[0];
+      const saved_call = vault_settings_port.set_local_setting.mock.calls[0];
       const saved_state = saved_call?.[2] as PersistedTabState;
 
       expect(saved_state.tabs).toHaveLength(2);
@@ -465,11 +467,11 @@ describe("TabService", () => {
         ],
         active_tab_path: as_note_path("docs/alpha.md"),
       };
-      vault_settings_port.get_vault_setting.mockResolvedValueOnce(persisted);
+      vault_settings_port.get_local_setting.mockResolvedValueOnce(persisted);
 
       const result = await service.load_tabs();
 
-      expect(vault_settings_port.get_vault_setting).toHaveBeenCalledWith(
+      expect(vault_settings_port.get_local_setting).toHaveBeenCalledWith(
         as_vault_id("vault-a"),
         "open_tabs",
       );
@@ -478,7 +480,7 @@ describe("TabService", () => {
 
     it("returns null when no persisted state", async () => {
       const { service, vault_settings_port } = create_setup();
-      vault_settings_port.get_vault_setting.mockResolvedValueOnce(null);
+      vault_settings_port.get_local_setting.mockResolvedValueOnce(null);
 
       const result = await service.load_tabs();
 

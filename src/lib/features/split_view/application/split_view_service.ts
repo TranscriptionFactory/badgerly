@@ -114,7 +114,7 @@ export class SplitViewService {
     const state: PersistedSplitState | null = note_path ? { note_path } : null;
 
     try {
-      await this.vault_settings_port.set_vault_setting(
+      await this.vault_settings_port.set_local_setting(
         vault_id,
         SPLIT_VIEW_KEY,
         state,
@@ -130,7 +130,7 @@ export class SplitViewService {
     if (!vault_id) return null;
 
     try {
-      return await this.vault_settings_port.get_vault_setting<PersistedSplitState>(
+      return await this.vault_settings_port.get_local_setting<PersistedSplitState>(
         vault_id,
         SPLIT_VIEW_KEY,
       );

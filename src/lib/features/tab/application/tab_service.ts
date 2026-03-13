@@ -115,7 +115,7 @@ export class TabService {
     const state = this.build_persisted_tabs_state(known_paths);
 
     try {
-      await this.vault_settings_port.set_vault_setting(
+      await this.vault_settings_port.set_local_setting(
         vault_id,
         TABS_KEY,
         state,
@@ -155,7 +155,7 @@ export class TabService {
 
     try {
       const stored =
-        await this.vault_settings_port.get_vault_setting<PersistedTabState>(
+        await this.vault_settings_port.get_local_setting<PersistedTabState>(
           vault_id,
           TABS_KEY,
         );
