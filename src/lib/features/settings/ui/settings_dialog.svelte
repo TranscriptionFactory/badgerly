@@ -22,6 +22,11 @@
     AiDefaultBackend,
     DocumentImageBackground,
     DocumentPdfZoomMode,
+    EditorBlockquotePadding,
+    EditorCodeBlockPadding,
+    EditorCodeBlockRadius,
+    EditorLinkUnderlineStyle,
+    EditorSpacingDensity,
     EditorSettings,
     GitAutocommitMode,
     GitPullStrategy,
@@ -162,28 +167,34 @@
     label: `${String(n)} documents`,
   }));
 
-  function normalize_ignored_folder(value: string): string {
-    return value
-      .trim()
-      .replaceAll("\\", "/")
-      .replace(/^\/+|\/+$/g, "");
-  }
+  const density_options = [
+    { value: "compact", label: "Compact" },
+    { value: "normal", label: "Normal" },
+    { value: "relaxed", label: "Relaxed" },
+  ] as const;
 
-  function parse_ignored_folders(value: string): string[] {
-    const unique = new Set<string>();
-    for (const line of value.split(/\r?\n/)) {
-      const normalized = normalize_ignored_folder(line);
-      if (!normalized) {
-        continue;
-      }
-      unique.add(normalized);
-    }
-    return [...unique];
-  }
+  const code_block_radius_options: {
+    value: EditorCodeBlockRadius;
+    label: string;
+  }[] = [
+    { value: "tight", label: "Tight" },
+    { value: "normal", label: "Normal" },
+    { value: "soft", label: "Soft" },
+  ];
 
-  function format_ignored_folders(value: string[]): string {
-    return value.join("\n");
-  }
+  const blockquote_border_width_options = [2, 3, 4].map((n) => ({
+    value: String(n),
+    label: `${String(n)} px`,
+  }));
+
+  const link_underline_style_options: {
+    value: EditorLinkUnderlineStyle;
+    label: string;
+  }[] = [
+    { value: "solid", label: "Solid" },
+    { value: "dotted", label: "Dotted" },
+    { value: "wavy", label: "Wavy" },
+  ];
 
   function update<K extends keyof EditorSettings>(
     key: K,
@@ -657,6 +668,429 @@
                 >
                   <RotateCcw />
                 </button>
+              </div>
+            </div>
+
+            <div class="space-y-4 border-t pt-4">
+              <div
+                class="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+              >
+                Reading
+              </div>
+
+              <div class="SettingsDialog__row">
+                <div class="SettingsDialog__label-group">
+                  <span class="SettingsDialog__label">Paragraph Spacing</span>
+                  <span class="SettingsDialog__description"
+                    >Adjust vertical spacing between paragraphs</span
+                  >
+                </div>
+                <div class="flex items-center gap-3">
+                  <Select.Root
+                    type="single"
+                    value={editor_settings.editor_paragraph_spacing_density}
+                    onValueChange={(v: string | undefined) => {
+                      if (v)
+                        update(
+                          "editor_paragraph_spacing_density",
+                          v as EditorSpacingDensity,
+                        );
+                    }}
+                  >
+                    <Select.Trigger class="w-28">
+                      <span data-slot="select-value">
+                        {density_options.find(
+                          (o) =>
+                            o.value ===
+                            editor_settings.editor_paragraph_spacing_density,
+                        )?.label ?? "Normal"}
+                      </span>
+                    </Select.Trigger>
+                    <Select.Content>
+                      {#each density_options as opt (opt.value)}
+                        <Select.Item value={opt.value}>{opt.label}</Select.Item>
+                      {/each}
+                    </Select.Content>
+                  </Select.Root>
+                  <button
+                    type="button"
+                    class="SettingsDialog__reset"
+                    onclick={() =>
+                      update(
+                        "editor_paragraph_spacing_density",
+                        DEFAULT_EDITOR_SETTINGS.editor_paragraph_spacing_density,
+                      )}
+                    disabled={editor_settings.editor_paragraph_spacing_density ===
+                      DEFAULT_EDITOR_SETTINGS.editor_paragraph_spacing_density}
+                    title="Reset to default (Normal)"
+                  >
+                    <RotateCcw />
+                  </button>
+                </div>
+              </div>
+
+              <div class="SettingsDialog__row">
+                <div class="SettingsDialog__label-group">
+                  <span class="SettingsDialog__label">List Spacing</span>
+                  <span class="SettingsDialog__description"
+                    >Adjust spacing inside and around lists</span
+                  >
+                </div>
+                <div class="flex items-center gap-3">
+                  <Select.Root
+                    type="single"
+                    value={editor_settings.editor_list_spacing_density}
+                    onValueChange={(v: string | undefined) => {
+                      if (v)
+                        update(
+                          "editor_list_spacing_density",
+                          v as EditorSpacingDensity,
+                        );
+                    }}
+                  >
+                    <Select.Trigger class="w-28">
+                      <span data-slot="select-value">
+                        {density_options.find(
+                          (o) =>
+                            o.value ===
+                            editor_settings.editor_list_spacing_density,
+                        )?.label ?? "Normal"}
+                      </span>
+                    </Select.Trigger>
+                    <Select.Content>
+                      {#each density_options as opt (opt.value)}
+                        <Select.Item value={opt.value}>{opt.label}</Select.Item>
+                      {/each}
+                    </Select.Content>
+                  </Select.Root>
+                  <button
+                    type="button"
+                    class="SettingsDialog__reset"
+                    onclick={() =>
+                      update(
+                        "editor_list_spacing_density",
+                        DEFAULT_EDITOR_SETTINGS.editor_list_spacing_density,
+                      )}
+                    disabled={editor_settings.editor_list_spacing_density ===
+                      DEFAULT_EDITOR_SETTINGS.editor_list_spacing_density}
+                    title="Reset to default (Normal)"
+                  >
+                    <RotateCcw />
+                  </button>
+                </div>
+              </div>
+
+              <div class="SettingsDialog__row">
+                <div class="SettingsDialog__label-group">
+                  <span class="SettingsDialog__label">Selection Color</span>
+                  <span class="SettingsDialog__description"
+                    >Optional CSS color override for text selection</span
+                  >
+                </div>
+                <div class="flex items-center gap-3">
+                  <Input
+                    type="text"
+                    value={editor_settings.editor_selection_color}
+                    oninput={(
+                      e: Event & { currentTarget: HTMLInputElement },
+                    ) => {
+                      update("editor_selection_color", e.currentTarget.value);
+                    }}
+                    class="w-48"
+                    placeholder="Theme default"
+                  />
+                  <button
+                    type="button"
+                    class="SettingsDialog__reset"
+                    onclick={() =>
+                      update(
+                        "editor_selection_color",
+                        DEFAULT_EDITOR_SETTINGS.editor_selection_color,
+                      )}
+                    disabled={editor_settings.editor_selection_color ===
+                      DEFAULT_EDITOR_SETTINGS.editor_selection_color}
+                    title="Reset to theme default"
+                  >
+                    <RotateCcw />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-4 border-t pt-4">
+              <div
+                class="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+              >
+                Blocks
+              </div>
+
+              <div class="SettingsDialog__row">
+                <div class="SettingsDialog__label-group">
+                  <span class="SettingsDialog__label">Code Block Padding</span>
+                  <span class="SettingsDialog__description"
+                    >Adjust padding inside code blocks</span
+                  >
+                </div>
+                <div class="flex items-center gap-3">
+                  <Select.Root
+                    type="single"
+                    value={editor_settings.editor_code_block_padding}
+                    onValueChange={(v: string | undefined) => {
+                      if (v)
+                        update(
+                          "editor_code_block_padding",
+                          v as EditorCodeBlockPadding,
+                        );
+                    }}
+                  >
+                    <Select.Trigger class="w-28">
+                      <span data-slot="select-value">
+                        {density_options.find(
+                          (o) =>
+                            o.value ===
+                            editor_settings.editor_code_block_padding,
+                        )?.label ?? "Normal"}
+                      </span>
+                    </Select.Trigger>
+                    <Select.Content>
+                      {#each density_options as opt (opt.value)}
+                        <Select.Item value={opt.value}>{opt.label}</Select.Item>
+                      {/each}
+                    </Select.Content>
+                  </Select.Root>
+                  <button
+                    type="button"
+                    class="SettingsDialog__reset"
+                    onclick={() =>
+                      update(
+                        "editor_code_block_padding",
+                        DEFAULT_EDITOR_SETTINGS.editor_code_block_padding,
+                      )}
+                    disabled={editor_settings.editor_code_block_padding ===
+                      DEFAULT_EDITOR_SETTINGS.editor_code_block_padding}
+                    title="Reset to default (Normal)"
+                  >
+                    <RotateCcw />
+                  </button>
+                </div>
+              </div>
+
+              <div class="SettingsDialog__row">
+                <div class="SettingsDialog__label-group">
+                  <span class="SettingsDialog__label">Code Block Radius</span>
+                  <span class="SettingsDialog__description"
+                    >Adjust code block corner roundness</span
+                  >
+                </div>
+                <div class="flex items-center gap-3">
+                  <Select.Root
+                    type="single"
+                    value={editor_settings.editor_code_block_radius}
+                    onValueChange={(v: string | undefined) => {
+                      if (v)
+                        update(
+                          "editor_code_block_radius",
+                          v as EditorCodeBlockRadius,
+                        );
+                    }}
+                  >
+                    <Select.Trigger class="w-28">
+                      <span data-slot="select-value">
+                        {code_block_radius_options.find(
+                          (o) =>
+                            o.value ===
+                            editor_settings.editor_code_block_radius,
+                        )?.label ?? "Normal"}
+                      </span>
+                    </Select.Trigger>
+                    <Select.Content>
+                      {#each code_block_radius_options as opt (opt.value)}
+                        <Select.Item value={opt.value}>{opt.label}</Select.Item>
+                      {/each}
+                    </Select.Content>
+                  </Select.Root>
+                  <button
+                    type="button"
+                    class="SettingsDialog__reset"
+                    onclick={() =>
+                      update(
+                        "editor_code_block_radius",
+                        DEFAULT_EDITOR_SETTINGS.editor_code_block_radius,
+                      )}
+                    disabled={editor_settings.editor_code_block_radius ===
+                      DEFAULT_EDITOR_SETTINGS.editor_code_block_radius}
+                    title="Reset to default (Normal)"
+                  >
+                    <RotateCcw />
+                  </button>
+                </div>
+              </div>
+
+              <div class="SettingsDialog__row">
+                <div class="SettingsDialog__label-group">
+                  <span class="SettingsDialog__label">Blockquote Padding</span>
+                  <span class="SettingsDialog__description"
+                    >Adjust padding inside blockquotes</span
+                  >
+                </div>
+                <div class="flex items-center gap-3">
+                  <Select.Root
+                    type="single"
+                    value={editor_settings.editor_blockquote_padding}
+                    onValueChange={(v: string | undefined) => {
+                      if (v)
+                        update(
+                          "editor_blockquote_padding",
+                          v as EditorBlockquotePadding,
+                        );
+                    }}
+                  >
+                    <Select.Trigger class="w-28">
+                      <span data-slot="select-value">
+                        {density_options.find(
+                          (o) =>
+                            o.value ===
+                            editor_settings.editor_blockquote_padding,
+                        )?.label ?? "Normal"}
+                      </span>
+                    </Select.Trigger>
+                    <Select.Content>
+                      {#each density_options as opt (opt.value)}
+                        <Select.Item value={opt.value}>{opt.label}</Select.Item>
+                      {/each}
+                    </Select.Content>
+                  </Select.Root>
+                  <button
+                    type="button"
+                    class="SettingsDialog__reset"
+                    onclick={() =>
+                      update(
+                        "editor_blockquote_padding",
+                        DEFAULT_EDITOR_SETTINGS.editor_blockquote_padding,
+                      )}
+                    disabled={editor_settings.editor_blockquote_padding ===
+                      DEFAULT_EDITOR_SETTINGS.editor_blockquote_padding}
+                    title="Reset to default (Normal)"
+                  >
+                    <RotateCcw />
+                  </button>
+                </div>
+              </div>
+
+              <div class="SettingsDialog__row">
+                <div class="SettingsDialog__label-group">
+                  <span class="SettingsDialog__label"
+                    >Blockquote Border Width</span
+                  >
+                  <span class="SettingsDialog__description"
+                    >Adjust the thickness of the blockquote border</span
+                  >
+                </div>
+                <div class="flex items-center gap-3">
+                  <Select.Root
+                    type="single"
+                    value={String(
+                      editor_settings.editor_blockquote_border_width,
+                    )}
+                    onValueChange={(v: string | undefined) => {
+                      if (v)
+                        update(
+                          "editor_blockquote_border_width",
+                          Number(v) as 2 | 3 | 4,
+                        );
+                    }}
+                  >
+                    <Select.Trigger class="w-28">
+                      <span data-slot="select-value">
+                        {blockquote_border_width_options.find(
+                          (o) =>
+                            o.value ===
+                            String(
+                              editor_settings.editor_blockquote_border_width,
+                            ),
+                        )?.label ?? "2 px"}
+                      </span>
+                    </Select.Trigger>
+                    <Select.Content>
+                      {#each blockquote_border_width_options as opt (opt.value)}
+                        <Select.Item value={opt.value}>{opt.label}</Select.Item>
+                      {/each}
+                    </Select.Content>
+                  </Select.Root>
+                  <button
+                    type="button"
+                    class="SettingsDialog__reset"
+                    onclick={() =>
+                      update(
+                        "editor_blockquote_border_width",
+                        DEFAULT_EDITOR_SETTINGS.editor_blockquote_border_width,
+                      )}
+                    disabled={editor_settings.editor_blockquote_border_width ===
+                      DEFAULT_EDITOR_SETTINGS.editor_blockquote_border_width}
+                    title={`Reset to default (${String(DEFAULT_EDITOR_SETTINGS.editor_blockquote_border_width)} px)`}
+                  >
+                    <RotateCcw />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-4 border-t pt-4">
+              <div
+                class="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+              >
+                Links
+              </div>
+
+              <div class="SettingsDialog__row">
+                <div class="SettingsDialog__label-group">
+                  <span class="SettingsDialog__label">Underline Style</span>
+                  <span class="SettingsDialog__description"
+                    >Choose how links are underlined in the editor</span
+                  >
+                </div>
+                <div class="flex items-center gap-3">
+                  <Select.Root
+                    type="single"
+                    value={editor_settings.editor_link_underline_style}
+                    onValueChange={(v: string | undefined) => {
+                      if (v)
+                        update(
+                          "editor_link_underline_style",
+                          v as EditorLinkUnderlineStyle,
+                        );
+                    }}
+                  >
+                    <Select.Trigger class="w-28">
+                      <span data-slot="select-value">
+                        {link_underline_style_options.find(
+                          (o) =>
+                            o.value ===
+                            editor_settings.editor_link_underline_style,
+                        )?.label ?? "Solid"}
+                      </span>
+                    </Select.Trigger>
+                    <Select.Content>
+                      {#each link_underline_style_options as opt (opt.value)}
+                        <Select.Item value={opt.value}>{opt.label}</Select.Item>
+                      {/each}
+                    </Select.Content>
+                  </Select.Root>
+                  <button
+                    type="button"
+                    class="SettingsDialog__reset"
+                    onclick={() =>
+                      update(
+                        "editor_link_underline_style",
+                        DEFAULT_EDITOR_SETTINGS.editor_link_underline_style,
+                      )}
+                    disabled={editor_settings.editor_link_underline_style ===
+                      DEFAULT_EDITOR_SETTINGS.editor_link_underline_style}
+                    title="Reset to default (Solid)"
+                  >
+                    <RotateCcw />
+                  </button>
+                </div>
               </div>
             </div>
           </div>

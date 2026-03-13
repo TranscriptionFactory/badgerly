@@ -16,6 +16,15 @@
   --editor-blockquote-text: var(--muted-foreground);
   --editor-code-border: var(--border);
   --editor-code-block-max-height: 24rem;
+  --editor-paragraph-spacing: var(--editor-spacing);
+  --editor-list-spacing: var(--editor-spacing);
+  --editor-list-item-spacing: calc(var(--editor-spacing) * 0.35);
+  --editor-code-block-padding: calc(var(--editor-spacing) * 1);
+  --editor-code-block-radius: calc(var(--radius) * 0.75);
+  --editor-blockquote-padding-y: calc(var(--editor-spacing) * 0.75);
+  --editor-blockquote-padding-x: calc(var(--editor-spacing) * 1);
+  --editor-blockquote-border-width: 2px;
+  --editor-link-underline-style: solid;
 
   /* Body text — warm gray, softer than foreground for comfortable reading */
   --editor-text: oklch(0.46 0.01 55);
@@ -215,7 +224,7 @@
 
 .ProseMirror p {
   margin-top: 0;
-  margin-bottom: var(--editor-spacing);
+  margin-bottom: var(--editor-paragraph-spacing);
 }
 
 .ProseMirror strong {
@@ -251,13 +260,16 @@
 
 .ProseMirror a {
   color: var(--editor-link);
-  text-decoration: none;
-  border-bottom: 1px solid var(--editor-link-underline);
-  transition: border-color var(--duration-normal) var(--ease-default);
+  text-decoration-line: underline;
+  text-decoration-color: var(--editor-link-underline);
+  text-decoration-style: var(--editor-link-underline-style);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+  transition: text-decoration-color var(--duration-normal) var(--ease-default);
 }
 
 .ProseMirror a:hover {
-  border-bottom-color: var(--editor-link-underline-hover);
+  text-decoration-color: var(--editor-link-underline-hover);
 }
 
 .ProseMirror a[href$=".md"]::before {
@@ -277,18 +289,18 @@
 .ProseMirror ul,
 .ProseMirror ol {
   margin-top: 0;
-  margin-bottom: var(--editor-spacing);
+  margin-bottom: var(--editor-list-spacing);
   padding-left: var(--space-1);
   list-style: none;
 }
 
 .ProseMirror li {
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--editor-list-item-spacing);
   line-height: 1.75;
 }
 
 .ProseMirror li > p {
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--editor-list-item-spacing);
 }
 
 .ProseMirror ul ul,
@@ -478,8 +490,9 @@
   margin-top: 0;
   margin-bottom: calc(var(--editor-spacing) * 1.25);
   margin-left: calc(var(--editor-spacing) * 0.5);
-  padding: calc(var(--editor-spacing) * 0.75) calc(var(--editor-spacing) * 1);
-  border-left: 2px solid var(--editor-blockquote-border);
+  padding: var(--editor-blockquote-padding-y) var(--editor-blockquote-padding-x);
+  border-left: var(--editor-blockquote-border-width) solid
+    var(--editor-blockquote-border);
   background: var(--editor-blockquote-bg);
   border-radius: 0 calc(var(--radius) * 0.5) calc(var(--radius) * 0.5) 0;
   color: var(--editor-blockquote-text);
@@ -508,8 +521,8 @@
 .ProseMirror pre {
   background: var(--editor-code-bg);
   color: var(--editor-code-block-text);
-  border-radius: calc(var(--radius) * 0.75);
-  padding: calc(var(--editor-spacing) * 1);
+  border-radius: var(--editor-code-block-radius);
+  padding: var(--editor-code-block-padding);
   overflow-x: auto;
   overflow-y: auto;
   max-height: var(--editor-code-block-max-height);
@@ -541,7 +554,8 @@
   background: var(--editor-code-bg);
   border: 1px solid var(--editor-code-border);
   border-bottom: none;
-  border-radius: calc(var(--radius) * 0.75) calc(var(--radius) * 0.75) 0 0;
+  border-radius: var(--editor-code-block-radius) var(--editor-code-block-radius)
+    0 0;
   min-height: 1.75rem;
 }
 

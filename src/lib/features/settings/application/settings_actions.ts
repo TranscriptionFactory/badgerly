@@ -8,6 +8,44 @@ import type {
   SettingsCategory,
 } from "$lib/shared/types/editor_settings";
 
+const SETTINGS_COMPARE_KEYS: readonly (keyof EditorSettings)[] = [
+  "attachment_folder",
+  "show_hidden_files",
+  "autosave_enabled",
+  "autosave_delay_ms",
+  "git_autocommit_mode",
+  "git_autocommit_interval_minutes",
+  "git_pull_strategy",
+  "git_auto_fetch_interval_minutes",
+  "show_vault_dashboard_on_open",
+  "max_open_tabs",
+  "editor_max_width_ch",
+  "editor_selection_color",
+  "editor_paragraph_spacing_density",
+  "editor_list_spacing_density",
+  "editor_code_block_padding",
+  "editor_code_block_radius",
+  "editor_blockquote_padding",
+  "editor_blockquote_border_width",
+  "editor_link_underline_style",
+  "terminal_shell_path",
+  "terminal_font_size_px",
+  "terminal_scrollback",
+  "terminal_cursor_blink",
+  "terminal_follow_active_vault",
+  "ai_enabled",
+  "ai_default_backend",
+  "ai_ollama_model",
+  "ai_claude_command",
+  "ai_codex_command",
+  "ai_ollama_command",
+  "ai_execution_timeout_seconds",
+  "document_pdf_default_zoom",
+  "document_code_wrap",
+  "document_image_background",
+  "document_inactive_cache_limit",
+] as const;
+
 export function register_settings_actions(input: ActionRegistrationInput) {
   const { registry, stores, services } = input;
   let settings_open_revision = 0;
@@ -21,34 +59,8 @@ export function register_settings_actions(input: ActionRegistrationInput) {
 
   function editor_settings_equal(a: EditorSettings, b: EditorSettings) {
     return (
-      a.attachment_folder === b.attachment_folder &&
       arrays_equal(a.ignored_folders, b.ignored_folders) &&
-      a.show_hidden_files === b.show_hidden_files &&
-      a.autosave_enabled === b.autosave_enabled &&
-      a.autosave_delay_ms === b.autosave_delay_ms &&
-      a.git_autocommit_mode === b.git_autocommit_mode &&
-      a.git_autocommit_interval_minutes === b.git_autocommit_interval_minutes &&
-      a.git_pull_strategy === b.git_pull_strategy &&
-      a.git_auto_fetch_interval_minutes === b.git_auto_fetch_interval_minutes &&
-      a.show_vault_dashboard_on_open === b.show_vault_dashboard_on_open &&
-      a.max_open_tabs === b.max_open_tabs &&
-      a.editor_max_width_ch === b.editor_max_width_ch &&
-      a.terminal_shell_path === b.terminal_shell_path &&
-      a.terminal_font_size_px === b.terminal_font_size_px &&
-      a.terminal_scrollback === b.terminal_scrollback &&
-      a.terminal_cursor_blink === b.terminal_cursor_blink &&
-      a.terminal_follow_active_vault === b.terminal_follow_active_vault &&
-      a.ai_enabled === b.ai_enabled &&
-      a.ai_default_backend === b.ai_default_backend &&
-      a.ai_ollama_model === b.ai_ollama_model &&
-      a.ai_claude_command === b.ai_claude_command &&
-      a.ai_codex_command === b.ai_codex_command &&
-      a.ai_ollama_command === b.ai_ollama_command &&
-      a.ai_execution_timeout_seconds === b.ai_execution_timeout_seconds &&
-      a.document_pdf_default_zoom === b.document_pdf_default_zoom &&
-      a.document_code_wrap === b.document_code_wrap &&
-      a.document_image_background === b.document_image_background &&
-      a.document_inactive_cache_limit === b.document_inactive_cache_limit
+      SETTINGS_COMPARE_KEYS.every((key) => a[key] === b[key])
     );
   }
 

@@ -45,6 +45,9 @@ describe("SettingsService", () => {
         if (key === "autosave_enabled") return false;
         if (key === "autosave_delay_ms") return 3500;
         if (key === "git_autocommit_mode") return "on_save";
+        if (key === "editor_selection_color") return "#112233";
+        if (key === "editor_blockquote_border_width") return 4;
+        if (key === "editor_link_underline_style") return "wavy";
         if (key === "ai_enabled") return false;
         if (key === "ai_default_backend") return "ollama";
         if (key === "terminal_font_size_px") return 15;
@@ -63,6 +66,9 @@ describe("SettingsService", () => {
     expect(result.settings.autosave_enabled).toBe(false);
     expect(result.settings.autosave_delay_ms).toBe(3500);
     expect(result.settings.git_autocommit_mode).toBe("on_save");
+    expect(result.settings.editor_selection_color).toBe("#112233");
+    expect(result.settings.editor_blockquote_border_width).toBe(4);
+    expect(result.settings.editor_link_underline_style).toBe("wavy");
     expect(result.settings.ai_enabled).toBe(false);
     expect(result.settings.ai_default_backend).toBe("ollama");
     expect(result.settings.terminal_font_size_px).toBe(15);
@@ -80,6 +86,9 @@ describe("SettingsService", () => {
       autosave_enabled: false,
       autosave_delay_ms: 3500,
       git_autocommit_mode: "on_save" as const,
+      editor_selection_color: "#112233",
+      editor_blockquote_border_width: 4 as const,
+      editor_link_underline_style: "wavy" as const,
       ai_enabled: false,
       ai_default_backend: "codex" as const,
       ai_execution_timeout_seconds: 120,
@@ -94,6 +103,9 @@ describe("SettingsService", () => {
     expect(saved_vault).not.toHaveProperty("show_vault_dashboard_on_open");
     expect(saved_vault).not.toHaveProperty("autosave_enabled");
     expect(saved_vault).not.toHaveProperty("git_autocommit_mode");
+    expect(saved_vault).not.toHaveProperty("editor_selection_color");
+    expect(saved_vault).not.toHaveProperty("editor_blockquote_border_width");
+    expect(saved_vault).not.toHaveProperty("editor_link_underline_style");
     expect(saved_vault).not.toHaveProperty("ai_enabled");
     expect(saved_vault).not.toHaveProperty("ai_default_backend");
     expect(saved_vault).not.toHaveProperty("ai_execution_timeout_seconds");
@@ -116,6 +128,18 @@ describe("SettingsService", () => {
       "git_autocommit_mode",
       "on_save",
     );
+    expect(settings_port.set_setting).toHaveBeenCalledWith(
+      "editor_selection_color",
+      "#112233",
+    );
+    expect(settings_port.set_setting).toHaveBeenCalledWith(
+      "editor_blockquote_border_width",
+      4,
+    );
+    expect(settings_port.set_setting).toHaveBeenCalledWith(
+      "editor_link_underline_style",
+      "wavy",
+    );
     expect(settings_port.set_setting).toHaveBeenCalledWith("ai_enabled", false);
     expect(settings_port.set_setting).toHaveBeenCalledWith(
       "ai_default_backend",
@@ -134,6 +158,7 @@ describe("SettingsService", () => {
         autosave_enabled: true,
         show_vault_dashboard_on_open: true,
         git_autocommit_mode: "on_save",
+        editor_selection_color: "#112233",
         ai_enabled: false,
         ai_default_backend: "codex",
       },
@@ -151,6 +176,7 @@ describe("SettingsService", () => {
     expect(written_vault).not.toHaveProperty("show_vault_dashboard_on_open");
     expect(written_vault).not.toHaveProperty("autosave_enabled");
     expect(written_vault).not.toHaveProperty("git_autocommit_mode");
+    expect(written_vault).not.toHaveProperty("editor_selection_color");
     expect(written_vault).not.toHaveProperty("ai_enabled");
     expect(written_vault).not.toHaveProperty("ai_default_backend");
     expect(written_vault).toHaveProperty("max_open_tabs", 7);

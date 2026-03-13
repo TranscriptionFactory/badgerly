@@ -14,6 +14,11 @@ export type GitPullStrategy = "merge" | "rebase" | "ff_only";
 export type DocumentPdfZoomMode = "actual_size" | "fit_width";
 export type DocumentImageBackground = "checkerboard" | "light" | "dark";
 export type AiDefaultBackend = "auto" | "claude" | "codex" | "ollama";
+export type EditorSpacingDensity = "compact" | "normal" | "relaxed";
+export type EditorLinkUnderlineStyle = "solid" | "dotted" | "wavy";
+export type EditorCodeBlockPadding = "compact" | "normal" | "relaxed";
+export type EditorCodeBlockRadius = "tight" | "normal" | "soft";
+export type EditorBlockquotePadding = "compact" | "normal" | "relaxed";
 
 export type EditorSettings = {
   attachment_folder: string;
@@ -28,6 +33,14 @@ export type EditorSettings = {
   show_vault_dashboard_on_open: boolean;
   max_open_tabs: number;
   editor_max_width_ch: number;
+  editor_selection_color: string;
+  editor_paragraph_spacing_density: EditorSpacingDensity;
+  editor_list_spacing_density: EditorSpacingDensity;
+  editor_code_block_padding: EditorCodeBlockPadding;
+  editor_code_block_radius: EditorCodeBlockRadius;
+  editor_blockquote_padding: EditorBlockquotePadding;
+  editor_blockquote_border_width: 2 | 3 | 4;
+  editor_link_underline_style: EditorLinkUnderlineStyle;
   terminal_shell_path: string;
   terminal_font_size_px: number;
   terminal_scrollback: number;
@@ -59,6 +72,14 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   show_vault_dashboard_on_open: true,
   max_open_tabs: 5,
   editor_max_width_ch: 85,
+  editor_selection_color: "",
+  editor_paragraph_spacing_density: "normal",
+  editor_list_spacing_density: "normal",
+  editor_code_block_padding: "normal",
+  editor_code_block_radius: "normal",
+  editor_blockquote_padding: "normal",
+  editor_blockquote_border_width: 2,
+  editor_link_underline_style: "solid",
   terminal_shell_path: "/bin/zsh",
   terminal_font_size_px: 13,
   terminal_scrollback: 5000,
@@ -88,6 +109,14 @@ export const GLOBAL_ONLY_SETTING_KEYS: readonly (keyof EditorSettings)[] = [
   "autosave_enabled",
   "autosave_delay_ms",
   "editor_max_width_ch",
+  "editor_selection_color",
+  "editor_paragraph_spacing_density",
+  "editor_list_spacing_density",
+  "editor_code_block_padding",
+  "editor_code_block_radius",
+  "editor_blockquote_padding",
+  "editor_blockquote_border_width",
+  "editor_link_underline_style",
   "terminal_shell_path",
   "terminal_font_size_px",
   "terminal_scrollback",

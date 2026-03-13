@@ -115,6 +115,23 @@ describe("register_settings_actions", () => {
     expect(stores.ui.settings_dialog.has_unsaved_changes).toBe(false);
   });
 
+  it("tracks appearance setting changes in the dirty state", async () => {
+    const { registry, stores } = create_harness();
+
+    await registry.execute(ACTION_IDS.settings_update, {
+      ...DEFAULT_EDITOR_SETTINGS,
+      editor_link_underline_style: "wavy",
+    });
+
+    expect(stores.ui.settings_dialog.has_unsaved_changes).toBe(true);
+
+    await registry.execute(ACTION_IDS.settings_update, {
+      ...DEFAULT_EDITOR_SETTINGS,
+    });
+
+    expect(stores.ui.settings_dialog.has_unsaved_changes).toBe(false);
+  });
+
   it("applies draft settings to live settings on save", async () => {
     const { registry, stores, services } = create_harness();
     const draft: EditorSettings = {

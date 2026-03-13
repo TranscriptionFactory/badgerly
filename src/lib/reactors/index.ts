@@ -1,4 +1,5 @@
 import { create_editor_sync_reactor } from "$lib/reactors/editor_sync.reactor.svelte";
+import { create_editor_appearance_reactor } from "$lib/reactors/editor_appearance.reactor.svelte";
 import { create_editor_width_reactor } from "$lib/reactors/editor_width.reactor.svelte";
 import { create_theme_reactor } from "$lib/reactors/theme.reactor.svelte";
 import {
@@ -78,6 +79,7 @@ export function mount_reactors(context: ReactorContext): () => void {
 
   const unmounts = [
     create_editor_sync_reactor(context.editor_store, context.editor_service),
+    create_editor_appearance_reactor(context.ui_store),
     create_editor_width_reactor(context.ui_store),
     create_autosave_reactor(
       context.editor_store,

@@ -394,6 +394,11 @@
     overflow: hidden;
   }
 
+  .SourceEditor__textarea::selection {
+    background: var(--editor-selection-bg);
+    color: var(--foreground);
+  }
+
   .SourceEditor__textarea::placeholder {
     color: var(--muted-foreground);
   }
