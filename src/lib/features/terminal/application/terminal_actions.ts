@@ -4,6 +4,7 @@ import type {
   TerminalService,
   TerminalSessionRequest,
 } from "$lib/features/terminal/application/terminal_service";
+import { resolve_terminal_session_target } from "$lib/features/terminal/domain/terminal_session_target";
 import type { TerminalStore } from "$lib/features/terminal/state/terminal_store.svelte";
 
 export function register_terminal_actions(
@@ -12,7 +13,25 @@ export function register_terminal_actions(
     terminal_service: TerminalService;
   },
 ) {
-  const { registry, terminal_store, terminal_service } = input;
+  const { registry, terminal_store, terminal_service, stores } = input;
+
+  function build_default_request(): TerminalSessionRequest {
+    const target = resolve_terminal_session_target({
+      follow_active_vault:
+        stores.ui.editor_settings.terminal_follow_active_vault,
+      followed_cwd: stores.vault.vault?.path ?? undefined,
+      fixed_cwd: stores.vault.vault?.path ?? undefined,
+    });
+
+    return {
+      cols: 80,
+      rows: 24,
+      shell_path: stores.ui.editor_settings.terminal_shell_path || "/bin/zsh",
+      cwd: target.cwd,
+      cwd_policy: target.cwd_policy,
+      respawn_policy: target.respawn_policy,
+    };
+  }
 
   registry.register({
     id: ACTION_IDS.terminal_toggle,
@@ -39,7 +58,9 @@ export function register_terminal_actions(
     id: ACTION_IDS.terminal_new_session,
     label: "New Terminal Session",
     execute: async (request: unknown) => {
-      await terminal_service.create_session(request as TerminalSessionRequest);
+      const actual_request =
+        (request as TerminalSessionRequest) ?? build_default_request();
+      await terminal_service.create_session(actual_request);
     },
   });
 
@@ -66,9 +87,11 @@ export function register_terminal_actions(
     id: ACTION_IDS.terminal_respawn_session,
     label: "Respawn Terminal Session",
     execute: async (session_id: unknown, request: unknown) => {
+      const actual_request =
+        (request as TerminalSessionRequest) ?? build_default_request();
       await terminal_service.respawn_session(
         session_id as string,
-        request as TerminalSessionRequest,
+        actual_request,
       );
     },
   });

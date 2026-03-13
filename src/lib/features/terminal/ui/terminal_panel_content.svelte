@@ -49,7 +49,7 @@
 
   function get_session_label(session_id: string, index: number): string {
     const session = stores.terminal.get_session(session_id);
-    const shell_name = session?.shell_path.split("/").pop();
+    const shell_name = session?.shell_path?.split("/").pop();
 
     return shell_name
       ? `${shell_name} ${String(index + 1)}`

@@ -107,6 +107,19 @@ describe("register_terminal_actions", () => {
     expect(terminal_service.create_session).toHaveBeenCalledWith(request);
   });
 
+  it("handles missing request payload for new session by providing defaults", async () => {
+    const { registry, terminal_service } = create_harness();
+
+    await registry.execute(ACTION_IDS.terminal_new_session);
+
+    expect(terminal_service.create_session).toHaveBeenCalled();
+    const call_args = (terminal_service.create_session as any).mock.calls[0][0];
+    expect(call_args).toBeDefined();
+    expect(call_args.shell_path).toBeDefined();
+    expect(call_args.cols).toBe(80);
+    expect(call_args.rows).toBe(24);
+  });
+
   it("activates and respawns a specific session", async () => {
     const { registry, terminal_service } = create_harness();
 
