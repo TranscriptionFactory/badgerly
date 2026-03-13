@@ -301,6 +301,7 @@ export function create_app_context(input: {
   });
 
   return {
+    ports: input.ports,
     stores,
     action_registry,
     destroy: () => {

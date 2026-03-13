@@ -13,6 +13,17 @@ async function get_nullable_vault_setting<T>(
   return value ?? null;
 }
 
+async function get_nullable_local_setting<T>(
+  vault_id: VaultId,
+  key: string,
+): Promise<T | null> {
+  const value = await tauri_invoke<T | null>("get_local_setting", {
+    vaultId: vault_id,
+    key,
+  });
+  return value ?? null;
+}
+
 export function create_vault_settings_tauri_adapter(): VaultSettingsPort {
   return {
     async get_vault_setting<T>(
@@ -28,6 +39,25 @@ export function create_vault_settings_tauri_adapter(): VaultSettingsPort {
       value: unknown,
     ): Promise<void> {
       await tauri_invoke<undefined>("set_vault_setting", {
+        vaultId: vault_id,
+        key,
+        value,
+      });
+    },
+
+    async get_local_setting<T>(
+      vault_id: VaultId,
+      key: string,
+    ): Promise<T | null> {
+      return get_nullable_local_setting<T>(vault_id, key);
+    },
+
+    async set_local_setting(
+      vault_id: VaultId,
+      key: string,
+      value: unknown,
+    ): Promise<void> {
+      await tauri_invoke<undefined>("set_local_setting", {
         vaultId: vault_id,
         key,
         value,

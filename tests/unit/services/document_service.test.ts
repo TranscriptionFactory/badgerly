@@ -1,23 +1,27 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DocumentService } from "$lib/features/document";
 import { DocumentStore } from "$lib/features/document";
 import { VaultStore } from "$lib/features/vault";
 import { create_test_vault } from "../helpers/test_fixtures";
 
 describe("DocumentService", () => {
-  it("loads text content lazily into the cache", async () => {
+  function create_document_port() {
+    return {
+      open_buffer: vi.fn().mockResolvedValue(123),
+      read_buffer_window: vi.fn().mockResolvedValue(""),
+      close_buffer: vi.fn().mockResolvedValue(undefined),
+      resolve_asset_url: vi.fn((_: string, relative_path: string) => {
+        return `asset://${relative_path}`;
+      }),
+      read_file: vi.fn().mockResolvedValue(""),
+    };
+  }
+
+  it("opens a managed buffer for text documents", async () => {
     const document_store = new DocumentStore();
     const vault_store = new VaultStore();
     vault_store.vault = create_test_vault();
-    const document_port = {
-      reads: [] as string[],
-      read_file: (_vault_id: string, relative_path: string) => {
-        document_port.reads.push(relative_path);
-        return Promise.resolve(`content:${relative_path}`);
-      },
-      resolve_asset_url: (_vault_id: string, relative_path: string) =>
-        `asset://${relative_path}`,
-    };
+    const document_port = create_document_port();
     const service = new DocumentService(
       document_port,
       vault_store,
@@ -28,23 +32,23 @@ describe("DocumentService", () => {
 
     await service.open_document("tab-1", "docs/demo.txt", "text");
 
-    expect(document_port.reads).toEqual(["docs/demo.txt"]);
-    expect(document_store.get_viewer_state("tab-1")?.load_status).toBe("ready");
-    expect(document_store.get_content_state("tab-1")?.content).toBe(
-      "content:docs/demo.txt",
+    expect(document_port.open_buffer).toHaveBeenCalledWith(
+      "buf_tab-1",
+      vault_store.vault?.id,
+      "docs/demo.txt",
     );
+    expect(document_store.get_viewer_state("tab-1")?.load_status).toBe("ready");
+    expect(document_store.get_content_state("tab-1")?.buffer_id).toBe(
+      "buf_tab-1",
+    );
+    expect(document_store.get_content_state("tab-1")?.line_count).toBe(123);
   });
 
   it("evicts inactive cached payloads while keeping metadata", async () => {
     const document_store = new DocumentStore();
     const vault_store = new VaultStore();
     vault_store.vault = create_test_vault();
-    const document_port = {
-      read_file: (_vault_id: string, relative_path: string) =>
-        Promise.resolve(`content:${relative_path}`),
-      resolve_asset_url: (_vault_id: string, relative_path: string) =>
-        `asset://${relative_path}`,
-    };
+    const document_port = create_document_port();
     let now = 0;
     const service = new DocumentService(
       document_port,
@@ -63,23 +67,17 @@ describe("DocumentService", () => {
     expect(document_store.get_viewer_state("tab-1")?.file_path).toBe(
       "docs/one.txt",
     );
-    expect(document_store.get_content_state("tab-2")?.content).toBe(
-      "content:docs/two.txt",
+    expect(document_store.get_content_state("tab-2")?.buffer_id).toBe(
+      "buf_tab-2",
     );
+    expect(document_port.close_buffer).toHaveBeenCalledWith("buf_tab-1");
   });
 
-  it("reuses cached ready content without re-reading", async () => {
+  it("reuses cached ready buffers without reopening", async () => {
     const document_store = new DocumentStore();
     const vault_store = new VaultStore();
     vault_store.vault = create_test_vault();
-    let read_count = 0;
-    const document_port = {
-      read_file: () => {
-        read_count += 1;
-        return Promise.resolve("content");
-      },
-      resolve_asset_url: () => "asset://demo",
-    };
+    const document_port = create_document_port();
     const service = new DocumentService(
       document_port,
       vault_store,
@@ -89,17 +87,14 @@ describe("DocumentService", () => {
     await service.open_document("tab-1", "docs/demo.txt", "text");
     await service.ensure_content("tab-1");
 
-    expect(read_count).toBe(1);
+    expect(document_port.open_buffer).toHaveBeenCalledTimes(1);
   });
 
   it("stores the initial pdf page when opening a pdf document", async () => {
     const document_store = new DocumentStore();
     const vault_store = new VaultStore();
     vault_store.vault = create_test_vault();
-    const document_port = {
-      read_file: () => Promise.resolve("content"),
-      resolve_asset_url: () => "asset://demo",
-    };
+    const document_port = create_document_port();
     const service = new DocumentService(
       document_port,
       vault_store,
@@ -115,10 +110,7 @@ describe("DocumentService", () => {
     const document_store = new DocumentStore();
     const vault_store = new VaultStore();
     vault_store.vault = create_test_vault();
-    const document_port = {
-      read_file: () => Promise.resolve("content"),
-      resolve_asset_url: () => "asset://demo",
-    };
+    const document_port = create_document_port();
     const service = new DocumentService(
       document_port,
       vault_store,
