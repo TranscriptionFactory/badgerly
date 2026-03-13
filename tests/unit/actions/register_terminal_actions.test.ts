@@ -20,7 +20,14 @@ function create_harness() {
   const registry = new ActionRegistry();
   const terminal_store = new TerminalStore();
   const terminal_service = {
+    activate_session: vi.fn(),
     close_active_session: vi.fn(),
+    close_all_sessions: vi.fn(() => {
+      terminal_store.close();
+    }),
+    close_session: vi.fn(),
+    create_session: vi.fn(),
+    respawn_session: vi.fn(),
   };
 
   register_terminal_actions({
@@ -60,16 +67,16 @@ describe("register_terminal_actions", () => {
     await registry.execute(ACTION_IDS.terminal_toggle);
 
     expect(terminal_store.panel_open).toBe(true);
-    expect(terminal_service.close_active_session).not.toHaveBeenCalled();
+    expect(terminal_service.close_all_sessions).not.toHaveBeenCalled();
   });
 
-  it("closes the active session on toggle when already open", async () => {
+  it("closes all sessions on toggle when already open", async () => {
     const { registry, terminal_store, terminal_service } = create_harness();
     terminal_store.open();
 
     await registry.execute(ACTION_IDS.terminal_toggle);
 
-    expect(terminal_service.close_active_session).toHaveBeenCalledTimes(1);
+    expect(terminal_service.close_all_sessions).toHaveBeenCalledTimes(1);
     expect(terminal_store.panel_open).toBe(false);
   });
 
@@ -79,7 +86,82 @@ describe("register_terminal_actions", () => {
 
     await registry.execute(ACTION_IDS.terminal_close);
 
-    expect(terminal_service.close_active_session).toHaveBeenCalledTimes(1);
+    expect(terminal_service.close_all_sessions).toHaveBeenCalledTimes(1);
     expect(terminal_store.panel_open).toBe(false);
+  });
+
+  it("creates a new terminal session from an action payload", async () => {
+    const { registry, terminal_service } = create_harness();
+
+    const request = {
+      cols: 80,
+      rows: 24,
+      shell_path: "/bin/zsh",
+      cwd: "/vault",
+      cwd_policy: "fixed",
+      respawn_policy: "manual",
+    };
+
+    await registry.execute(ACTION_IDS.terminal_new_session, request);
+
+    expect(terminal_service.create_session).toHaveBeenCalledWith(request);
+  });
+
+  it("activates and respawns a specific session", async () => {
+    const { registry, terminal_service } = create_harness();
+
+    const request = {
+      cols: 100,
+      rows: 30,
+      shell_path: "/bin/bash",
+      cwd: "/vault",
+      cwd_policy: "follow_active_vault",
+      respawn_policy: "on_context_change",
+    };
+
+    await registry.execute(
+      ACTION_IDS.terminal_activate_session,
+      "terminal:session:1",
+    );
+    await registry.execute(
+      ACTION_IDS.terminal_respawn_session,
+      "terminal:session:1",
+      request,
+    );
+
+    expect(terminal_service.activate_session).toHaveBeenCalledWith(
+      "terminal:session:1",
+    );
+    expect(terminal_service.respawn_session).toHaveBeenCalledWith(
+      "terminal:session:1",
+      request,
+    );
+  });
+
+  it("closes the terminal panel when the last session is removed", async () => {
+    const { registry, terminal_store, terminal_service } = create_harness();
+
+    terminal_store.open();
+    terminal_store.ensure_session({
+      id: "terminal:session:1",
+      shell_path: "/bin/zsh",
+      cwd: null,
+      cwd_policy: "fixed",
+      respawn_policy: "manual",
+    });
+    terminal_service.close_session.mockImplementation(() => {
+      terminal_store.remove_session("terminal:session:1");
+    });
+
+    await registry.execute(
+      ACTION_IDS.terminal_close_session,
+      "terminal:session:1",
+    );
+
+    expect(terminal_service.close_session).toHaveBeenCalledWith(
+      "terminal:session:1",
+    );
+    expect(terminal_store.panel_open).toBe(false);
+    expect(terminal_store.session_ids).toEqual([]);
   });
 });

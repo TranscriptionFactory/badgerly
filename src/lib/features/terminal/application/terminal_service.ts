@@ -38,6 +38,7 @@ type TerminalRuntimeSession = {
 export class TerminalService {
   private readonly runtimes = new Map<string, TerminalRuntimeSession>();
   private next_view_id = 0;
+  private next_session_id = 0;
 
   constructor(
     private readonly terminal_port: TerminalPort,
@@ -48,13 +49,37 @@ export class TerminalService {
     input: TerminalSessionRequest,
     initial_view?: TerminalViewSinks,
   ): Promise<{ session_id: string; view_id: string | null }> {
-    const session_id = this.terminal_store.ensure_session({
-      id: this.terminal_store.active_session_id ?? DEFAULT_TERMINAL_SESSION_ID,
-      shell_path: input.shell_path,
-      cwd: input.cwd ?? null,
-      cwd_policy: input.cwd_policy,
-      respawn_policy: input.respawn_policy,
-    });
+    return this.ensure_session(
+      this.terminal_store.active_session_id ?? DEFAULT_TERMINAL_SESSION_ID,
+      input,
+      initial_view,
+      {
+        activate: true,
+      },
+    );
+  }
+
+  async ensure_session(
+    session_id: string,
+    input: TerminalSessionRequest,
+    initial_view?: TerminalViewSinks,
+    options?: {
+      activate?: boolean;
+    },
+  ): Promise<{ session_id: string; view_id: string | null }> {
+    this.terminal_store.ensure_session(
+      {
+        id: session_id,
+        shell_path: input.shell_path,
+        cwd: input.cwd ?? null,
+        cwd_policy: input.cwd_policy,
+        respawn_policy: input.respawn_policy,
+      },
+      {
+        activate: options?.activate ?? false,
+      },
+    );
+
     const runtime = this.ensure_runtime(session_id);
     const view_id = initial_view
       ? this.register_view(runtime, initial_view)
@@ -65,12 +90,30 @@ export class TerminalService {
     }
 
     this.terminal_store.open();
-    this.terminal_store.set_active_session(session_id);
+    if (options?.activate ?? false) {
+      this.terminal_store.set_active_session(session_id);
+    }
 
     return {
       session_id,
       view_id,
     };
+  }
+
+  async create_session(
+    input: TerminalSessionRequest,
+    initial_view?: TerminalViewSinks,
+  ): Promise<{ session_id: string; view_id: string | null }> {
+    this.next_session_id += 1;
+
+    return this.ensure_session(
+      `terminal:session:${String(this.next_session_id)}`,
+      input,
+      initial_view,
+      {
+        activate: true,
+      },
+    );
   }
 
   attach_view(session_id: string, sinks: TerminalViewSinks): string {
@@ -83,7 +126,16 @@ export class TerminalService {
   }
 
   write_active_session(data: string): void {
-    const runtime = this.resolve_active_runtime();
+    const session_id = this.terminal_store.active_session_id;
+    if (!session_id) {
+      return;
+    }
+
+    this.write_session(session_id, data);
+  }
+
+  write_session(session_id: string, data: string): void {
+    const runtime = this.runtimes.get(session_id);
     if (!runtime?.process) {
       return;
     }
@@ -92,7 +144,16 @@ export class TerminalService {
   }
 
   resize_active_session(cols: number, rows: number): void {
-    const runtime = this.resolve_active_runtime();
+    const session_id = this.terminal_store.active_session_id;
+    if (!session_id) {
+      return;
+    }
+
+    this.resize_session(session_id, cols, rows);
+  }
+
+  resize_session(session_id: string, cols: number, rows: number): void {
+    const runtime = this.runtimes.get(session_id);
     if (!runtime?.process) {
       return;
     }
@@ -103,19 +164,41 @@ export class TerminalService {
   async respawn_active_session(input: TerminalSessionRequest): Promise<string> {
     const session_id =
       this.terminal_store.active_session_id ?? DEFAULT_TERMINAL_SESSION_ID;
+    await this.respawn_session(session_id, input);
+    return session_id;
+  }
+
+  async respawn_session(
+    session_id: string,
+    input: TerminalSessionRequest,
+  ): Promise<string> {
     const runtime = this.ensure_runtime(session_id);
 
-    this.terminal_store.ensure_session({
-      id: session_id,
-      shell_path: input.shell_path,
-      cwd: input.cwd ?? null,
-      cwd_policy: input.cwd_policy,
-      respawn_policy: input.respawn_policy,
-    });
+    this.terminal_store.ensure_session(
+      {
+        id: session_id,
+        shell_path: input.shell_path,
+        cwd: input.cwd ?? null,
+        cwd_policy: input.cwd_policy,
+        respawn_policy: input.respawn_policy,
+      },
+      {
+        activate: false,
+      },
+    );
 
     this.cleanup_process(runtime, true);
     await this.spawn_session(session_id, runtime, input);
     return session_id;
+  }
+
+  activate_session(session_id: string): void {
+    if (!this.terminal_store.get_session(session_id)) {
+      return;
+    }
+
+    this.terminal_store.open();
+    this.terminal_store.set_active_session(session_id);
   }
 
   close_active_session(): void {
@@ -124,16 +207,21 @@ export class TerminalService {
       return;
     }
 
+    this.close_session(session_id);
+  }
+
+  close_session(session_id: string): void {
     const runtime = this.runtimes.get(session_id);
     if (runtime) {
       this.cleanup_process(runtime, true);
+      runtime.views.clear();
       this.runtimes.delete(session_id);
     }
 
     this.terminal_store.remove_session(session_id);
   }
 
-  destroy(): void {
+  close_all_sessions(): void {
     for (const runtime of this.runtimes.values()) {
       this.cleanup_process(runtime, true);
       runtime.views.clear();
@@ -141,6 +229,10 @@ export class TerminalService {
 
     this.runtimes.clear();
     this.terminal_store.reset();
+  }
+
+  destroy(): void {
+    this.close_all_sessions();
   }
 
   private ensure_runtime(session_id: string): TerminalRuntimeSession {
@@ -228,13 +320,5 @@ export class TerminalService {
     }
 
     runtime.process = null;
-  }
-
-  private resolve_active_runtime(): TerminalRuntimeSession | undefined {
-    const session_id = this.terminal_store.active_session_id;
-    if (!session_id) {
-      return undefined;
-    }
-    return this.runtimes.get(session_id);
   }
 }
