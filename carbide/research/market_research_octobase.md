@@ -20,38 +20,38 @@ OctoBase remains a valid **design reference** for future cross-device sync work,
 
 ## 3. Architecture Comparison
 
-| Aspect | OctoBase | Carbide |
-|---|---|---|
-| **Source of truth** | CRDT block store | Markdown files on disk |
-| **Data model** | Block → Space → Workspace (schemaless CRDT atoms) | Vault → Note → Frontmatter + body |
-| **Storage** | sea-orm abstraction (SQLite/Postgres/MySQL) | Derived SQLite index over filesystem |
-| **Mutation path** | Mutate CRDT doc → serialize to storage | Edit Markdown file → re-index derived cache |
-| **Collaboration** | Real-time multi-user via CRDT merge | Single-user, local-first |
-| **Query** | Block traversal by flavour/children | SQL over derived metadata (FTS5, properties, tags) |
-| **Sync** | WebSocket/WebRTC with state vectors | Not in scope |
-| **Dependencies** | Heavy (sea-orm, y-octo, tokio, OpenDAL) | Lean (rusqlite, git2, tauri-plugin-pty) |
+| Aspect              | OctoBase                                          | Carbide                                            |
+| ------------------- | ------------------------------------------------- | -------------------------------------------------- |
+| **Source of truth** | CRDT block store                                  | Markdown files on disk                             |
+| **Data model**      | Block → Space → Workspace (schemaless CRDT atoms) | Vault → Note → Frontmatter + body                  |
+| **Storage**         | sea-orm abstraction (SQLite/Postgres/MySQL)       | Derived SQLite index over filesystem               |
+| **Mutation path**   | Mutate CRDT doc → serialize to storage            | Edit Markdown file → re-index derived cache        |
+| **Collaboration**   | Real-time multi-user via CRDT merge               | Single-user, local-first                           |
+| **Query**           | Block traversal by flavour/children               | SQL over derived metadata (FTS5, properties, tags) |
+| **Sync**            | WebSocket/WebRTC with state vectors               | Not in scope                                       |
+| **Dependencies**    | Heavy (sea-orm, y-octo, tokio, OpenDAL)           | Lean (rusqlite, git2, tauri-plugin-pty)            |
 
 ## 4. Donor Classification
 
 ### Anti-donors (Do not port)
 
-| Component | Reason |
-|---|---|
-| **CRDT codec (jwst-codec)** | Solves multi-user conflict resolution. Carbide is single-user. Adds complexity for zero benefit |
-| **Block data model (jwst-core)** | Incompatible with Markdown-as-truth. Would require abandoning Obsidian-flavored Markdown storage |
+| Component                        | Reason                                                                                                                            |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **CRDT codec (jwst-codec)**      | Solves multi-user conflict resolution. Carbide is single-user. Adds complexity for zero benefit                                   |
+| **Block data model (jwst-core)** | Incompatible with Markdown-as-truth. Would require abandoning Obsidian-flavored Markdown storage                                  |
 | **Storage layer (jwst-storage)** | sea-orm abstraction is over-engineered for Carbide's derived SQLite index. Carbide's ~200-line schema is cleaner for its use case |
-| **RPC/sync layer (jwst-rpc)** | No collaboration target exists. Would be dead code |
-| **Workspace model** | OctoBase workspaces are CRDT documents. Carbide vaults are filesystem directories. Fundamentally different ownership models |
-| **Full-text indexing** | Still in-progress in OctoBase. Carbide already has working FTS5 over Markdown content |
+| **RPC/sync layer (jwst-rpc)**    | No collaboration target exists. Would be dead code                                                                                |
+| **Workspace model**              | OctoBase workspaces are CRDT documents. Carbide vaults are filesystem directories. Fundamentally different ownership models       |
+| **Full-text indexing**           | Still in-progress in OctoBase. Carbide already has working FTS5 over Markdown content                                             |
 
 ### Design references only (Study, do not port)
 
-| Component | When relevant | What to borrow |
-|---|---|---|
-| **Sync connector abstraction** | If cross-device vault sync enters scope (Phase 5+) | Pluggable transport pattern (WebSocket/WebRTC), awareness protocol for client presence |
-| **Blob storage trait** | If Carbide needs managed attachment/asset storage beyond raw filesystem | Clean trait design: check/get/put/delete with metadata, content-type tracking |
-| **Binary codec patterns** | If Carbide needs compact wire format for vault snapshots or export | Varint encoding, efficient binary serialization techniques |
-| **Connection pooling** | Already addressed | Carbide's existing SQLite WAL + connection pool pattern is sufficient |
+| Component                      | When relevant                                                           | What to borrow                                                                         |
+| ------------------------------ | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **Sync connector abstraction** | If cross-device vault sync enters scope (Phase 5+)                      | Pluggable transport pattern (WebSocket/WebRTC), awareness protocol for client presence |
+| **Blob storage trait**         | If Carbide needs managed attachment/asset storage beyond raw filesystem | Clean trait design: check/get/put/delete with metadata, content-type tracking          |
+| **Binary codec patterns**      | If Carbide needs compact wire format for vault snapshots or export      | Varint encoding, efficient binary serialization techniques                             |
+| **Connection pooling**         | Already addressed                                                       | Carbide's existing SQLite WAL + connection pool pattern is sufficient                  |
 
 ## 5. Impact on Current Roadmap
 
@@ -64,12 +64,12 @@ The current roadmap (`carbide/implementation/unified_ferrite_lokus_roadmap.md`) 
 
 OctoBase does not appear in the roadmap, and this is correct. The existing Phases 2–4 implementation on `feat/graph-mvp` is well-advanced:
 
-| Feature | Status | Architecture |
-|---|---|---|
-| Graph MVP | Complete | Read surface over search DB (notes + outlinks) |
-| Metadata index | Complete | Derived SQLite tables from YAML frontmatter |
-| Bases query engine | Complete | SQL filters, sorting, pagination over note_properties |
-| Task extraction | Initial impl | Markdown checkbox parsing with safe round-trip mutations |
+| Feature            | Status       | Architecture                                             |
+| ------------------ | ------------ | -------------------------------------------------------- |
+| Graph MVP          | Complete     | Read surface over search DB (notes + outlinks)           |
+| Metadata index     | Complete     | Derived SQLite tables from YAML frontmatter              |
+| Bases query engine | Complete     | SQL filters, sorting, pagination over note_properties    |
+| Task extraction    | Initial impl | Markdown checkbox parsing with safe round-trip mutations |
 
 All of these are built on the correct Markdown-native, derived-index architecture. Porting OctoBase components would require either:
 
@@ -82,13 +82,13 @@ Neither is justified.
 
 If cross-device sync ever enters scope, study these:
 
-| File | Purpose |
-|---|---|
-| `libs/jwst-rpc/src/connector/` | Pluggable transport connectors (WebSocket, WebRTC, memory) |
-| `libs/jwst-rpc/src/handler.rs` | Sync message handling and state reconciliation |
-| `libs/jwst-storage/src/storage/mod.rs` | Storage trait definitions (DocStorage, BlobStorage) |
-| `libs/jwst-codec/src/doc/codec/` | Binary serialization format |
-| `apps/keck/src/` | Sync server implementation |
+| File                                   | Purpose                                                    |
+| -------------------------------------- | ---------------------------------------------------------- |
+| `libs/jwst-rpc/src/connector/`         | Pluggable transport connectors (WebSocket, WebRTC, memory) |
+| `libs/jwst-rpc/src/handler.rs`         | Sync message handling and state reconciliation             |
+| `libs/jwst-storage/src/storage/mod.rs` | Storage trait definitions (DocStorage, BlobStorage)        |
+| `libs/jwst-codec/src/doc/codec/`       | Binary serialization format                                |
+| `apps/keck/src/`                       | Sync server implementation                                 |
 
 ## 7. Bottom Line
 

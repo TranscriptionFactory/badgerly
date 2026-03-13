@@ -61,7 +61,6 @@ Lokus serves as a reference for data flow and spatial logic. Carbide borrows:
 2. `CanvasService` debounces updates and saves the result to disk.
 3. A **Canvas Reactor** watches for note renames in the vault and automatically rewrites references inside `.canvas` files to prevent broken links.
 
-
 ## Integration points
 
 ### Frontend composition root
