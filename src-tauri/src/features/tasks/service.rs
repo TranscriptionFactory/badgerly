@@ -1,12 +1,12 @@
 use rusqlite::{params, Connection};
-use crate::features::tasks::types::Task;
+use crate::features::tasks::types::{Task, TaskStatus};
 use regex::Regex;
 use lazy_static::lazy_static;
 use std::path::Path;
 use crate::shared::io_utils;
 
 lazy_static! {
-    static ref TASK_REGEX: Regex = Regex::new(r"(?m)^(\s*)[-*+]\s+\[([ xX])\]\s+(.*)$").unwrap();
+    static ref TASK_REGEX: Regex = Regex::new(r"(?m)^(\s*)[-*+]\s+\[(.)\]\s+(.*)$").unwrap();
     static ref DUE_DATE_REGEX: Regex = Regex::new(r"📅\s*(\d{4}-\d{2}-\d{2})|due:\s*(\d{4}-\d{2}-\d{2})|@(\d{4}-\d{2}-\d{2})").unwrap();
 }
 
@@ -23,7 +23,12 @@ pub fn extract_tasks(path: &str, markdown: &str) -> Vec<Task> {
         }
 
         if let Some(caps) = TASK_REGEX.captures(line) {
-            let completed = caps.get(2).map(|m: regex::Match| m.as_str() != " ").unwrap_or(false);
+            let status_char = caps.get(2).map(|m: regex::Match| m.as_str()).unwrap_or(" ");
+            let status = match status_char {
+                "x" | "X" => TaskStatus::Done,
+                "/" | "-" => TaskStatus::Doing,
+                _ => TaskStatus::Todo,
+            };
             let text = caps.get(3).map(|m: regex::Match| m.as_str()).unwrap_or("");
 
             // Extract due date if present
@@ -35,7 +40,7 @@ pub fn extract_tasks(path: &str, markdown: &str) -> Vec<Task> {
                 id: format!("{}:{}", path, line_number),
                 path: path.to_string(),
                 text: text.to_string(),
-                completed,
+                status,
                 due_date,
                 line_number,
                 section: current_section.clone(),
@@ -51,13 +56,19 @@ pub fn save_tasks(conn: &Connection, path: &str, tasks: &[Task]) -> Result<(), S
         .map_err(|e| e.to_string())?;
 
     for task in tasks {
+        let status_str = match task.status {
+            TaskStatus::Todo => "todo",
+            TaskStatus::Doing => "doing",
+            TaskStatus::Done => "done",
+        };
+
         conn.execute(
-            "INSERT INTO tasks (id, path, text, completed, due_date, line_number, section) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO tasks (id, path, text, status, due_date, line_number, section) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
                 task.id,
                 task.path,
                 task.text,
-                task.completed,
+                status_str,
                 task.due_date,
                 task.line_number,
                 task.section
@@ -71,16 +82,23 @@ pub fn save_tasks(conn: &Connection, path: &str, tasks: &[Task]) -> Result<(), S
 
 pub fn get_tasks_for_path(conn: &Connection, path: &str) -> Result<Vec<Task>, String> {
     let mut stmt = conn
-        .prepare("SELECT id, path, text, completed, due_date, line_number, section FROM tasks WHERE path = ?1 ORDER BY line_number")
+        .prepare("SELECT id, path, text, status, due_date, line_number, section FROM tasks WHERE path = ?1 ORDER BY line_number")
         .map_err(|e| e.to_string())?;
 
     let rows = stmt
         .query_map(params![path], |row| {
+            let status_str: String = row.get(3)?;
+            let status = match status_str.as_str() {
+                "doing" => TaskStatus::Doing,
+                "done" => TaskStatus::Done,
+                _ => TaskStatus::Todo,
+            };
+
             Ok(Task {
                 id: row.get(0)?,
                 path: row.get(1)?,
                 text: row.get(2)?,
-                completed: row.get(3)?,
+                status,
                 due_date: row.get(4)?,
                 line_number: row.get(5)?,
                 section: row.get(6)?,
@@ -95,13 +113,18 @@ pub fn get_tasks_for_path(conn: &Connection, path: &str) -> Result<Vec<Task>, St
     Ok(tasks)
 }
 
-pub fn query_tasks(conn: &Connection, filter_completed: Option<bool>) -> Result<Vec<Task>, String> {
-    let mut query = "SELECT id, path, text, completed, due_date, line_number, section FROM tasks".to_string();
+pub fn query_tasks(conn: &Connection, filter_status: Option<TaskStatus>) -> Result<Vec<Task>, String> {
+    let mut query = "SELECT id, path, text, status, due_date, line_number, section FROM tasks".to_string();
     let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
-    if let Some(completed) = filter_completed {
-        query.push_str(" WHERE completed = ?1");
-        params_vec.push(Box::new(completed));
+    if let Some(status) = filter_status {
+        let status_str = match status {
+            TaskStatus::Todo => "todo",
+            TaskStatus::Doing => "doing",
+            TaskStatus::Done => "done",
+        };
+        query.push_str(" WHERE status = ?1");
+        params_vec.push(Box::new(status_str.to_string()));
     }
 
     query.push_str(" ORDER BY path, line_number");
@@ -110,11 +133,18 @@ pub fn query_tasks(conn: &Connection, filter_completed: Option<bool>) -> Result<
 
     let rows = stmt
         .query_map(rusqlite::params_from_iter(params_vec.iter()), |row| {
+            let status_str: String = row.get(3)?;
+            let status = match status_str.as_str() {
+                "doing" => TaskStatus::Doing,
+                "done" => TaskStatus::Done,
+                _ => TaskStatus::Todo,
+            };
+
             Ok(Task {
                 id: row.get(0)?,
                 path: row.get(1)?,
                 text: row.get(2)?,
-                completed: row.get(3)?,
+                status,
                 due_date: row.get(4)?,
                 line_number: row.get(5)?,
                 section: row.get(6)?,
@@ -132,7 +162,7 @@ pub fn query_tasks(conn: &Connection, filter_completed: Option<bool>) -> Result<
 pub fn update_task_state_in_file(
     abs_path: &Path,
     line_number: usize,
-    completed: bool,
+    status: TaskStatus,
 ) -> Result<(), String> {
     let content = io_utils::read_file_to_string(abs_path)?;
     let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
@@ -146,9 +176,15 @@ pub fn update_task_state_in_file(
         let indent = caps.get(1).map(|m: regex::Match| m.as_str()).unwrap_or("");
         let text = caps.get(3).map(|m: regex::Match| m.as_str()).unwrap_or("");
         
+        let status_char = match status {
+            TaskStatus::Todo => " ",
+            TaskStatus::Doing => "-",
+            TaskStatus::Done => "x",
+        };
+        
         // Reconstruct the line preserving bullet style
         let original_bullet = line.trim_start().chars().next().unwrap_or('-');
-        *line = format!("{}{} [{}] {}", indent, original_bullet, if completed { "x" } else { " " }, text);
+        *line = format!("{}{} [{}] {}", indent, original_bullet, status_char, text);
     } else {
         return Err(format!("Line {} is not a task", line_number));
     }
@@ -174,27 +210,26 @@ mod tests {
 # Project A
 - [ ] Task 1
 - [x] Task 2 @2023-10-27
-* [ ] Task 3 due: 2023-12-25
-+ [ ] Task 4 📅 2024-01-01
+- [-] Task 3 in progress
+* [ ] Task 4 due: 2023-12-25
++ [ ] Task 5 📅 2024-01-01
 
 ## Subproject B
-- [ ] Task 5
+- [ ] Task 6
 "#;
         let tasks = extract_tasks("test.md", markdown);
-        assert_eq!(tasks.len(), 5);
+        assert_eq!(tasks.len(), 6);
         
         assert_eq!(tasks[0].text, "Task 1");
-        assert_eq!(tasks[0].completed, false);
+        assert_eq!(tasks[0].status, TaskStatus::Todo);
         assert_eq!(tasks[0].section, Some("Project A".to_string()));
         
         assert_eq!(tasks[1].text, "Task 2 @2023-10-27");
-        assert_eq!(tasks[1].completed, true);
-        assert_eq!(tasks[1].due_date, Some("2023-10-27".to_string()));
+        assert_eq!(tasks[1].status, TaskStatus::Done);
         
-        assert_eq!(tasks[2].due_date, Some("2023-12-25".to_string()));
-        assert_eq!(tasks[3].due_date, Some("2024-01-01".to_string()));
+        assert_eq!(tasks[2].text, "Task 3 in progress");
+        assert_eq!(tasks[2].status, TaskStatus::Doing);
         
-        assert_eq!(tasks[4].text, "Task 5");
-        assert_eq!(tasks[4].section, Some("Subproject B".to_string()));
+        assert_eq!(tasks[4].due_date, Some("2024-01-01".to_string()));
     }
 }

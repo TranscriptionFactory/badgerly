@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Task } from "../types";
+  import type { Task, TaskStatus } from "../types";
   import { use_app_context } from "$lib/app/context/app_context.svelte";
   import Calendar from "@lucide/svelte/icons/calendar";
   import FileText from "@lucide/svelte/icons/file-text";
@@ -11,27 +11,39 @@
   const taskService = context.services.task;
   const actionRegistry = context.action_registry;
 
-  async function toggle() {
-    await taskService.toggleTask(task.path, task.line_number, !task.completed);
+  async function setStatus(status: TaskStatus) {
+    await taskService.updateTaskStatus(task.path, task.line_number, status);
   }
 
   function openNote() {
     actionRegistry.execute(ACTION_IDS.note_open, { note_path: task.path });
   }
+
+  function getStatusIcon(status: TaskStatus) {
+    if (status === "done") return "x";
+    if (status === "doing") return "-";
+    return " ";
+  }
+
+  function toggleStatus() {
+    if (task.status === "todo") setStatus("doing");
+    else if (task.status === "doing") setStatus("done");
+    else setStatus("todo");
+  }
 </script>
 
 <div class="flex items-start gap-3 p-2 hover:bg-muted/50 rounded-md group">
   <div class="mt-0.5">
-    <input 
-      type="checkbox" 
-      checked={task.completed} 
-      onchange={toggle} 
-      class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
-    />
+    <button 
+      class="h-4 w-4 rounded border border-gray-300 flex items-center justify-center text-[10px] font-bold leading-none bg-background hover:border-interactive transition-colors"
+      onclick={toggleStatus}
+    >
+      {getStatusIcon(task.status)}
+    </button>
   </div>
   
   <div class="flex-1 min-w-0">
-    <p class="text-sm leading-tight {task.completed ? 'text-muted-foreground line-through' : ''}">
+    <p class="text-sm leading-tight {task.status === 'done' ? 'text-muted-foreground line-through' : ''}">
       {task.text}
     </p>
     
@@ -52,7 +64,7 @@
       {/if}
       
       {#if task.due_date}
-        <div class="flex items-center gap-1 {new Date(task.due_date) < new Date() && !task.completed ? 'text-destructive' : ''}">
+        <div class="flex items-center gap-1 {new Date(task.due_date) < new Date() && task.status !== 'done' ? 'text-destructive' : ''}">
           <Calendar size={10} />
           {task.due_date}
         </div>

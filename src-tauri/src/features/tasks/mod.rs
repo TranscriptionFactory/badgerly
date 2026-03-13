@@ -2,7 +2,7 @@ pub mod types;
 pub mod service;
 
 use tauri::{AppHandle, command};
-use crate::features::tasks::types::{Task, TaskUpdate};
+use crate::features::tasks::types::{Task, TaskUpdate, TaskStatus};
 use crate::features::search::db::open_search_db;
 use crate::shared::storage;
 use crate::shared::io_utils;
@@ -13,10 +13,10 @@ use crate::features::tasks::service::{query_tasks, get_tasks_for_path, update_ta
 pub fn tasks_query(
     app: AppHandle,
     vault_id: String,
-    completed: Option<bool>,
+    status: Option<TaskStatus>,
 ) -> Result<Vec<Task>, String> {
     let conn = open_search_db(&app, &vault_id)?;
-    query_tasks(&conn, completed)
+    query_tasks(&conn, status)
 }
 
 #[command]
@@ -35,11 +35,11 @@ pub fn tasks_update_state(
     vault_id: String,
     update: TaskUpdate,
 ) -> Result<(), String> {
-    log::info!("Updating task state for {} at line {}", update.path, update.line_number);
+    log::info!("Updating task state for {} at line {} to status {:?}", update.path, update.line_number, update.status);
     let vault_root = storage::vault_path(&app, &vault_id)?;
     let abs_path = notes_service::safe_vault_abs(&vault_root, &update.path)?;
     
-    update_task_state_in_file(&abs_path, update.line_number, update.completed)
+    update_task_state_in_file(&abs_path, update.line_number, update.status)
 }
 
 #[command]

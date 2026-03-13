@@ -26,7 +26,7 @@
     taskStore.tasks.filter(task => {
       const matchesSearch = task.text.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           task.path.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCompleted = showCompleted || !task.completed;
+      const matchesCompleted = showCompleted || task.status !== "done";
       return matchesSearch && matchesCompleted;
     })
   );

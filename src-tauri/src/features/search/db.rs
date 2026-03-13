@@ -176,7 +176,7 @@ fn init_schema(conn: &Connection) -> Result<(), String> {
             id TEXT PRIMARY KEY,
             path TEXT NOT NULL,
             text TEXT NOT NULL,
-            completed BOOLEAN NOT NULL,
+            status TEXT NOT NULL,
             due_date TEXT,
             line_number INTEGER NOT NULL,
             section TEXT,
@@ -184,7 +184,7 @@ fn init_schema(conn: &Connection) -> Result<(), String> {
         );
 
         CREATE INDEX IF NOT EXISTS idx_tasks_path ON tasks(path);
-        CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed);
+        CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
         "
     ))
     .map_err(|e| e.to_string())
