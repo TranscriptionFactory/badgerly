@@ -610,15 +610,15 @@ This is the best near-term Carbide port target. It fits Otterly’s current arch
 
 ## Portability Matrix
 
-| Area | Recommendation | Notes |
-| --- | --- | --- |
-| Graph | Adapt | Reuse link/index concepts, rewrite as Otterly `graph` slice |
-| Bases | Adapt heavily | Strong strategic value, needs metadata/query foundation first |
-| Extensions | Adapt concepts only | Borrow manifest/API ideas, reimplement runtime |
-| Kanban | Reimplement | Needs task domain first |
-| Tasks | Reimplement | Borrow gestures and UX, not internals |
-| Calendar | Adapt UI, reimplement system | External sync is expensive and coupled |
-| UI/editor customization | Adapt aggressively | Best short-term win |
+| Area                    | Recommendation               | Notes                                                         |
+| ----------------------- | ---------------------------- | ------------------------------------------------------------- |
+| Graph                   | Adapt                        | Reuse link/index concepts, rewrite as Otterly `graph` slice   |
+| Bases                   | Adapt heavily                | Strong strategic value, needs metadata/query foundation first |
+| Extensions              | Adapt concepts only          | Borrow manifest/API ideas, reimplement runtime                |
+| Kanban                  | Reimplement                  | Needs task domain first                                       |
+| Tasks                   | Reimplement                  | Borrow gestures and UX, not internals                         |
+| Calendar                | Adapt UI, reimplement system | External sync is expensive and coupled                        |
+| UI/editor customization | Adapt aggressively           | Best short-term win                                           |
 
 ## Recommended Build Order for Carbide
 
@@ -735,17 +735,17 @@ That is a rational demo strategy, but not the best long-term platform strategy.
 
 ### Area-by-Area Base Comparison
 
-| Concern | Better Short-Term Surface | Better Long-Term Base |
-| --- | --- | --- |
-| Graph | Lokus | Otterly |
-| Bases | Lokus | Otterly, after foundation work |
-| Extensions | Lokus has more surface | Otterly for a clean native host |
-| Tasks/Kanban/Calendar | Lokus | Otterly if built on a stronger domain model |
-| Vault/global settings | Otterly | Otterly |
-| AI CLI integration | roughly neutral | Otterly |
-| Terminal panel | roughly neutral | Otterly |
-| Future efficiency work | Lokus has more to untangle | Otterly |
-| Future extensibility | Lokus has more existing breadth | Otterly |
+| Concern                | Better Short-Term Surface       | Better Long-Term Base                       |
+| ---------------------- | ------------------------------- | ------------------------------------------- |
+| Graph                  | Lokus                           | Otterly                                     |
+| Bases                  | Lokus                           | Otterly, after foundation work              |
+| Extensions             | Lokus has more surface          | Otterly for a clean native host             |
+| Tasks/Kanban/Calendar  | Lokus                           | Otterly if built on a stronger domain model |
+| Vault/global settings  | Otterly                         | Otterly                                     |
+| AI CLI integration     | roughly neutral                 | Otterly                                     |
+| Terminal panel         | roughly neutral                 | Otterly                                     |
+| Future efficiency work | Lokus has more to untangle      | Otterly                                     |
+| Future extensibility   | Lokus has more existing breadth | Otterly                                     |
 
 ### Final Verdict
 

@@ -3,6 +3,7 @@
 Carbide is the product and implementation direction for turning Otterly into a high-performance, local-first Markdown knowledge-work app.
 
 The project strategy is simple:
+
 - fork Otterly as the implementation base
 - borrow proven ideas from sibling/reference apps like Moraya, Scratch, and selected external projects
 - keep storage and ecosystem choices Markdown-first and vault-first
@@ -11,6 +12,7 @@ The project strategy is simple:
 ## Start here
 
 If you are doing Carbide-facing work, read these first:
+
 1. `carbide/carbide-project-guide.md` — product strategy, feature roadmap, and guardrails
 2. `carbide/TODO.md` — execution tracker and current phase status
 3. `carbide/plugin_system.md` — plugin architecture and compatibility posture
@@ -22,6 +24,7 @@ The folder is organized by document role and lifecycle.
 ### Root
 
 Keep only the canonical project docs at the root:
+
 - `carbide-project-guide.md`
 - `TODO.md`
 - `plugin_system.md`
@@ -34,6 +37,7 @@ These stay at the top level on purpose because repo instructions and other docs 
 Active implementation plans, checklists, comparisons, and delivery logs that directly drive code changes.
 
 Use this for documents that answer questions like:
+
 - what are we building next
 - what design constraints govern it
 - what changed when we implemented it
@@ -43,6 +47,7 @@ Use this for documents that answer questions like:
 Reference analysis and external comparison docs.
 
 Use this for:
+
 - comparisons against other codebases or products
 - external inspiration worth adapting
 

@@ -301,16 +301,16 @@ Moraya's `TouchToolbar` is simpler and already Svelte — better starting point 
 
 These were documented earlier and have detailed plans in `carbide/scratch/scratch_highvalue.md`:
 
-| Feature                          | Status  | Reference                               |
-| -------------------------------- | ------- | --------------------------------------- |
-| Git Remote Ops (push/pull/fetch) | Planned | carbide/scratch/scratch_highvalue.md Feature 1          |
-| AI CLI Integration               | Planned | carbide/scratch/scratch_highvalue.md Feature 2          |
-| Contextual Commands              | Planned | carbide/scratch/scratch_highvalue.md Feature 3          |
-| Focus/Zen Mode                   | Planned | carbide/scratch/scratch_highvalue.md Feature 4          |
-| Editor Width Presets             | Planned | carbide/scratch/scratch_highvalue.md Feature 5          |
-| Math/LaTeX Support               | Planned | carbide/scratch/scratch_highvalue.md Feature 6          |
-| Tantivy Search                   | Skipped | Otterly's FTS5 is comparable            |
-| Wikilinks                        | Skipped | Otterly's implementation is more mature |
+| Feature                          | Status  | Reference                                      |
+| -------------------------------- | ------- | ---------------------------------------------- |
+| Git Remote Ops (push/pull/fetch) | Planned | carbide/scratch/scratch_highvalue.md Feature 1 |
+| AI CLI Integration               | Planned | carbide/scratch/scratch_highvalue.md Feature 2 |
+| Contextual Commands              | Planned | carbide/scratch/scratch_highvalue.md Feature 3 |
+| Focus/Zen Mode                   | Planned | carbide/scratch/scratch_highvalue.md Feature 4 |
+| Editor Width Presets             | Planned | carbide/scratch/scratch_highvalue.md Feature 5 |
+| Math/LaTeX Support               | Planned | carbide/scratch/scratch_highvalue.md Feature 6 |
+| Tantivy Search                   | Skipped | Otterly's FTS5 is comparable                   |
+| Wikilinks                        | Skipped | Otterly's implementation is more mature        |
 
 ---
 

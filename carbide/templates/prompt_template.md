@@ -6,7 +6,7 @@ Implement Phase {{PHASE_NUMBER}} of Carbide.
 
 - Project guide: carbide/carbide-project-guide.md
 - TODO tracker: carbide/TODO.md
-- Phase history: carbide/archive/phase_{{PHASE_NUMBER}}.md
+- Phase history: carbide/archive/phase\_{{PHASE_NUMBER}}.md
 - This is a fork of Otterly (Tauri v2 + Milkdown markdown editor)
 - Moraya (/Users/abir/src/moraya) is a reference codebase for adapted features
 

@@ -17,15 +17,15 @@ This index is the implementation packet for the current Carbide roadmap. Read it
 
 ## Implementation docs
 
-| Document | Scope | Read when | Main output |
-| --- | --- | --- | --- |
-| `execution_security_and_readiness.md` | Cross-cutting trust boundaries, architecture gates, readiness checklist | Before starting any new roadmap phase | Shared implementation rules and stop-conditions |
-| `phase1_terminal_and_document_performance.md` | Terminal hardening plus big-file viewer work | Improving terminal behavior or large document handling | Concrete phase 1 delivery plan for the existing terminal and document slices |
-| `phase1_visual_customization.md` | Typed customization expansion over current theme and settings systems | Adding typography, spacing, selection, or editor appearance controls | Implementation plan for high-value visible customization |
-| `phase2_graph_mvp.md` | Native graph slice over existing link and index foundations | Starting graph work | Graph MVP architecture, data flow, and milestones |
-| `phase3_metadata_and_bases.md` | Metadata index plus Bases foundations | Starting metadata extraction or Bases work | Shared model for frontmatter, properties, queries, and early view types |
-| `phase4_tasks_and_views.md` | Task domain, Kanban, schedule view, and command-tool boundaries | Starting task extraction or workflow views | Implementation plan for tasks as a real domain, not isolated UI |
-| `phase5_plugin_host_implementation.md` | Secure native plugin host | Starting plugin work | Phase-by-phase plugin implementation plan over host-owned APIs |
+| Document                                      | Scope                                                                   | Read when                                                            | Main output                                                                  |
+| --------------------------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `execution_security_and_readiness.md`         | Cross-cutting trust boundaries, architecture gates, readiness checklist | Before starting any new roadmap phase                                | Shared implementation rules and stop-conditions                              |
+| `phase1_terminal_and_document_performance.md` | Terminal hardening plus big-file viewer work                            | Improving terminal behavior or large document handling               | Concrete phase 1 delivery plan for the existing terminal and document slices |
+| `phase1_visual_customization.md`              | Typed customization expansion over current theme and settings systems   | Adding typography, spacing, selection, or editor appearance controls | Implementation plan for high-value visible customization                     |
+| `phase2_graph_mvp.md`                         | Native graph slice over existing link and index foundations             | Starting graph work                                                  | Graph MVP architecture, data flow, and milestones                            |
+| `phase3_metadata_and_bases.md`                | Metadata index plus Bases foundations                                   | Starting metadata extraction or Bases work                           | Shared model for frontmatter, properties, queries, and early view types      |
+| `phase4_tasks_and_views.md`                   | Task domain, Kanban, schedule view, and command-tool boundaries         | Starting task extraction or workflow views                           | Implementation plan for tasks as a real domain, not isolated UI              |
+| `phase5_plugin_host_implementation.md`        | Secure native plugin host                                               | Starting plugin work                                                 | Phase-by-phase plugin implementation plan over host-owned APIs               |
 
 ## Recommended reading order
 
