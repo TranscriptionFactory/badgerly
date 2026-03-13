@@ -134,7 +134,7 @@ fn ensure_worker(app: &AppHandle, vault_id: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn writer_thread_loop(app: AppHandle, vault_id: String, rx: Receiver<DbCommand>, vault_root: &Path) {
+fn writer_thread_loop(app: AppHandle, vault_id: String, rx: Receiver<DbCommand>, _vault_root: &Path) {
     let conn = match search_db::open_search_db(&app, &vault_id) {
         Ok(c) => c,
         Err(e) => {

@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
 const SETTINGS_FILE: &str = "settings.json";
-const LOCAL_STATE_FILE: &str = "local_state.json";
 
 fn vault_settings_path(app: &AppHandle, vault_id: &str) -> Result<PathBuf, String> {
     let store = load_store(app)?;
