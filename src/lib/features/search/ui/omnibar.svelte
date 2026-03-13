@@ -511,9 +511,8 @@
             {:else if item.kind === "command"}
               {@const IconComponent =
                 COMMAND_ICONS[item.command.icon] || CommandIcon}
-              {@const command_key = action_id_to_key.get(
-                COMMAND_TO_ACTION_ID[item.command.id],
-              )}
+              {@const action_id = COMMAND_TO_ACTION_ID[item.command.id]}
+              {@const command_key = action_id ? action_id_to_key.get(action_id) : undefined}
               <div class="Omnibar__item-row">
                 <span class="Omnibar__item-icon"><IconComponent /></span>
                 <span class="Omnibar__item-title">{item.command.label}</span>
