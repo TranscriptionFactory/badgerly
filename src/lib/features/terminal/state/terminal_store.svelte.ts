@@ -38,6 +38,9 @@ export class TerminalStore {
       status?: TerminalSessionStatus;
       last_exit_code?: number | null;
     },
+    options?: {
+      activate?: boolean;
+    },
   ): string {
     const existing = this.sessions.get(input.id);
     const next_state: TerminalSessionMeta = {
@@ -58,7 +61,10 @@ export class TerminalStore {
       this.session_ids = [...this.session_ids, input.id];
     }
 
-    this.active_session_id = input.id;
+    if (options?.activate ?? true) {
+      this.active_session_id = input.id;
+    }
+
     return input.id;
   }
 

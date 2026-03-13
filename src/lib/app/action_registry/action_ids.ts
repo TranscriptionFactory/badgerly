@@ -175,6 +175,10 @@ export const ACTION_IDS = {
 
   terminal_toggle: "terminal.toggle",
   terminal_close: "terminal.close",
+  terminal_new_session: "terminal.new_session",
+  terminal_activate_session: "terminal.activate_session",
+  terminal_close_session: "terminal.close_session",
+  terminal_respawn_session: "terminal.respawn_session",
 
   ai_open_assistant: "ai.open_assistant",
   ai_open_claude: "ai.open_claude",

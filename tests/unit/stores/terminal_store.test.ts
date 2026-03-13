@@ -38,6 +38,36 @@ describe("TerminalStore", () => {
     });
   });
 
+  it("updates a session without forcing activation when requested", () => {
+    const store = new TerminalStore();
+
+    store.ensure_session({
+      id: DEFAULT_TERMINAL_SESSION_ID,
+      shell_path: "/bin/zsh",
+      cwd: "/vault-a",
+      cwd_policy: "fixed",
+      respawn_policy: "manual",
+    });
+    store.ensure_session(
+      {
+        id: "terminal:session:1",
+        shell_path: "/bin/bash",
+        cwd: "/vault-b",
+        cwd_policy: "follow_active_vault",
+        respawn_policy: "on_context_change",
+      },
+      {
+        activate: false,
+      },
+    );
+
+    expect(store.active_session_id).toBe(DEFAULT_TERMINAL_SESSION_ID);
+    expect(store.session_ids).toEqual([
+      DEFAULT_TERMINAL_SESSION_ID,
+      "terminal:session:1",
+    ]);
+  });
+
   it("marks sessions running and exited", () => {
     const store = new TerminalStore();
 
