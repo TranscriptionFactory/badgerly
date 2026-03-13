@@ -59,3 +59,8 @@ export interface StatusBarRegistryPort {
   unregister(id: string): void;
   getItems(): StatusBarItem[];
 }
+
+export interface PluginNotificationPort {
+  notify_plugin_unstable(plugin_id: string, plugin_name: string): void;
+  notify_plugin_auto_disabled(plugin_id: string, plugin_name: string): void;
+}
