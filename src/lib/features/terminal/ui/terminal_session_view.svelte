@@ -189,11 +189,26 @@
     terminal.open(container_el);
 
     if (active) {
-      fit_addon.fit();
-      terminal.focus();
+      requestAnimationFrame(() => {
+        if (!fit_addon || !terminal || destroyed) return;
+        try {
+          fit_addon.fit();
+          terminal.focus();
+          terminal_runtime.resize_session(
+            session_id,
+            terminal.cols,
+            terminal.rows,
+          );
+        } catch {
+          return;
+        }
+      });
     }
 
     terminal.onData((data: string) => {
+      // Only send data if this session is the active one to prevent
+      // background sessions from interfering or leaking input
+      if (!active) return;
       terminal_runtime.write_session(session_id, data);
     });
 
@@ -267,6 +282,7 @@
   });
 
   $effect(() => {
+    // Only perform activation logic when 'active' becomes true
     if (!terminal || !active) return;
 
     requestAnimationFrame(() => {

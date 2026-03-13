@@ -153,10 +153,12 @@
 
   <div class="TerminalPanel__sessions">
     {#each session_ids as session_id (session_id)}
-      <TerminalSessionView
-        {session_id}
-        active={session_id === active_session_id}
-      />
+      {#if session_id === active_session_id}
+        <TerminalSessionView
+          {session_id}
+          active={true}
+        />
+      {/if}
     {/each}
   </div>
 </div>
