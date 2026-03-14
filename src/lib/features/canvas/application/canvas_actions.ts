@@ -61,24 +61,6 @@ export function register_canvas_actions(
       const file_path =
         typeof args[0] === "string"
           ? args[0]
-          : unique_canvas_path(folder, "Untitled", "canvas");
-
-      await canvas_service.create_canvas(vault_id, file_path);
-      await registry.execute(ACTION_IDS.canvas_open, file_path);
-    },
-  });
-
-  registry.register({
-    id: ACTION_IDS.canvas_create_drawing,
-    label: "New Drawing",
-    execute: async (...args: unknown[]) => {
-      const vault_id = stores.vault.vault?.id;
-      if (!vault_id) return;
-
-      const folder = stores.ui.selected_folder_path;
-      const file_path =
-        typeof args[0] === "string"
-          ? args[0]
           : unique_canvas_path(folder, "Untitled", "excalidraw");
 
       await canvas_service.create_drawing(vault_id, file_path);

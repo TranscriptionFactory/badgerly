@@ -31,7 +31,6 @@
     on_request_rename_folder?: ((folder_path: string) => void) | undefined;
     on_request_create_note?: (() => void) | undefined;
     on_request_create_canvas?: (() => void) | undefined;
-    on_request_create_drawing?: (() => void) | undefined;
     on_request_create_folder?: ((folder_path: string) => void) | undefined;
     on_toggle_star?:
       | ((payload: { paths: string[]; all_starred: boolean }) => void)
@@ -67,7 +66,6 @@
     on_request_rename_folder,
     on_request_create_note,
     on_request_create_canvas,
-    on_request_create_drawing,
     on_request_create_folder,
     on_toggle_star,
     on_open_to_side,
@@ -422,7 +420,6 @@
             {on_request_rename_folder}
             {on_request_create_note}
             {on_request_create_canvas}
-            {on_request_create_drawing}
             {on_request_create_folder}
             {on_open_to_side}
             {on_open_in_new_window}
