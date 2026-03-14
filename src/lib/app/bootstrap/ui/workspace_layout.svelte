@@ -439,10 +439,6 @@
                             void action_registry.execute(
                               ACTION_IDS.canvas_create,
                             )}
-                          on_request_create_drawing={() =>
-                            void action_registry.execute(
-                              ACTION_IDS.canvas_create_drawing,
-                            )}
                           on_request_create_folder={(folder_path: string) =>
                             void action_registry.execute(
                               ACTION_IDS.folder_request_create,
@@ -612,10 +608,6 @@
                         on_request_create_canvas={() =>
                           void action_registry.execute(
                             ACTION_IDS.canvas_create,
-                          )}
-                        on_request_create_drawing={() =>
-                          void action_registry.execute(
-                            ACTION_IDS.canvas_create_drawing,
                           )}
                         on_request_create_folder={(folder_path: string) =>
                           void action_registry.execute(
