@@ -29,6 +29,7 @@ import { create_graph_refresh_reactor } from "$lib/reactors/graph_refresh.reacto
 import { create_bases_refresh_reactor } from "$lib/reactors/bases_refresh.reactor.svelte";
 import { create_task_sync_reactor } from "$lib/reactors/task_sync.reactor.svelte";
 import { create_menu_action_reactor } from "$lib/reactors/menu_action.reactor.svelte";
+import { create_embedding_sync_reactor } from "$lib/reactors/embedding_sync.reactor.svelte";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { EditorStore } from "$lib/features/editor";
 import type { UIStore } from "$lib/app";
@@ -44,7 +45,7 @@ import type { TabService } from "$lib/features/tab";
 import type { GitStore } from "$lib/features/git";
 import type { GitService } from "$lib/features/git";
 import type { LinksService } from "$lib/features/links";
-import type { SearchStore } from "$lib/features/search";
+import type { SearchStore, WorkspaceIndexPort } from "$lib/features/search";
 import type { LinksStore } from "$lib/features/links";
 import type { WatcherService } from "$lib/features/watcher";
 import type { ActionRegistry } from "$lib/app/action_registry/action_registry";
@@ -88,6 +89,7 @@ export type ReactorContext = {
   split_view_service: SplitViewService;
   document_service: DocumentService;
   task_service: TaskService;
+  workspace_index_port: WorkspaceIndexPort;
 };
 
 export function mount_reactors(context: ReactorContext): () => void {
@@ -218,6 +220,11 @@ export function mount_reactors(context: ReactorContext): () => void {
     ),
     create_menu_action_reactor(
       (action_id) => void context.action_registry.execute(action_id),
+    ),
+    create_embedding_sync_reactor(
+      context.search_store,
+      context.vault_store,
+      context.workspace_index_port,
     ),
   ];
 

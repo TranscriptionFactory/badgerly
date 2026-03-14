@@ -403,6 +403,7 @@ export function create_app_context(input: {
     split_view_service,
     document_service,
     task_service,
+    workspace_index_port: input.ports.index,
   });
 
   return {
