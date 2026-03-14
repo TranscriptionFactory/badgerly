@@ -115,7 +115,9 @@ Needed change:
 
 ## Implementation order
 
-### Milestone 1: Host registries with no external plugins yet
+> **Status as of March 2026:** Milestones 1–3 and most of Milestone 5 are complete. Milestone 4 is partially complete (3 of 6 API surface areas shipped). See `carbide/plugin_system.md` for the updated Phase 1a/1b split.
+
+### Milestone 1: Host registries with no external plugins yet — DONE
 
 Ship:
 
@@ -125,7 +127,7 @@ Ship:
 
 This validates the host surface before introducing external code.
 
-### Milestone 2: Discovery and manifest validation
+### Milestone 2: Discovery and manifest validation — DONE
 
 Ship:
 
@@ -136,7 +138,7 @@ Ship:
 
 No plugin code execution yet if the host surface is not ready.
 
-### Milestone 3: Iframe host and RPC
+### Milestone 3: Iframe host and RPC — DONE
 
 Ship:
 
@@ -145,7 +147,7 @@ Ship:
 - permission checks for every plugin API call
 - plugin lifecycle management
 
-### Milestone 4: Minimal useful API surface
+### Milestone 4: Minimal useful API surface — PARTIAL
 
 Start with:
 
@@ -158,7 +160,10 @@ Start with:
 
 Defer broad write operations until read-only and bounded UI contributions are stable.
 
-### Milestone 5: Demo plugins and failure containment
+Shipped: commands, status bar items, sidebar panels, vault read, editor read/modify.
+Remaining: metadata read operations (depends on metadata engine from roadmap Phase 3).
+
+### Milestone 5: Demo plugins and failure containment — PARTIAL
 
 Ship:
 
@@ -171,6 +176,13 @@ Also ship:
 - per-plugin runtime error reporting
 - disable-on-failure behavior
 - clean unload behavior
+
+Shipped: Hello World command plugin, Word Count status bar plugin, per-plugin error tracking, auto-disable on failure.
+Remaining: LaTeX Snippets plugin, clean unload behavior (load/unload are stubs in PluginHostAdapter).
+
+## Pipeline boundary
+
+The app has a generic pipeline execution backend (`src-tauri/src/features/pipeline/`) used by the AI integration. Plugins explicitly cannot access the pipeline. This is an intentional security boundary — plugins provide UI extensibility, not process execution.
 
 ## Security implementation checklist
 

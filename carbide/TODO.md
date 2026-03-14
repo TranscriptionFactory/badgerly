@@ -275,10 +275,16 @@
 - [x] Adapt `ai_execute_claude()`, `ai_execute_codex()`, `ai_execute_ollama()` for vault_path
 - [x] Generalize `ai_check_cli(provider)` into single function
 - [x] Generalize `execute_ai_cli` into a generic `pipeline` feature (Phase 3.1 in Ferrite Port Plan)
-- [ ] Frontend: `src/lib/features/ai/` (types, port, adapter, service, store, dialog, toast)
-- [ ] Extract `ai_markdown_parser.ts` from Scratch's parser utilities
-- [ ] Add to `COMMANDS_REGISTRY`: "AI Edit (Claude)", "AI Edit (Codex)", "AI Edit (Ollama)"
+- [x] Frontend: `src/lib/features/ai/` (types, port, adapter, service, store, panel, diff view)
+- [-] Extract `ai_markdown_parser.ts` from Scratch's parser utilities — superseded by inline prompt builder
+- [x] Add to `COMMANDS_REGISTRY`: unified "AI Assistant" command (replaces per-provider entries)
 - [x] Unit tests for ANSI stripping, markdown parser, store state transitions (Rust tests ported)
+- [x] AI assistant panel in context rail with conversation history
+- [x] Diff-first draft review with partial apply
+- [x] Auto backend selection and default backend setting
+- [ ] Structured edit proposal contract for machine-validated AI payloads
+
+> Implementation details: `carbide/implementation/ai_integration_implementation.md`
 
 ---
 
@@ -380,8 +386,12 @@
 
 - [x] Plugin sandbox: each plugin runs in sandboxed iframe
 - [x] `postMessage`-based RPC bridge between plugin iframe and main app
-- [ ] TypeScript SDK: `@badge-plugin-api` with types for Vault, Editor, Commands, UI, Events, Settings (Foundational RPC bridge added)
+- [x] Permission-checked RPC dispatcher (vault, editor, commands, ui namespaces)
+- [x] Per-plugin error tracking with auto-disable on repeated failures
+- [x] Custom URI scheme (`badgerly-plugin://`) for plugin HTML serving
+- [ ] TypeScript SDK: `@carbide/plugin-api` with typed RPC contracts
 - [x] Lifecycle: discover → validate → load → activate → deactivate
+- [ ] Proper load/unload implementation in PluginHostAdapter (currently stubs)
 - [ ] Hot-reload in dev mode
 
 ### Demo Plugins
@@ -403,9 +413,9 @@
 
 ### Architecture
 
-- [ ] Create `canvas` feature slice (`src/lib/features/canvas/`)
-- [ ] Define `CanvasPort` and `CanvasTauriAdapter` for IO
-- [ ] Implement `CanvasService` and `CanvasStore` for spatial state
+- [x] Create `canvas` feature slice (`src/lib/features/canvas/`)
+- [x] Define `CanvasPort` and `CanvasTauriAdapter` for IO
+- [x] Implement `CanvasService` and `CanvasStore` for spatial state
 
 ### JSON Canvas (Spatial Boards)
 
@@ -417,9 +427,11 @@
 
 ### Excalidraw (Drawings)
 
-- [ ] Support for `.excalidraw` and `.excalidraw.json` files
-- [ ] Host Excalidraw editor (iframe sandbox or Svelte wrapper)
-- [ ] Bi-directional sync between app and Excalidraw instance
+- [x] Support for `.excalidraw` and `.excalidraw.json` files
+- [x] Host Excalidraw editor (iframe sandbox with custom URI scheme)
+- [x] Bi-directional sync between app and Excalidraw instance
+- [x] Canvas naming dialog on create
+- [x] Theme-aware background
 - [ ] Export canvas/drawing to PNG/SVG
 
 ### Vault & Link Integration

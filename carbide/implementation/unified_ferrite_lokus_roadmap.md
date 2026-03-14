@@ -53,6 +53,9 @@ Carbide already has, at minimum:
 - atomic write and encoding-detection primitives in Rust
 - `ManagedBuffer` and windowed buffer reads in Rust
 - a generic pipeline execution backend
+- AI assistant with multi-backend CLI execution, diff-first review, and partial apply
+- plugin system Phase 1a: iframe sandbox, RPC bridge, 3 contribution registries, 2 demo plugins
+- canvas feature with Excalidraw iframe rendering and theme-aware backgrounds
 
 These are baseline capabilities. Future work should harden or extend them, not pretend they do not exist.
 

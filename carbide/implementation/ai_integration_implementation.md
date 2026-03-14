@@ -4,6 +4,12 @@
 
 Redesign Badgerly's AI integration so it feels like one assistant rather than three branded provider entrypoints, while preserving explicit apply boundaries, local CLI execution, vault safety checks, and clear user control.
 
+## Status
+
+Phases 1–3 are complete. Phase 4 (diff-first review) is partially complete — line-based diff with partial apply is shipped, structured edit proposals are not yet implemented. The AI assistant lives in the context rail with conversation history, multi-backend selection, and auto-backend detection.
+
+The Rust pipeline backend (`src-tauri/src/features/pipeline/`) is a reusable generic executor that could serve future features needing external CLI execution (linters, formatters, local scripts).
+
 ## Product decisions
 
 - The primary feature is **AI Assistant**

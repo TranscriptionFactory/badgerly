@@ -13,6 +13,34 @@ Build a native Carbide plugin API first. Design it with Obsidian-like vocabulary
 
 The right framing is: Carbide has its own plugin host, and later may add an Obsidian compatibility layer for a subset of plugins.
 
+## Current implementation status
+
+Phase 1 of the native plugin API is partially complete. The following are landed and working:
+
+- iframe sandbox with `postMessage` RPC bridge
+- permission-checked RPC dispatcher (4 namespaces: vault, editor, commands, ui)
+- 3 contribution registries: commands, status bar items, sidebar panels
+- plugin discovery from `<vault>/.carbide/plugins/`
+- manifest parsing and enable/disable state
+- per-plugin error tracking with auto-disable on repeated failures
+- 2 demo plugins: Hello World (command registration) and Word Count (status bar polling)
+- plugin manager UI in sidebar
+- custom URI scheme (`badgerly-plugin://`) for serving plugin HTML
+
+Not yet implemented:
+
+- proper load/unload lifecycle in `PluginHostAdapter` (currently stubs)
+- TypeScript SDK (`@carbide/plugin-api`)
+- hot-reload in dev mode
+- LaTeX Snippets demo plugin
+- 3 of 6 planned contribution points (note context actions, editor content transforms, metadata providers) — these depend on features that don't yet exist
+
+### Pipeline boundary
+
+The app has a separate generic pipeline execution backend (`src-tauri/src/features/pipeline/`) used by the AI integration feature. This pipeline handles PATH expansion, timeout, ANSI stripping, and output redirection for CLI tools like Claude, Codex, and Ollama.
+
+Plugins explicitly cannot access the pipeline or execute external processes. Pipeline execution is a host-only capability. This is by design — the plugin sandbox provides UI extensibility, not process execution. If a future plugin needs external tool results, the host would expose curated, permission-gated pipeline actions as a new contribution point.
+
 ## Editor Engine Constraint
 
 Obsidian uses CodeMirror 6 (plain-text, line/column positions). Carbide uses Milkdown/ProseMirror (structured document tree, node-based positions). This is the fundamental constraint that determines which Obsidian plugins could ever be shimmed.
@@ -93,6 +121,8 @@ Design with Obsidian-like vocabulary for easy porting:
 
 ### Mapping to Current Badgerly Architecture
 
+> The architecture below is now implemented. The file paths and integration points listed are accurate as of the current codebase.
+
 Follow the existing app decision tree and composition root instead of inventing a parallel runtime.
 
 Frontend:
@@ -123,21 +153,21 @@ This keeps the plugin system aligned with the existing ports/stores/services/act
 
 ### Runtime Contribution Points
 
-The host should define explicit contribution slots instead of letting plugins mutate arbitrary DOM:
+The host defines explicit contribution slots instead of letting plugins mutate arbitrary DOM.
 
-- commands
-- status bar items
-- sidebar panels
-- note context actions
-- editor content transforms
-- metadata providers
+Shipped contribution points:
 
-In the current app, the biggest structural changes are:
+- commands (dynamic registry, searchable from command palette)
+- status bar items (sorted by priority, live-updating)
+- sidebar panels (host-owned wrappers)
 
-- command palette data is static today and must become runtime-extensible
-- the status bar needs a contribution collection rather than only built-in items
-- the workspace layout needs explicit panel slots for plugin panels
-- the editor service needs a richer, host-mediated API than simple text insertion
+Future contribution points (ship alongside the features they expose):
+
+- note context actions — requires richer note action surface
+- editor content transforms — requires richer host-mediated editor API
+- metadata providers — ships with the Phase 3 metadata engine, not before
+
+Contribution points grow with the host. Adding them prematurely creates API surface that can't be tested against real features.
 
 ### Plugin Lifecycle
 
@@ -234,14 +264,23 @@ Evaluated [nearai/ironclaw](https://github.com/nearai/ironclaw) for plugin desig
 
 ## Implementation Plan
 
-### Phase 1: Native Plugin API (with Tier 1-3 features)
+### Phase 1a: Native Plugin API foundation — DONE
 
 - Plugin host, manifest loader, permission validator
 - iframe sandbox + postMessage RPC bridge
-- TypeScript SDK: `@carbide/plugin-api`
-- Demo plugins: Hello World, Word Count, LaTeX Snippets
 - Dynamic contribution registries for commands, status bar items, and sidebar panels
-- Plugin manager UI with permissions and runtime error reporting
+- Plugin manager UI with runtime error reporting
+- Demo plugins: Hello World, Word Count
+- Per-plugin error tracking with auto-disable
+
+### Phase 1b: Lifecycle hardening and SDK
+
+- Implement proper load/unload in `PluginHostAdapter` (currently stubs)
+- TypeScript SDK: `@carbide/plugin-api` with typed RPC contracts
+- Hot-reload in dev mode via file watcher
+- Plugin state persistence across sessions
+- LaTeX Snippets demo plugin
+- Stabilize the RPC contract before publishing the SDK
 
 ### Phase 1.5: Hardening
 
@@ -261,6 +300,8 @@ Evaluated [nearai/ironclaw](https://github.com/nearai/ironclaw) for plugin desig
 - HTML-producing APIs must be sanitized before rendering
 
 ### Phase 2: MetadataCache Infrastructure
+
+> This phase depends on and should be built alongside the roadmap Phase 3 metadata engine (`carbide/implementation/phase3_metadata_and_bases.md`). They are the same underlying work — building the metadata cache for the host enables exposing it to plugins.
 
 - Parse all vault .md files for frontmatter, links, headings, tags
 - Incremental updates on file change
