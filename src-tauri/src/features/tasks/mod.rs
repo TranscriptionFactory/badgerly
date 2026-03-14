@@ -39,7 +39,15 @@ pub fn tasks_update_state(
     let vault_root = storage::vault_path(&app, &vault_id)?;
     let abs_path = notes_service::safe_vault_abs(&vault_root, &update.path)?;
     
-    update_task_state_in_file(&abs_path, update.line_number, update.status)
+    update_task_state_in_file(&abs_path, update.line_number, update.status)?;
+
+    // Re-index this file's tasks in the DB so the next query reflects the change
+    let content = io_utils::read_file_to_string(&abs_path)?;
+    let tasks = service::extract_tasks(&update.path, &content);
+    let conn = open_search_db(&app, &vault_id)?;
+    service::save_tasks(&conn, &update.path, &tasks)?;
+
+    Ok(())
 }
 
 #[command]
@@ -66,5 +74,13 @@ pub fn tasks_create(
     // Add task at the end of the file for now
     content.push_str(&format!("- [ ] {}\n", text));
     
-    io_utils::atomic_write(&abs_path, content.as_bytes())
+    io_utils::atomic_write(&abs_path, content.as_bytes())?;
+
+    // Re-index this file's tasks in the DB
+    let updated_content = io_utils::read_file_to_string(&abs_path)?;
+    let tasks = service::extract_tasks(&path, &updated_content);
+    let conn = open_search_db(&app, &vault_id)?;
+    service::save_tasks(&conn, &path, &tasks)?;
+
+    Ok(())
 }
