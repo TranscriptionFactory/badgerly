@@ -17,6 +17,26 @@ If you are doing Carbide-facing work, read these first:
 2. `carbide/TODO.md` — execution tracker and current phase status
 3. `carbide/plugin_system.md` — plugin architecture and compatibility posture
 
+## Reference implementations (`~/src/KBM_Notes`)
+
+When researching or implementing features, always check the local mirror of open-source knowledge-management apps in `~/src/KBM_Notes/` for portable implementations before writing from scratch.
+
+| Project | Repository | Notes |
+| --- | --- | --- |
+| **Moraya** | `git@github.com:TranscriptionFactory/moraya.git` | Svelte/Tauri/ProseMirror — closest stack match, easiest ports |
+| **Scratch** | `git@github.com:TranscriptionFactory/scratch.git` | React/Tauri/TipTap — AI CLI integration, git ops donor |
+| **Ferrite** | `git@github.com:OlaProeis/Ferrite.git` | Performance and safety donor (Rust) |
+| **AFFiNE** | `git@github.com:toeverything/AFFiNE.git` | Block editor, canvas, collaboration |
+| **OctoBase** | `git@github.com:toeverything/OctoBase.git` | AFFiNE's CRDT/sync engine (Rust) |
+| **AppFlowy** | `git@github.com:AppFlowy-IO/AppFlowy.git` | Flutter/Rust knowledge app, plugin system |
+| **anytype-ts** | `git@github.com:anyproto/anytype-ts.git` | Object-graph knowledge app (TypeScript) |
+| **SiYuan** | `git@github.com:siyuan-note/siyuan.git` | Block-level Markdown editor (Go/TS) |
+| **HelixNotes** | `https://codeberg.org/ArkHost/HelixNotes.git` | Note-taking app |
+| **Yiana** | `https://github.com/lh/Yiana.git` | Knowledge management |
+| **Lokus** | `https://github.com/lokus-ai/lokus.git` | AI-powered knowledge app |
+
+**Research workflow:** Before building a feature, search the relevant KBM_Notes repos for existing implementations. Document what you find (and what you borrow) in `carbide/research/` or inline in the implementation doc.
+
 ## Organization scheme
 
 The folder is organized by document role and lifecycle.

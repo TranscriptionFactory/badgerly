@@ -9,6 +9,7 @@ Implement Phase {{PHASE_NUMBER}} of Carbide.
 - Phase history: carbide/archive/phase\_{{PHASE_NUMBER}}.md
 - This is a fork of Badgerly (Tauri v2 + Milkdown markdown editor)
 - Moraya (/Users/abir/src/moraya) is a reference codebase for adapted features
+- Open-source reference implementations live in `~/src/KBM_Notes/` — see `carbide/README.md` § "Reference implementations" for the full list and repos. Always check these for portable implementations before building from scratch
 
 ## Instructions
 
