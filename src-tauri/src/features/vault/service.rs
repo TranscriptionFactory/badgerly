@@ -267,15 +267,15 @@ pub fn open_folder(app: AppHandle, args: OpenVaultArgs) -> Result<Vault, String>
     log::info!("Opening folder path={}", args.vault_path);
     let resolved = resolve_open_path(&app, &args)?;
 
-    let has_otterly_dir = PathBuf::from(&resolved.vault_path)
-        .join(".otterly")
+    let has_badgerly_dir = PathBuf::from(&resolved.vault_path)
+        .join(".badgerly")
         .is_dir();
-    let mode = if has_otterly_dir {
+    let mode = if has_badgerly_dir {
         VaultMode::Vault
     } else {
         VaultMode::Browse
     };
-    let note_count = if has_otterly_dir {
+    let note_count = if has_badgerly_dir {
         load_note_count(&app, &resolved.id).or(resolved.existing_note_count)
     } else {
         None

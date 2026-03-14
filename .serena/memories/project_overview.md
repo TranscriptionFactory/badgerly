@@ -1,8 +1,8 @@
-# Otterly Project Overview
+# Badgerly Project Overview
 
 ## Purpose
 
-Otterly is a Tauri desktop note-taking app with markdown support, vault management, and git integration.
+Badgerly is a Tauri desktop note-taking app with markdown support, vault management, and git integration.
 
 ## Tech Stack
 

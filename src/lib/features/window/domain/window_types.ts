@@ -30,9 +30,9 @@ export function compute_title(init: WindowInit): string {
     case "main": {
       if (init.vault_path) {
         const name = init.vault_path.split("/").at(-1) ?? init.vault_path;
-        return `Otterly — ${name}`;
+        return `Badgerly — ${name}`;
       }
-      return "Otterly";
+      return "Badgerly";
     }
     case "viewer": {
       const name = init.file_path.split("/").at(-1) ?? init.file_path;

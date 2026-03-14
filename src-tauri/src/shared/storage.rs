@@ -66,7 +66,7 @@ pub fn store_path(app: &AppHandle) -> Result<PathBuf, String> {
         .path()
         .home_dir()
         .map_err(|e| e.to_string())?
-        .join(".otterly");
+        .join(".badgerly");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir.join("vaults.json"))
 }
@@ -139,8 +139,8 @@ pub fn handle_plugin_request(req: Request<Vec<u8>>) -> Response<Vec<u8>> {
     let uri = req.uri().to_string();
 
     let without_scheme = uri
-        .trim_start_matches("otterly-plugin://")
-        .trim_start_matches("otterly-plugin:");
+        .trim_start_matches("badgerly-plugin://")
+        .trim_start_matches("badgerly-plugin:");
 
     let query_start = without_scheme.find('?');
     let (path_part, query_part) = if let Some(pos) = query_start {
@@ -216,8 +216,8 @@ pub fn handle_plugin_request(req: Request<Vec<u8>>) -> Response<Vec<u8>> {
 pub fn handle_asset_request(app: &AppHandle, req: Request<Vec<u8>>) -> Response<Vec<u8>> {
     let uri = req.uri().to_string();
     let rel = uri
-        .trim_start_matches("otterly-asset://")
-        .trim_start_matches("otterly-asset:")
+        .trim_start_matches("badgerly-asset://")
+        .trim_start_matches("badgerly-asset:")
         .trim_start_matches('/');
 
     let parts: Vec<&str> = rel.splitn(3, '/').collect();

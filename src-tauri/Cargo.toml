@@ -1,5 +1,5 @@
 [package]
-name = "otterly"
+name = "badgerly"
 version = "0.2.0"
 description = "Local-first markdown vault"
 authors = ["altamkhan"]
@@ -7,11 +7,11 @@ edition = "2021"
 autotests = false
 
 [lib]
-name = "otterly_lib"
+name = "badgerly_lib"
 path = "src/lib.rs"
 
 [[bin]]
-name = "otterly"
+name = "badgerly"
 path = "src/main.rs"
 
 [build-dependencies]

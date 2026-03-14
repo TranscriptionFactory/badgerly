@@ -53,7 +53,7 @@ export function create_file_drop_plugin() {
             if (!dt) return false;
 
             const count_str = dt.getData(
-              "application/x-otterly-filetree-count",
+              "application/x-badgerly-filetree-count",
             );
             if (!count_str) return false;
 

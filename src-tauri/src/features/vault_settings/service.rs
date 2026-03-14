@@ -21,7 +21,7 @@ fn local_state_path(app: &AppHandle, vault_id: &str) -> Result<PathBuf, String> 
         .path()
         .home_dir()
         .map_err(|e| e.to_string())?
-        .join(".otterly")
+        .join(".badgerly")
         .join("local_state");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir.join(format!("{}.json", vault_id)))

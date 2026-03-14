@@ -14,7 +14,7 @@ fn now_ms() -> u128 {
 fn mk_temp_dir() -> PathBuf {
     let counter = TEST_DIR_COUNTER.fetch_add(1, Ordering::Relaxed);
     let dir = std::env::temp_dir().join(format!(
-        "otterly-plugin-test-{}-{}",
+        "badgerly-plugin-test-{}-{}",
         now_ms(),
         counter
     ));

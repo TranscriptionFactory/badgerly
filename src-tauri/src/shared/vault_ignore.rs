@@ -6,7 +6,7 @@ use std::path::Path;
 
 const VAULT_IGNORE_FILE: &str = ".vaultignore";
 const GIT_IGNORE_FILE: &str = ".gitignore";
-const BUILTIN_PATTERNS: &[&str] = &[".git/", ".otterly/", ".DS_Store", "node_modules/"];
+const BUILTIN_PATTERNS: &[&str] = &[".git/", ".badgerly/", ".DS_Store", "node_modules/"];
 
 #[derive(Clone, Debug)]
 struct IgnoreRule {

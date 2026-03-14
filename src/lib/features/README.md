@@ -1,6 +1,6 @@
 # Feature-First Organization
 
-Otterly uses capability-first organization for frontend modules.
+Badgerly uses capability-first organization for frontend modules.
 
 ## Rule of thumb
 

@@ -274,7 +274,7 @@
       items.map((item) => item.path).join("\n"),
     );
     event.dataTransfer?.setData(
-      "application/x-otterly-filetree-count",
+      "application/x-badgerly-filetree-count",
       String(items.length),
     );
     if (event.dataTransfer) {

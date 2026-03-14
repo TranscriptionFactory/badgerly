@@ -497,11 +497,11 @@ describe("GitService", () => {
   it("add_remote refreshes status on success", async () => {
     const { service, add_remote, status } = create_harness();
 
-    await service.add_remote("git@github.com:otterly/repo.git");
+    await service.add_remote("git@github.com:badgerly/repo.git");
 
     expect(add_remote).toHaveBeenCalledWith(
       expect.anything(),
-      "git@github.com:otterly/repo.git",
+      "git@github.com:badgerly/repo.git",
     );
     expect(status).toHaveBeenCalled();
   });
@@ -509,11 +509,11 @@ describe("GitService", () => {
   it("set_remote_url updates the active origin and refreshes status", async () => {
     const { service, set_remote_url, status } = create_harness();
 
-    await service.set_remote_url("git@github.com:otterly/repo.git");
+    await service.set_remote_url("git@github.com:badgerly/repo.git");
 
     expect(set_remote_url).toHaveBeenCalledWith(
       expect.anything(),
-      "git@github.com:otterly/repo.git",
+      "git@github.com:badgerly/repo.git",
     );
     expect(status).toHaveBeenCalled();
   });

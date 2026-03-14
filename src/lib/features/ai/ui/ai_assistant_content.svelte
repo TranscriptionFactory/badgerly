@@ -260,7 +260,7 @@
           >
             {provider_display.install_url}
           </a>
-          and restart Otterly.
+          and restart Badgerly.
         </p>
       </div>
     {:else if cli_status === "error"}

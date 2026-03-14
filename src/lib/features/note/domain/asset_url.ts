@@ -1,4 +1,4 @@
-export function otterly_asset_url(
+export function badgerly_asset_url(
   vault_id: string,
   asset_path: string,
 ): string {
@@ -6,5 +6,5 @@ export function otterly_asset_url(
     .split("/")
     .map((seg) => encodeURIComponent(seg))
     .join("/");
-  return `otterly-asset://vault/${vault_id}/${encoded}`;
+  return `badgerly-asset://vault/${vault_id}/${encoded}`;
 }

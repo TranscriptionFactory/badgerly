@@ -1,8 +1,8 @@
-<img src="./assets/icon.png" alt="Otterly Carbide" width="150">
+<img src="./assets/icon.png" alt="Badgerly Carbide" width="150">
 
 [![Release](https://github.com/TranscriptionFactory/otterly/actions/workflows/release.yml/badge.svg)](https://github.com/TranscriptionFactory/otterly/actions/workflows/release.yml)
 
-# Otterly
+# Badgerly
 
 A local-first, privacy-focused markdown editor. No accounts, no cloud dependency, no sync fees — just a folder of markdown files you fully own.
 
@@ -11,18 +11,18 @@ A local-first, privacy-focused markdown editor. No accounts, no cloud dependency
   <img src="./assets/editor-screenshot-light.png" style="width: 49%; display: inline-block;">
 </p>
 
-## Why Otterly
+## Why Badgerly
 
 Most note-taking apps force a trade-off: either you get polished UX at the cost of cloud lock-in, or you stay local-first but deal with heavy Electron apps that eat your RAM and require constant plugin hunting.
 
-Otterly is built with [Tauri](https://tauri.app/) and [Svelte 5](https://svelte.dev/). It's small, fast, and designed to stay out of your way. Your notes are plain markdown files in a folder you control. If you ever want to stop using Otterly, your notes stay exactly where they are, ready to be opened in any other editor.
+Badgerly is built with [Tauri](https://tauri.app/) and [Svelte 5](https://svelte.dev/). It's small, fast, and designed to stay out of your way. Your notes are plain markdown files in a folder you control. If you ever want to stop using Badgerly, your notes stay exactly where they are, ready to be opened in any other editor.
 
 ## Features
 
-- **Vault-based** — A vault is just a folder. No proprietary database. Use your existing tools (git, sync clients, VS Code) alongside Otterly without issues.
+- **Vault-based** — A vault is just a folder. No proprietary database. Use your existing tools (git, sync clients, VS Code) alongside Badgerly without issues.
 - **Tab system** — Open multiple notes, pin important ones, and restore closed tabs.
 - **WYSIWYG Markdown** — Live rendering as you type via Milkdown/ProseMirror. Headings, tables, task lists, and syntax highlighting included.
-- **Wiki-links** — Simple `[[note]]` linking. Otterly tracks backlinks and outlinks automatically to help you navigate your knowledge base.
+- **Wiki-links** — Simple `[[note]]` linking. Badgerly tracks backlinks and outlinks automatically to help you navigate your knowledge base.
 - **The Omnibar** — One search bar for everything. Search notes by content (SQLite FTS5) or quickly jump to files by name (`Cmd+P` / `Cmd+O`).
 - **Git Integration** — Native support for versioning. View status, stage changes, and commit without leaving the app.
 - **Image Paste** — Paste images directly into the editor. They are automatically stored in an assets folder of your choice.

@@ -325,6 +325,43 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
+name = "badgerly"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "blake3",
+ "chardetng",
+ "comrak",
+ "encoding_rs",
+ "filetime",
+ "git2",
+ "glob",
+ "lazy_static",
+ "log",
+ "mime_guess",
+ "notify",
+ "openssl",
+ "regex",
+ "ropey",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "serde_yml",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-log",
+ "tauri-plugin-opener",
+ "tauri-plugin-pty",
+ "tauri-plugin-single-instance",
+ "tauri-plugin-updater",
+ "tauri-plugin-window-state",
+ "tempfile",
+ "tokio",
+ "walkdir",
+]
+
+[[package]]
 name = "base64"
 version = "0.21.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3169,43 +3206,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
-]
-
-[[package]]
-name = "otterly"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "blake3",
- "chardetng",
- "comrak",
- "encoding_rs",
- "filetime",
- "git2",
- "glob",
- "lazy_static",
- "log",
- "mime_guess",
- "notify",
- "openssl",
- "regex",
- "ropey",
- "rusqlite",
- "serde",
- "serde_json",
- "serde_yml",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-log",
- "tauri-plugin-opener",
- "tauri-plugin-pty",
- "tauri-plugin-single-instance",
- "tauri-plugin-updater",
- "tauri-plugin-window-state",
- "tempfile",
- "tokio",
- "walkdir",
 ]
 
 [[package]]

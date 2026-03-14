@@ -102,19 +102,19 @@ describe("parse_window_init", () => {
 });
 
 describe("compute_title", () => {
-  it("returns Otterly for main with no vault_path", () => {
-    expect(compute_title({ kind: "main" })).toBe("Otterly");
+  it("returns Badgerly for main with no vault_path", () => {
+    expect(compute_title({ kind: "main" })).toBe("Badgerly");
   });
 
   it("returns vault name for main with vault_path", () => {
     expect(
       compute_title({ kind: "main", vault_path: "/home/user/my-notes" }),
-    ).toBe("Otterly — my-notes");
+    ).toBe("Badgerly — my-notes");
   });
 
   it("returns vault_path itself when main path has no slash", () => {
     expect(compute_title({ kind: "main", vault_path: "notes" })).toBe(
-      "Otterly — notes",
+      "Badgerly — notes",
     );
   });
 

@@ -12,10 +12,10 @@
   let sandboxed_iframe: SandboxedIframe | undefined = $state();
 
   const src = $derived(
-    `otterly-plugin://${plugin_id}/index.html?vault=${encodeURIComponent(vault_path)}`,
+    `badgerly-plugin://${plugin_id}/index.html?vault=${encodeURIComponent(vault_path)}`,
   );
 
-  const expected_origin = $derived(`otterly-plugin://${plugin_id}`);
+  const expected_origin = $derived(`badgerly-plugin://${plugin_id}`);
 
   $effect(() => {
     const handle_plugin_command = (event: any) => {
@@ -29,13 +29,13 @@
     };
 
     window.addEventListener(
-      "otterly:plugin-command" as any,
+      "badgerly:plugin-command" as any,
       handle_plugin_command,
     );
 
     return () => {
       window.removeEventListener(
-        "otterly:plugin-command" as any,
+        "badgerly:plugin-command" as any,
         handle_plugin_command,
       );
     };
