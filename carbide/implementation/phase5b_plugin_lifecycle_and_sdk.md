@@ -34,11 +34,11 @@ All Phase 1a artifacts are landed and working:
 
 **Files:**
 
-| File | Change |
-|------|--------|
+| File                                       | Change                                                                                                  |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
 | `src-tauri/src/features/plugin/service.rs` | Add `validate_plugin(vault_path, id) -> Result<PluginInfo>` — confirms manifest exists and is parseable |
-| `src-tauri/src/features/plugin/mod.rs` | Add `plugin_load(vault_path, plugin_id)` and `plugin_unload(plugin_id)` Tauri commands |
-| `src-tauri/src/app/mod.rs` | Register new commands in `.invoke_handler()` |
+| `src-tauri/src/features/plugin/mod.rs`     | Add `plugin_load(vault_path, plugin_id)` and `plugin_unload(plugin_id)` Tauri commands                  |
+| `src-tauri/src/app/mod.rs`                 | Register new commands in `.invoke_handler()`                                                            |
 
 **Design:**
 
@@ -50,11 +50,11 @@ All Phase 1a artifacts are landed and working:
 
 **Files:**
 
-| File | Change |
-|------|--------|
-| `src/lib/features/plugin/adapters/plugin_host_adapter.ts` | `load()` calls `plugin_load` Tauri command; `unload()` calls `plugin_unload` |
-| `src/lib/features/plugin/ui/plugin_iframe_host.svelte` | Send `lifecycle.activate` on mount, `lifecycle.deactivate` before teardown via `$effect` cleanup |
-| `src/lib/features/plugin/ports.ts` | Update `PluginHostPort.load` signature to accept `vault_path` + return `PluginInfo` |
+| File                                                      | Change                                                                                           |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `src/lib/features/plugin/adapters/plugin_host_adapter.ts` | `load()` calls `plugin_load` Tauri command; `unload()` calls `plugin_unload`                     |
+| `src/lib/features/plugin/ui/plugin_iframe_host.svelte`    | Send `lifecycle.activate` on mount, `lifecycle.deactivate` before teardown via `$effect` cleanup |
+| `src/lib/features/plugin/ports.ts`                        | Update `PluginHostPort.load` signature to accept `vault_path` + return `PluginInfo`              |
 
 **Lifecycle messages:**
 
@@ -73,11 +73,11 @@ Plugins using the SDK get `onload`/`onunload` callbacks. Plugins without the SDK
 
 **Files:**
 
-| File | Change |
-|------|--------|
+| File                                                    | Change                                                                                                                                                                     |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/lib/features/plugin/application/plugin_service.ts` | Add `VaultSettingsPort` dependency. Add `persist_enabled_state()` and `restore_enabled_state()` methods. Call persist on enable/disable. Call restore during `discover()`. |
-| `src/lib/features/plugin/ports.ts` | Add `PluginPersistencePort` interface (or accept `VaultSettingsPort` directly) |
-| `src/lib/app/di/create_app_context.ts` | Pass vault settings port to `PluginService` constructor |
+| `src/lib/features/plugin/ports.ts`                      | Add `PluginPersistencePort` interface (or accept `VaultSettingsPort` directly)                                                                                             |
+| `src/lib/app/di/create_app_context.ts`                  | Pass vault settings port to `PluginService` constructor                                                                                                                    |
 
 **Storage key:** `"plugin_enabled_ids"` → `string[]`
 
@@ -92,6 +92,7 @@ app startup
 ```
 
 **Edge cases:**
+
 - Plugin was enabled but no longer discovered (removed from disk) → skip, don't persist stale ID
 - Plugin was enabled but manifest changed incompatibly → load will fail, error state shown in manager
 
@@ -103,10 +104,10 @@ When a plugin requests `badgerly-plugin://<plugin-id>/carbide-plugin-api.js` and
 
 **Files:**
 
-| File | Change |
-|------|--------|
-| `src-tauri/src/features/plugin/sdk/carbide_plugin_api.js` | The SDK source file |
-| `src-tauri/src/shared/storage.rs` | Update `handle_plugin_request` to serve SDK as virtual file fallback |
+| File                                                      | Change                                                               |
+| --------------------------------------------------------- | -------------------------------------------------------------------- |
+| `src-tauri/src/features/plugin/sdk/carbide_plugin_api.js` | The SDK source file                                                  |
+| `src-tauri/src/shared/storage.rs`                         | Update `handle_plugin_request` to serve SDK as virtual file fallback |
 
 **SDK API surface:**
 
@@ -147,13 +148,13 @@ carbide.ui.removeSidebarPanel(id) → Promise<void>
 
 **Files:**
 
-| File | Change |
-|------|--------|
-| `src-tauri/src/features/plugin/mod.rs` | Add `plugin_watch_start(vault_path)` and `plugin_watch_stop()` commands |
-| `src-tauri/src/features/plugin/service.rs` | Add watch state and notify-on-change logic scoped to `.carbide/plugins/` |
-| `src/lib/features/plugin/application/plugin_service.ts` | Add `start_hot_reload()` / `stop_hot_reload()` that listen for backend events and trigger unload→discover→reload cycles |
-| `src/lib/features/plugin/adapters/plugin_host_adapter.ts` | Add `watch` / `unwatch` port methods |
-| `src/lib/features/plugin/ports.ts` | Add watch-related port interface |
+| File                                                      | Change                                                                                                                  |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `src-tauri/src/features/plugin/mod.rs`                    | Add `plugin_watch_start(vault_path)` and `plugin_watch_stop()` commands                                                 |
+| `src-tauri/src/features/plugin/service.rs`                | Add watch state and notify-on-change logic scoped to `.carbide/plugins/`                                                |
+| `src/lib/features/plugin/application/plugin_service.ts`   | Add `start_hot_reload()` / `stop_hot_reload()` that listen for backend events and trigger unload→discover→reload cycles |
+| `src/lib/features/plugin/adapters/plugin_host_adapter.ts` | Add `watch` / `unwatch` port methods                                                                                    |
+| `src/lib/features/plugin/ports.ts`                        | Add watch-related port interface                                                                                        |
 
 **Dev mode gate:** Hot-reload only activates when `import.meta.env.DEV` is true. Production builds skip the watcher setup entirely.
 
@@ -171,12 +172,13 @@ watcher detects change in .carbide/plugins/<id>/
 
 **Files:**
 
-| File | Change |
-|------|--------|
-| `.carbide/plugins/latex-snippets/manifest.json` | `permissions: ["editor:modify", "commands:register", "ui:panel"]` |
-| `.carbide/plugins/latex-snippets/index.html` | Uses SDK. Registers command + sidebar panel with categorized snippets |
+| File                                            | Change                                                                |
+| ----------------------------------------------- | --------------------------------------------------------------------- |
+| `.carbide/plugins/latex-snippets/manifest.json` | `permissions: ["editor:modify", "commands:register", "ui:panel"]`     |
+| `.carbide/plugins/latex-snippets/index.html`    | Uses SDK. Registers command + sidebar panel with categorized snippets |
 
 **Snippet categories:**
+
 - Greek letters: `\alpha`, `\beta`, `\gamma`, `\theta`, `\lambda`, `\pi`, `\sigma`, `\omega`
 - Operators: `\sum`, `\prod`, `\int`, `\lim`, `\infty`
 - Structures: `\frac{}{}`, `\sqrt{}`, `\begin{align}...\end{align}`, `\begin{matrix}...\end{matrix}`
@@ -189,14 +191,15 @@ Rewrite `hello-world/index.html` and `word-count/index.html` to use `<script src
 
 ## Tests
 
-| Test file | Covers |
-|-----------|--------|
-| `tests/unit/services/plugin_service.test.ts` | Update: persistence (persist/restore), lifecycle integration, reload |
-| `tests/unit/stores/plugin_store.test.ts` | Existing — no changes expected |
-| `tests/unit/services/plugin_error_tracker.test.ts` | Existing — no changes expected |
-| `tests/unit/services/plugin_rpc_handler.test.ts` | Existing — no changes expected |
+| Test file                                          | Covers                                                               |
+| -------------------------------------------------- | -------------------------------------------------------------------- |
+| `tests/unit/services/plugin_service.test.ts`       | Update: persistence (persist/restore), lifecycle integration, reload |
+| `tests/unit/stores/plugin_store.test.ts`           | Existing — no changes expected                                       |
+| `tests/unit/services/plugin_error_tracker.test.ts` | Existing — no changes expected                                       |
+| `tests/unit/services/plugin_rpc_handler.test.ts`   | Existing — no changes expected                                       |
 
 New test scenarios:
+
 - `enable_plugin` persists enabled state
 - `disable_plugin` removes from persisted state
 - `discover` restores previously enabled plugins
@@ -206,12 +209,12 @@ New test scenarios:
 
 ## Risks and mitigations
 
-| Risk | Mitigation |
-|------|------------|
-| SDK file embedding bloats binary | SDK is ~80 lines of JS; negligible |
-| Hot-reload causes flicker/state loss | Reload preserves store state; only iframe is recycled |
-| Persistence restores plugin that now crashes | Error tracker auto-disables after repeated failures; existing mechanism handles this |
-| CSP blocks SDK script tag | SDK is same-origin (virtual file served from same `badgerly-plugin://<id>/` origin); no CSP change needed |
+| Risk                                         | Mitigation                                                                                                |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| SDK file embedding bloats binary             | SDK is ~80 lines of JS; negligible                                                                        |
+| Hot-reload causes flicker/state loss         | Reload preserves store state; only iframe is recycled                                                     |
+| Persistence restores plugin that now crashes | Error tracker auto-disables after repeated failures; existing mechanism handles this                      |
+| CSP blocks SDK script tag                    | SDK is same-origin (virtual file served from same `badgerly-plugin://<id>/` origin); no CSP change needed |
 
 ## Post-implementation
 

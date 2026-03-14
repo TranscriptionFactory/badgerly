@@ -4,17 +4,17 @@ Carbide is the next phase of Badgerly — not a fork or a rewrite, but a continu
 
 ## Tech stack
 
-| Layer | Technology |
-| --- | --- |
-| Desktop shell | Tauri v2 (Rust backend, native webview) |
-| Frontend | SvelteKit + Svelte 5, TypeScript |
-| Editor | Milkdown (ProseMirror) |
-| UI components | shadcn-svelte |
-| Search | SQLite FTS (via rusqlite) |
-| Storage | Plain Markdown files in local vaults |
+| Layer           | Technology                                          |
+| --------------- | --------------------------------------------------- |
+| Desktop shell   | Tauri v2 (Rust backend, native webview)             |
+| Frontend        | SvelteKit + Svelte 5, TypeScript                    |
+| Editor          | Milkdown (ProseMirror)                              |
+| UI components   | shadcn-svelte                                       |
+| Search          | SQLite FTS (via rusqlite)                           |
+| Storage         | Plain Markdown files in local vaults                |
 | Version control | Built-in Git integration (Rust git2 + CLI fallback) |
-| Canvas | Excalidraw (iframe sandbox), JSON Canvas planned |
-| Build | pnpm, Vite, oxlint, Prettier, Vitest |
+| Canvas          | Excalidraw (iframe sandbox), JSON Canvas planned    |
+| Build           | pnpm, Vite, oxlint, Prettier, Vitest                |
 
 The frontend follows a ports & adapters architecture with four layers: **Ports/Adapters** (IO interfaces), **Stores** (reactive `$state`), **Services** (async orchestration), and **Reactors** (effect-driven side effects). All user actions flow through a single **Action Registry**. See `docs/architecture.md` for the full decision tree.
 
@@ -72,19 +72,19 @@ If you are doing Carbide-facing work, read these first:
 
 When researching or implementing features, always check the local mirror of open-source knowledge-management apps in `~/src/KBM_Notes/` for portable implementations before writing from scratch.
 
-| Project | Repository | Notes |
-| --- | --- | --- |
-| **Moraya** | `git@github.com:TranscriptionFactory/moraya.git` | Svelte/Tauri/ProseMirror — closest stack match, easiest ports |
-| **Scratch** | `git@github.com:TranscriptionFactory/scratch.git` | React/Tauri/TipTap — AI CLI integration, git ops donor |
-| **Ferrite** | `git@github.com:OlaProeis/Ferrite.git` | Performance and safety donor (Rust) |
-| **AFFiNE** | `git@github.com:toeverything/AFFiNE.git` | Block editor, canvas, collaboration |
-| **OctoBase** | `git@github.com:toeverything/OctoBase.git` | AFFiNE's CRDT/sync engine (Rust) |
-| **AppFlowy** | `git@github.com:AppFlowy-IO/AppFlowy.git` | Flutter/Rust knowledge app, plugin system |
-| **anytype-ts** | `git@github.com:anyproto/anytype-ts.git` | Object-graph knowledge app (TypeScript) |
-| **SiYuan** | `git@github.com:siyuan-note/siyuan.git` | Block-level Markdown editor (Go/TS) |
-| **HelixNotes** | `https://codeberg.org/ArkHost/HelixNotes.git` | Note-taking app |
-| **Yiana** | `https://github.com/lh/Yiana.git` | Knowledge management |
-| **Lokus** | `https://github.com/lokus-ai/lokus.git` | AI-powered knowledge app |
+| Project        | Repository                                        | Notes                                                         |
+| -------------- | ------------------------------------------------- | ------------------------------------------------------------- |
+| **Moraya**     | `git@github.com:TranscriptionFactory/moraya.git`  | Svelte/Tauri/ProseMirror — closest stack match, easiest ports |
+| **Scratch**    | `git@github.com:TranscriptionFactory/scratch.git` | React/Tauri/TipTap — AI CLI integration, git ops donor        |
+| **Ferrite**    | `git@github.com:OlaProeis/Ferrite.git`            | Performance and safety donor (Rust)                           |
+| **AFFiNE**     | `git@github.com:toeverything/AFFiNE.git`          | Block editor, canvas, collaboration                           |
+| **OctoBase**   | `git@github.com:toeverything/OctoBase.git`        | AFFiNE's CRDT/sync engine (Rust)                              |
+| **AppFlowy**   | `git@github.com:AppFlowy-IO/AppFlowy.git`         | Flutter/Rust knowledge app, plugin system                     |
+| **anytype-ts** | `git@github.com:anyproto/anytype-ts.git`          | Object-graph knowledge app (TypeScript)                       |
+| **SiYuan**     | `git@github.com:siyuan-note/siyuan.git`           | Block-level Markdown editor (Go/TS)                           |
+| **HelixNotes** | `https://codeberg.org/ArkHost/HelixNotes.git`     | Note-taking app                                               |
+| **Yiana**      | `https://github.com/lh/Yiana.git`                 | Knowledge management                                          |
+| **Lokus**      | `https://github.com/lokus-ai/lokus.git`           | AI-powered knowledge app                                      |
 
 **Research workflow:** Before building a feature, search the relevant KBM_Notes repos for existing implementations. Document what you find (and what you borrow) in `carbide/research/` or inline in the implementation doc.
 

@@ -87,7 +87,7 @@
       >
         <LayoutDashboard class="ActivityBar__icon" />
       </button>
-      
+
       <button
         type="button"
         class="ActivityBar__button"
