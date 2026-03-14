@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Excalidraw } from "@excalidraw/excalidraw";
+import "@excalidraw/excalidraw/index.css";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import type { HostMessage, ExcalidrawScene } from "./bridge";
 import { post_to_host } from "./bridge";
@@ -62,14 +63,17 @@ function App() {
     return () => window.removeEventListener("message", handle_message);
   }, []);
 
-  const on_change = useCallback(() => {
-    post_to_host({
-      type: "on_change",
-      elements: [],
-      appState: {},
-      dirty: true,
-    });
-  }, []);
+  const on_change = useCallback(
+    (elements: readonly any[], appState: any, files: any) => {
+      post_to_host({
+        type: "on_change",
+        elements: [],
+        appState: {},
+        dirty: true,
+      });
+    },
+    [],
+  );
 
   if (!initial_data) {
     return (
@@ -91,7 +95,7 @@ function App() {
   return (
     <div style={{ width: "100vw", height: "100vh" }}>
       <Excalidraw
-        ref={(api: ExcalidrawImperativeAPI) => {
+        excalidrawAPI={(api: ExcalidrawImperativeAPI) => {
           api_ref.current = api;
         }}
         initialData={{

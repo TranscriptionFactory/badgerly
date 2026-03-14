@@ -86,7 +86,7 @@
     title="Excalidraw Drawing"
     on_message={handle_message}
     sandbox="allow-scripts allow-same-origin"
-    csp="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; style-src 'unsafe-inline'; img-src data: blob:; font-src data: blob:; connect-src none;"
+    csp=""
     visible={true}
     class="ExcalidrawHost__iframe"
   />
