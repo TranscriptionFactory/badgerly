@@ -45,6 +45,15 @@ export function register_ui_actions(input: ActionRegistrationInput) {
   });
 
   registry.register({
+    id: ACTION_IDS.ui_toggle_zen_mode,
+    label: "Toggle Zen Mode",
+    shortcut: "CmdOrCtrl+Shift+Z",
+    execute: () => {
+      stores.ui.toggle_zen_mode();
+    },
+  });
+
+  registry.register({
     id: ACTION_IDS.ui_select_folder,
     label: "Select Folder",
     execute: (path: unknown) => {

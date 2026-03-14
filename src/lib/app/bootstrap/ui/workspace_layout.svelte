@@ -41,6 +41,7 @@
   const split_view_active = $derived(stores.split_view.active);
   const terminal_open = $derived(stores.terminal.panel_open);
   const is_vault_mode = $derived(stores.vault.is_vault_mode);
+  const zen_mode = $derived(stores.ui.zen_mode);
 
   function starred_node_id(root_path: string, relative_path: string): string {
     return `starred:${root_path}:${relative_path}`;
@@ -212,80 +213,104 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="flex h-screen flex-col"
+    class:WorkspaceLayout--zen={zen_mode}
     onpointerdown={(e) => {
       if (stores.ui.selected_items.size <= 1) return;
       const target = e.target as HTMLElement;
       if (target.closest(".TreeRow")) return;
       void action_registry.execute(ACTION_IDS.filetree_clear_selection);
     }}
+    onkeydown={(e) => {
+      if (zen_mode && e.key === "Escape") {
+        void action_registry.execute(ACTION_IDS.ui_toggle_zen_mode);
+      }
+    }}
   >
     <div class="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-      <ActivityBar
-        sidebar_open={stores.ui.sidebar_open}
-        active_view={stores.ui.sidebar_view}
-        {is_vault_mode}
-        dynamic_views={stores.plugin.sidebar_views}
-        on_open_explorer={() => {
-          if (stores.ui.sidebar_open && stores.ui.sidebar_view === "explorer") {
-            void action_registry.execute(ACTION_IDS.ui_toggle_sidebar);
-            return;
-          }
-          void action_registry.execute(
-            ACTION_IDS.ui_set_sidebar_view,
-            "explorer",
-          );
-        }}
-        on_open_starred={() => {
-          if (stores.ui.sidebar_open && stores.ui.sidebar_view === "starred") {
-            void action_registry.execute(ACTION_IDS.ui_toggle_sidebar);
-            return;
-          }
-          void action_registry.execute(
-            ACTION_IDS.ui_set_sidebar_view,
-            "starred",
-          );
-        }}
-        on_open_dashboard={() => {
-          if (
-            stores.ui.sidebar_open &&
-            stores.ui.sidebar_view === "dashboard"
-          ) {
-            void action_registry.execute(ACTION_IDS.ui_toggle_sidebar);
-            return;
-          }
-          void action_registry.execute(
-            ACTION_IDS.ui_set_sidebar_view,
-            "dashboard",
-          );
-        }}
-        on_open_graph={() => {
-          if (stores.ui.sidebar_open && stores.ui.sidebar_view === "graph") {
-            void action_registry.execute(ACTION_IDS.ui_toggle_sidebar);
-            return;
-          }
-          void action_registry.execute(ACTION_IDS.ui_set_sidebar_view, "graph");
-        }}
-        on_open_tasks={() => {
-          if (stores.ui.sidebar_open && stores.ui.sidebar_view === "tasks") {
-            void action_registry.execute(ACTION_IDS.ui_toggle_sidebar);
-            return;
-          }
-          void action_registry.execute(ACTION_IDS.ui_set_sidebar_view, "tasks");
-        }}
-        on_open_dynamic={(id) => {
-          if (stores.ui.sidebar_open && stores.ui.sidebar_view === id) {
-            void action_registry.execute(ACTION_IDS.ui_toggle_sidebar);
-            return;
-          }
-          void action_registry.execute(ACTION_IDS.ui_set_sidebar_view, id);
-        }}
-        on_open_help={() => void action_registry.execute(ACTION_IDS.help_open)}
-        on_open_settings={() =>
-          void action_registry.execute(ACTION_IDS.settings_open)}
-      />
-      <Sidebar.Provider open={stores.ui.sidebar_open} class="flex-1 min-h-0">
+      {#if !zen_mode}
+        <ActivityBar
+          sidebar_open={stores.ui.sidebar_open}
+          active_view={stores.ui.sidebar_view}
+          {is_vault_mode}
+          dynamic_views={stores.plugin.sidebar_views}
+          on_open_explorer={() => {
+            if (
+              stores.ui.sidebar_open &&
+              stores.ui.sidebar_view === "explorer"
+            ) {
+              void action_registry.execute(ACTION_IDS.ui_toggle_sidebar);
+              return;
+            }
+            void action_registry.execute(
+              ACTION_IDS.ui_set_sidebar_view,
+              "explorer",
+            );
+          }}
+          on_open_starred={() => {
+            if (
+              stores.ui.sidebar_open &&
+              stores.ui.sidebar_view === "starred"
+            ) {
+              void action_registry.execute(ACTION_IDS.ui_toggle_sidebar);
+              return;
+            }
+            void action_registry.execute(
+              ACTION_IDS.ui_set_sidebar_view,
+              "starred",
+            );
+          }}
+          on_open_dashboard={() => {
+            if (
+              stores.ui.sidebar_open &&
+              stores.ui.sidebar_view === "dashboard"
+            ) {
+              void action_registry.execute(ACTION_IDS.ui_toggle_sidebar);
+              return;
+            }
+            void action_registry.execute(
+              ACTION_IDS.ui_set_sidebar_view,
+              "dashboard",
+            );
+          }}
+          on_open_graph={() => {
+            if (stores.ui.sidebar_open && stores.ui.sidebar_view === "graph") {
+              void action_registry.execute(ACTION_IDS.ui_toggle_sidebar);
+              return;
+            }
+            void action_registry.execute(
+              ACTION_IDS.ui_set_sidebar_view,
+              "graph",
+            );
+          }}
+          on_open_tasks={() => {
+            if (stores.ui.sidebar_open && stores.ui.sidebar_view === "tasks") {
+              void action_registry.execute(ACTION_IDS.ui_toggle_sidebar);
+              return;
+            }
+            void action_registry.execute(
+              ACTION_IDS.ui_set_sidebar_view,
+              "tasks",
+            );
+          }}
+          on_open_dynamic={(id) => {
+            if (stores.ui.sidebar_open && stores.ui.sidebar_view === id) {
+              void action_registry.execute(ACTION_IDS.ui_toggle_sidebar);
+              return;
+            }
+            void action_registry.execute(ACTION_IDS.ui_set_sidebar_view, id);
+          }}
+          on_open_help={() =>
+            void action_registry.execute(ACTION_IDS.help_open)}
+          on_open_settings={() =>
+            void action_registry.execute(ACTION_IDS.settings_open)}
+        />
+      {/if}
+      <Sidebar.Provider
+        open={stores.ui.sidebar_open && !zen_mode}
+        class="flex-1 min-h-0"
+      >
         <Resizable.PaneGroup direction="horizontal" class="h-full">
-          {#if stores.ui.sidebar_open}
+          {#if stores.ui.sidebar_open && !zen_mode}
             <Resizable.Pane
               defaultSize={15}
               minSize={10}
@@ -668,7 +693,9 @@
                   order={1}
                 >
                   <div class="flex h-full min-h-0 min-w-0 flex-col">
-                    <TabBar />
+                    {#if !zen_mode}
+                      <TabBar />
+                    {/if}
                     <div class="flex min-h-0 flex-1 flex-col">
                       <FindInFileBar
                         open={stores.ui.find_in_file.open}
@@ -738,7 +765,7 @@
               </Resizable.PaneGroup>
             </Sidebar.Inset>
           </Resizable.Pane>
-          {#if stores.ui.context_rail_open}
+          {#if stores.ui.context_rail_open && !zen_mode}
             <Resizable.Handle withHandle />
             <Resizable.Pane
               defaultSize={20}
@@ -752,46 +779,49 @@
         </Resizable.PaneGroup>
       </Sidebar.Provider>
     </div>
-    <EditorStatusBar
-      cursor_info={stores.editor.cursor}
-      {word_count}
-      {line_count}
-      has_note={!!stores.editor.open_note}
-      last_saved_at={stores.editor.last_saved_at}
-      index_progress={is_vault_mode
-        ? stores.search.index_progress
-        : { status: "idle", indexed: 0, total: 0, error: null }}
-      vault_name={stores.vault.vault?.name ?? null}
-      git_enabled={is_vault_mode && stores.git.enabled}
-      git_branch={is_vault_mode ? stores.git.branch : ""}
-      git_is_dirty={is_vault_mode && stores.git.is_dirty}
-      git_pending_files={is_vault_mode ? stores.git.pending_files : 0}
-      git_sync_status={is_vault_mode ? stores.git.sync_status : "idle"}
-      git_has_remote={is_vault_mode && stores.git.has_remote}
-      git_is_fetching={is_vault_mode && stores.op.is_pending("git.fetch")}
-      git_ahead={is_vault_mode ? stores.git.ahead : 0}
-      git_behind={is_vault_mode ? stores.git.behind : 0}
-      is_repairing_links={is_vault_mode && stores.op.is_pending("links.repair")}
-      link_repair_message={is_vault_mode
-        ? stores.op.get("links.repair").message
-        : null}
-      on_vault_click={() =>
-        void action_registry.execute(ACTION_IDS.vault_request_change)}
-      on_info_click={() => (details_dialog_open = true)}
-      on_git_click={() =>
-        void action_registry.execute(ACTION_IDS.git_open_history)}
-      on_git_fetch={() => void action_registry.execute(ACTION_IDS.git_fetch)}
-      on_git_push={() => void action_registry.execute(ACTION_IDS.git_push)}
-      on_git_pull={() => void action_registry.execute(ACTION_IDS.git_pull)}
-      on_git_add_remote={() =>
-        void action_registry.execute(ACTION_IDS.git_add_remote)}
-      on_sync_click={() =>
-        void action_registry.execute(ACTION_IDS.vault_sync_index)}
-      editor_mode={stores.editor.editor_mode}
-      status_bar_items={stores.plugin.status_bar_items}
-      on_mode_toggle={() =>
-        void action_registry.execute(ACTION_IDS.editor_toggle_mode)}
-    />
+    {#if !zen_mode}
+      <EditorStatusBar
+        cursor_info={stores.editor.cursor}
+        {word_count}
+        {line_count}
+        has_note={!!stores.editor.open_note}
+        last_saved_at={stores.editor.last_saved_at}
+        index_progress={is_vault_mode
+          ? stores.search.index_progress
+          : { status: "idle", indexed: 0, total: 0, error: null }}
+        vault_name={stores.vault.vault?.name ?? null}
+        git_enabled={is_vault_mode && stores.git.enabled}
+        git_branch={is_vault_mode ? stores.git.branch : ""}
+        git_is_dirty={is_vault_mode && stores.git.is_dirty}
+        git_pending_files={is_vault_mode ? stores.git.pending_files : 0}
+        git_sync_status={is_vault_mode ? stores.git.sync_status : "idle"}
+        git_has_remote={is_vault_mode && stores.git.has_remote}
+        git_is_fetching={is_vault_mode && stores.op.is_pending("git.fetch")}
+        git_ahead={is_vault_mode ? stores.git.ahead : 0}
+        git_behind={is_vault_mode ? stores.git.behind : 0}
+        is_repairing_links={is_vault_mode &&
+          stores.op.is_pending("links.repair")}
+        link_repair_message={is_vault_mode
+          ? stores.op.get("links.repair").message
+          : null}
+        on_vault_click={() =>
+          void action_registry.execute(ACTION_IDS.vault_request_change)}
+        on_info_click={() => (details_dialog_open = true)}
+        on_git_click={() =>
+          void action_registry.execute(ACTION_IDS.git_open_history)}
+        on_git_fetch={() => void action_registry.execute(ACTION_IDS.git_fetch)}
+        on_git_push={() => void action_registry.execute(ACTION_IDS.git_push)}
+        on_git_pull={() => void action_registry.execute(ACTION_IDS.git_pull)}
+        on_git_add_remote={() =>
+          void action_registry.execute(ACTION_IDS.git_add_remote)}
+        on_sync_click={() =>
+          void action_registry.execute(ACTION_IDS.vault_sync_index)}
+        editor_mode={stores.editor.editor_mode}
+        status_bar_items={stores.plugin.status_bar_items}
+        on_mode_toggle={() =>
+          void action_registry.execute(ACTION_IDS.editor_toggle_mode)}
+      />
+    {/if}
 
     <PluginRuntimeContainer />
   </div>
@@ -806,6 +836,11 @@
 {/if}
 
 <style>
+  .WorkspaceLayout--zen :global(.cm-editor) {
+    max-width: 72ch;
+    margin-inline: auto;
+  }
+
   .SplitViewContainer {
     display: flex;
     flex-direction: row;

@@ -191,6 +191,7 @@ export class UIStore {
   );
 
   sidebar_open = $state(true);
+  zen_mode = $state(false);
   sidebar_view = $state<SidebarView>("explorer");
   selected_folder_path = $state("");
   filetree_revealed_note_path = $state("");
@@ -382,6 +383,14 @@ export class UIStore {
 
   toggle_sidebar() {
     this.sidebar_open = !this.sidebar_open;
+  }
+
+  toggle_zen_mode() {
+    this.zen_mode = !this.zen_mode;
+  }
+
+  set_zen_mode(value: boolean) {
+    this.zen_mode = value;
   }
 
   set_sidebar_view(view: SidebarView) {
