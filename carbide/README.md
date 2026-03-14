@@ -64,8 +64,9 @@ See `carbide/TODO.md` for granular task status.
 If you are doing Carbide-facing work, read these first:
 
 1. `carbide/TODO.md` — execution tracker and current phase status
-2. `carbide/plugin_system.md` — plugin architecture and compatibility posture
-3. `docs/architecture.md` — frontend architecture decision tree
+2. `carbide/FEATURES.md` — running list of implemented features by area
+3. `carbide/plugin_system.md` — plugin architecture and compatibility posture
+4. `docs/architecture.md` — frontend architecture decision tree
 
 ## Reference implementations (`~/src/KBM_Notes`)
 
@@ -96,6 +97,7 @@ The folder is organized by document role and lifecycle.
 Keep only the canonical project docs at the root:
 
 - `TODO.md`
+- `FEATURES.md`
 - `plugin_system.md`
 - `README.md`
 
