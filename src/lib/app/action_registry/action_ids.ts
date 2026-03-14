@@ -79,6 +79,7 @@ export const ACTION_IDS = {
   shell_open_url: "shell.open_url",
 
   ui_toggle_sidebar: "ui.toggle_sidebar",
+  ui_toggle_zen_mode: "ui.toggle_zen_mode",
   ui_select_folder: "ui.select_folder",
   ui_set_sidebar_view: "ui.set_sidebar_view",
   ui_toggle_context_rail: "ui.toggle_context_rail",

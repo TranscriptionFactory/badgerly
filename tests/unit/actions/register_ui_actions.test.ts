@@ -96,6 +96,33 @@ describe("register_ui_actions", () => {
     expect(refresh_called).toBe(1);
   });
 
+  it("toggles zen mode", async () => {
+    const registry = new ActionRegistry();
+    const stores = create_ui_stores();
+
+    register_ui_actions({
+      registry,
+      stores,
+      services: {
+        vault: {
+          refresh_dashboard_stats: async () =>
+            await Promise.resolve({ status: "skipped" as const }),
+        },
+        shell: { open_url: async () => {}, open_path: async () => {} },
+      } as never,
+      default_mount_config: {
+        reset_app_state: true,
+        bootstrap_default_vault_path: null,
+      },
+    });
+
+    expect(stores.ui.zen_mode).toBe(false);
+    await registry.execute(ACTION_IDS.ui_toggle_zen_mode);
+    expect(stores.ui.zen_mode).toBe(true);
+    await registry.execute(ACTION_IDS.ui_toggle_zen_mode);
+    expect(stores.ui.zen_mode).toBe(false);
+  });
+
   it("closes the graph when toggling the context rail", async () => {
     const registry = new ActionRegistry();
     const stores = create_ui_stores();
