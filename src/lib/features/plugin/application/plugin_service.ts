@@ -5,7 +5,7 @@ import type {
   SidebarView,
   StatusBarItem,
 } from "../ports";
-import type { CommandDefinition } from "$lib/features/search/types/command_palette";
+import type { CommandDefinition } from "$lib/features/search";
 import type { VaultStore } from "$lib/features/vault";
 import type { RpcRequest, RpcResponse } from "./plugin_rpc_handler";
 import { PluginRpcHandler } from "./plugin_rpc_handler";

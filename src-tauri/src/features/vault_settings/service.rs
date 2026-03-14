@@ -8,10 +8,22 @@ use tauri::{AppHandle, Manager};
 
 const SETTINGS_FILE: &str = "settings.json";
 
-fn vault_settings_path(app: &AppHandle, vault_id: &str) -> Result<PathBuf, String> {
+fn vault_settings_dir(app: &AppHandle, vault_id: &str) -> Result<PathBuf, String> {
     let store = load_store(app)?;
     let vault_path = vault_path_by_id(&store, vault_id).ok_or("Vault not found")?;
-    let settings_dir = PathBuf::from(&vault_path).join(constants::APP_DIR);
+    Ok(PathBuf::from(&vault_path).join(constants::APP_DIR))
+}
+
+fn vault_settings_path_for_read(app: &AppHandle, vault_id: &str) -> Result<Option<PathBuf>, String> {
+    let settings_dir = vault_settings_dir(app, vault_id)?;
+    if !settings_dir.is_dir() {
+        return Ok(None);
+    }
+    Ok(Some(settings_dir.join(SETTINGS_FILE)))
+}
+
+fn vault_settings_path_for_write(app: &AppHandle, vault_id: &str) -> Result<PathBuf, String> {
+    let settings_dir = vault_settings_dir(app, vault_id)?;
     std::fs::create_dir_all(&settings_dir).map_err(|e| e.to_string())?;
     Ok(settings_dir.join(SETTINGS_FILE))
 }
@@ -28,7 +40,9 @@ fn local_state_path(app: &AppHandle, vault_id: &str) -> Result<PathBuf, String> 
 }
 
 fn load_vault_settings(app: &AppHandle, vault_id: &str) -> Result<HashMap<String, Value>, String> {
-    let path = vault_settings_path(app, vault_id)?;
+    let Some(path) = vault_settings_path_for_read(app, vault_id)? else {
+        return Ok(HashMap::new());
+    };
     let Some(bytes) = read_settings_file(&path)? else {
         return Ok(HashMap::new());
     };
@@ -81,7 +95,7 @@ fn save_vault_settings(
     vault_id: &str,
     settings: &HashMap<String, Value>,
 ) -> Result<(), String> {
-    let path = vault_settings_path(app, vault_id)?;
+    let path = vault_settings_path_for_write(app, vault_id)?;
     let bytes = serde_json::to_vec_pretty(settings).map_err(|e| e.to_string())?;
     write_settings_file(&path, &bytes)
 }

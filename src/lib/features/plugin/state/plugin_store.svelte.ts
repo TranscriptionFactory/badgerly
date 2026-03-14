@@ -1,5 +1,5 @@
 import type { PluginInfo, StatusBarItem, SidebarView } from "../ports";
-import type { CommandDefinition } from "$lib/features/search/types/command_palette";
+import type { CommandDefinition } from "$lib/features/search";
 import { SvelteMap } from "svelte/reactivity";
 
 export class PluginStore {

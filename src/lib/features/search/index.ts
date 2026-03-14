@@ -21,4 +21,5 @@ export type {
   CommandId,
   CommandIcon,
   CommandDefinition,
+  SearchCommandDefinition,
 } from "$lib/features/search/types/command_palette";

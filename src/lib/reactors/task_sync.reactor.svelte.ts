@@ -1,7 +1,7 @@
 import type { VaultStore } from "$lib/features/vault";
 import type { TaskService } from "$lib/features/task";
 import type { WatcherService } from "$lib/features/watcher";
-import type { VaultFsEvent } from "$lib/features/watcher/types/watcher";
+import type { VaultFsEvent } from "$lib/features/watcher";
 import { create_debounced_task_controller } from "$lib/reactors/debounced_task";
 
 const TASK_REFRESH_DEBOUNCE_MS = 500;

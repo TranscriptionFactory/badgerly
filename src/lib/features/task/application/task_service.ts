@@ -1,6 +1,6 @@
 import type { TaskPort } from "../ports";
 import type { TaskStore } from "../state/task_store.svelte";
-import type { VaultStore } from "$lib/features/vault/state/vault_store.svelte";
+import type { VaultStore } from "$lib/features/vault";
 import type { TaskFilter, TaskStatus } from "../types";
 
 export class TaskService {

@@ -1,7 +1,7 @@
 import type { NoteMeta } from "$lib/shared/types/note";
-import type { CommandDefinition } from "$lib/features/search/types/command_palette";
+import type { CommandDefinition } from "$lib/features/search";
 
-export type { SearchCommandDefinition } from "$lib/features/search/types/command_palette";
+export type { SearchCommandDefinition } from "$lib/features/search";
 
 export type SearchSettingDefinition = {
   key: string;

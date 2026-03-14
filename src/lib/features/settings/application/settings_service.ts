@@ -129,14 +129,16 @@ export class SettingsService {
     this.start_operation("settings.save");
 
     try {
-      const vault_scoped = omit_global_only_keys(
-        settings as unknown as Record<string, unknown>,
-      );
-      await this.vault_settings_port.set_vault_setting(
-        vault_id,
-        SETTINGS_KEY,
-        vault_scoped,
-      );
+      if (this.vault_store.is_vault_mode) {
+        const vault_scoped = omit_global_only_keys(
+          settings as unknown as Record<string, unknown>,
+        );
+        await this.vault_settings_port.set_vault_setting(
+          vault_id,
+          SETTINGS_KEY,
+          vault_scoped,
+        );
+      }
       for (const key of GLOBAL_ONLY_SETTING_KEYS) {
         await this.settings_port.set_setting(key, settings[key]);
       }

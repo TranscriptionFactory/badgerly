@@ -203,6 +203,36 @@ describe("SettingsService", () => {
     expect(result.settings.ignored_folders).toEqual([]);
   });
 
+  it("skips vault-scoped write in browse mode", async () => {
+    const vault_settings_port = {
+      get_vault_setting: vi.fn().mockResolvedValue(null),
+      set_vault_setting: vi.fn().mockResolvedValue(undefined),
+    };
+    const settings_port = {
+      get_setting: vi.fn().mockResolvedValue(null),
+      set_setting: vi.fn().mockResolvedValue(undefined),
+    };
+    const vault_store = new VaultStore();
+    vault_store.set_vault(create_test_vault({ id: VAULT_ID, mode: "browse" }));
+    const op_store = new OpStore();
+    const service = new SettingsService(
+      vault_settings_port as never,
+      settings_port as never,
+      vault_store,
+      op_store,
+      () => 1,
+    );
+
+    const result = await service.save_settings({
+      ...DEFAULT_EDITOR_SETTINGS,
+      ignored_folders: ["node_modules"],
+    });
+
+    expect(result.status).toBe("success");
+    expect(vault_settings_port.set_vault_setting).not.toHaveBeenCalled();
+    expect(settings_port.set_setting).toHaveBeenCalled();
+  });
+
   it("persists ignored folders as vault-scoped settings", async () => {
     const { service, vault_settings_port, settings_port } = make_service({});
 
