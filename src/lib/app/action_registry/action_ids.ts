@@ -227,6 +227,9 @@ export const ACTION_IDS = {
   canvas_close: "canvas.close",
   canvas_save: "canvas.save",
   canvas_create: "canvas.create",
+  canvas_update_create_name: "canvas.update_create_name",
+  canvas_confirm_create: "canvas.confirm_create",
+  canvas_cancel_create: "canvas.cancel_create",
   canvas_repair_refs: "canvas.repair_refs",
 } as const;
 

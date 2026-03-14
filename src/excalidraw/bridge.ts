@@ -6,7 +6,11 @@ export type HostMessage =
       appState: Record<string, unknown>;
     }
   | { type: "get_scene" }
-  | { type: "theme_sync"; theme: "light" | "dark" };
+  | {
+      type: "theme_sync";
+      theme: "light" | "dark";
+      viewBackgroundColor: string;
+    };
 
 export type GuestMessage =
   | {

@@ -17,6 +17,7 @@
     CreateFolderDialog,
     FiletreeMoveConflictDialog,
   } from "$lib/features/folder";
+  import { SaveCanvasDialog } from "$lib/features/canvas";
   import { SettingsDialog } from "$lib/features/settings";
   import { Omnibar } from "$lib/features/search";
   import { TabCloseConfirmDialog } from "$lib/features/tab";
@@ -367,6 +368,18 @@
     void action_registry.execute(ACTION_IDS.folder_confirm_create)}
   on_cancel={() =>
     void action_registry.execute(ACTION_IDS.folder_cancel_create)}
+/>
+
+<SaveCanvasDialog
+  open={stores.ui.create_canvas_dialog.open}
+  folder_path={stores.ui.create_canvas_dialog.folder_path}
+  canvas_name={stores.ui.create_canvas_dialog.canvas_name}
+  on_name_change={(name: string) =>
+    void action_registry.execute(ACTION_IDS.canvas_update_create_name, name)}
+  on_confirm={() =>
+    void action_registry.execute(ACTION_IDS.canvas_confirm_create)}
+  on_cancel={() =>
+    void action_registry.execute(ACTION_IDS.canvas_cancel_create)}
 />
 
 <Omnibar

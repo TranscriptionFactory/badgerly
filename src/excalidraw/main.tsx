@@ -53,6 +53,13 @@ function App() {
 
         case "theme_sync":
           set_theme(msg.theme);
+          if (msg.viewBackgroundColor && api_ref.current) {
+            api_ref.current.updateScene({
+              appState: {
+                viewBackgroundColor: msg.viewBackgroundColor,
+              } as any,
+            });
+          }
           break;
       }
     }
@@ -101,6 +108,7 @@ function App() {
         initialData={{
           elements: initial_data.elements as any,
           appState: {
+            viewBackgroundColor: theme === "dark" ? "#121212" : "#ffffff",
             ...(initial_data.appState ?? {}),
             theme,
           } as any,

@@ -60,6 +60,12 @@ const INITIAL_CREATE_FOLDER_DIALOG = {
   folder_name: "",
 } as const;
 
+const INITIAL_CREATE_CANVAS_DIALOG = {
+  open: false,
+  folder_path: "",
+  canvas_name: "",
+} as const;
+
 const INITIAL_DELETE_FOLDER_DIALOG = {
   open: false,
   folder_path: null,
@@ -237,6 +243,12 @@ export class UIStore {
     parent_path: string;
     folder_name: string;
   }>({ ...INITIAL_CREATE_FOLDER_DIALOG });
+
+  create_canvas_dialog = $state<{
+    open: boolean;
+    folder_path: string;
+    canvas_name: string;
+  }>({ ...INITIAL_CREATE_CANVAS_DIALOG });
 
   delete_folder_dialog = $state<{
     open: boolean;
@@ -483,6 +495,7 @@ export class UIStore {
     this.rename_note_dialog = { ...INITIAL_RENAME_NOTE_DIALOG };
     this.save_note_dialog = { ...INITIAL_SAVE_NOTE_DIALOG };
     this.create_folder_dialog = { ...INITIAL_CREATE_FOLDER_DIALOG };
+    this.create_canvas_dialog = { ...INITIAL_CREATE_CANVAS_DIALOG };
     this.delete_folder_dialog = { ...INITIAL_DELETE_FOLDER_DIALOG };
     this.rename_folder_dialog = { ...INITIAL_RENAME_FOLDER_DIALOG };
     this.settings_dialog = initial_settings_dialog(this.editor_settings);

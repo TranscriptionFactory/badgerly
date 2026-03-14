@@ -23,3 +23,4 @@ export { create_canvas_tauri_adapter } from "$lib/features/canvas/adapters/canva
 export { CanvasService } from "$lib/features/canvas/application/canvas_service";
 export { register_canvas_actions } from "$lib/features/canvas/application/canvas_actions";
 export { default as CanvasViewer } from "$lib/features/canvas/ui/canvas_viewer.svelte";
+export { default as SaveCanvasDialog } from "$lib/features/canvas/ui/save_canvas_dialog.svelte";

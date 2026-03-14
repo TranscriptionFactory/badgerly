@@ -50,6 +50,7 @@
   });
 
   const app_theme = $derived(is_dark ? ("dark" as const) : ("light" as const));
+  const view_background_color = $derived(is_dark ? "#121212" : "#ffffff");
 
   function handle_camera_change(camera: Camera) {
     stores.canvas.set_camera(tab_id, camera);
@@ -81,6 +82,7 @@
         bind:this={excalidraw_host}
         scene={canvas_state.excalidraw_scene}
         theme={app_theme}
+        {view_background_color}
         on_change={handle_excalidraw_change}
       />
     {:else if canvas_state.canvas_data}

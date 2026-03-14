@@ -189,13 +189,13 @@
   }
 </script>
 
-<div class="flex h-full min-h-0 flex-col">
+<div class="flex h-full min-h-0 min-w-0 flex-col">
   <div class="border-b px-4 py-3">
     <h2 class="text-base font-semibold">{title}</h2>
     <p class="mt-1 text-sm text-muted-foreground">{description_text}</p>
   </div>
 
-  <div class="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+  <div class="flex-1 space-y-4 overflow-x-hidden overflow-y-auto px-4 py-4">
     <div class="space-y-2">
       <label class="text-sm font-medium" for="ai-provider"> Backend </label>
       <Select.Root

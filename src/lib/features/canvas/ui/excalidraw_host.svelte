@@ -5,6 +5,7 @@
   interface Props {
     scene: ExcalidrawScene;
     theme: "light" | "dark";
+    view_background_color: string;
     on_change: (
       elements: unknown[],
       appState: Record<string, unknown>,
@@ -12,7 +13,7 @@
     ) => void;
   }
 
-  let { scene, theme, on_change }: Props = $props();
+  let { scene, theme, view_background_color, on_change }: Props = $props();
 
   let iframe: SandboxedIframe | undefined = $state();
   let is_ready = $state(false);
@@ -56,7 +57,11 @@
 
   $effect(() => {
     if (is_ready) {
-      iframe?.post_message({ type: "theme_sync", theme });
+      iframe?.post_message({
+        type: "theme_sync",
+        theme,
+        viewBackgroundColor: view_background_color,
+      });
     }
   });
 

@@ -11,6 +11,6 @@ export const EMPTY_EXCALIDRAW_SCENE = {
   version: 2,
   source: "badgerly",
   elements: [],
-  appState: { viewBackgroundColor: "#ffffff" },
+  appState: {},
   files: {},
 };
