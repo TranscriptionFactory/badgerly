@@ -17,6 +17,7 @@ import { TaskStore } from "$lib/features/task/state/task_store.svelte";
 import { OutlineStore } from "$lib/features/outline";
 import { SplitViewStore } from "$lib/features/split_view";
 import { as_markdown_text, as_note_path } from "$lib/shared/types/ids";
+import { BUILTIN_PROVIDER_PRESETS } from "$lib/shared/types/ai_provider_config";
 import { toast } from "svelte-sonner";
 
 vi.mock("svelte-sonner", () => ({
@@ -74,6 +75,9 @@ function create_harness() {
     execute: vi.fn(),
   };
 
+  stores.ui.editor_settings.ai_providers = BUILTIN_PROVIDER_PRESETS;
+  stores.ui.editor_settings.ai_default_provider_id = "auto";
+
   register_ai_actions({
     registry,
     stores,
@@ -114,20 +118,20 @@ describe("register_ai_actions", () => {
     expect(stores.ui.context_rail_open).toBe(true);
     expect(stores.ui.context_rail_tab).toBe("ai");
     expect(ai_store.dialog.open).toBe(true);
-    expect(ai_service.check_cli).toHaveBeenCalledWith("claude", "claude");
+    expect(ai_service.check_cli).toHaveBeenCalledWith("claude");
   });
 
-  it("uses the configured default backend for new sessions", async () => {
+  it("uses the configured default provider for new sessions", async () => {
     const { registry, stores, ai_store, ai_service } = create_harness();
-    stores.ui.editor_settings.ai_default_backend = "codex";
+    stores.ui.editor_settings.ai_default_provider_id = "codex";
 
     await registry.execute(ACTION_IDS.ai_open_assistant);
 
-    expect(ai_store.dialog.provider).toBe("codex");
-    expect(ai_service.check_cli).toHaveBeenCalledWith("codex", "codex");
+    expect(ai_store.dialog.provider_id).toBe("codex");
+    expect(ai_service.check_cli).toHaveBeenCalledWith("codex");
   });
 
-  it("auto-selects the first available backend", async () => {
+  it("auto-selects the first available provider", async () => {
     const { registry, ai_store, ai_service } = create_harness();
     ai_service.check_cli = vi
       .fn()
@@ -136,19 +140,19 @@ describe("register_ai_actions", () => {
 
     await registry.execute(ACTION_IDS.ai_open_assistant);
 
-    expect(ai_store.dialog.provider).toBe("codex");
+    expect(ai_store.dialog.provider_id).toBe("codex");
     expect(ai_store.dialog.cli_status).toBe("available");
-    expect(ai_service.check_cli).toHaveBeenNthCalledWith(1, "claude", "claude");
-    expect(ai_service.check_cli).toHaveBeenNthCalledWith(2, "codex", "codex");
+    expect(ai_service.check_cli).toHaveBeenNthCalledWith(1, "claude");
+    expect(ai_service.check_cli).toHaveBeenNthCalledWith(2, "codex");
   });
 
-  it("shows a generic setup error when auto-select cannot find any backend", async () => {
+  it("shows a generic setup error when auto-select cannot find any provider", async () => {
     const { registry, ai_store, ai_service } = create_harness();
     ai_service.check_cli = vi.fn().mockResolvedValue(false);
 
     await registry.execute(ACTION_IDS.ai_open_assistant);
 
-    expect(ai_store.dialog.provider).toBe("claude");
+    expect(ai_store.dialog.provider_id).toBe("claude");
     expect(ai_store.dialog.cli_status).toBe("error");
     expect(ai_store.dialog.cli_error).toContain("No configured AI backend");
   });
@@ -159,8 +163,8 @@ describe("register_ai_actions", () => {
     await registry.execute(ACTION_IDS.ai_open_assistant);
     await registry.execute(ACTION_IDS.ai_update_provider, "ollama");
 
-    expect(ai_store.dialog.provider).toBe("ollama");
-    expect(ai_service.check_cli).toHaveBeenCalledWith("ollama", "ollama");
+    expect(ai_store.dialog.provider_id).toBe("ollama");
+    expect(ai_service.check_cli).toHaveBeenCalledWith("ollama");
   });
 
   it("updates the active scope when a selection is available", async () => {

@@ -66,7 +66,7 @@
     <div class="space-y-2">
       <h2 class="text-base font-semibold">AI Assistant Disabled</h2>
       <p class="text-sm text-muted-foreground">
-        Re-enable AI in Settings to use local Claude, Codex, or Ollama backends.
+        Re-enable AI in Settings to use configured AI backends.
       </p>
     </div>
   </div>
@@ -85,10 +85,10 @@
   </div>
 {:else}
   <AiAssistantContent
-    provider={session.provider}
+    provider_id={session.provider_id}
+    providers={stores.ui.editor_settings.ai_providers}
     mode={session.mode}
     prompt={session.prompt}
-    ollama_model={session.ollama_model}
     cli_status={session.cli_status}
     cli_error={session.cli_error}
     target={session.context?.target ?? "full_note"}
@@ -108,8 +108,6 @@
       void action_registry.execute(ACTION_IDS.ai_update_target, value)}
     on_prompt_change={(value) =>
       void action_registry.execute(ACTION_IDS.ai_update_prompt, value)}
-    on_ollama_model_change={(value) =>
-      void action_registry.execute(ACTION_IDS.ai_update_ollama_model, value)}
     on_execute={() => void action_registry.execute(ACTION_IDS.ai_execute)}
     on_apply={(output) =>
       void action_registry.execute(ACTION_IDS.ai_apply_result, output)}

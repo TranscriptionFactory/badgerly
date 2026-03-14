@@ -16,6 +16,7 @@ describe("resolve_graph_refresh_decision", () => {
       index_status: "idle",
       snapshot_note_path: null,
       status: "idle",
+      view_mode: "neighborhood",
     });
 
     expect(decision.action).toBe("noop");
@@ -29,6 +30,7 @@ describe("resolve_graph_refresh_decision", () => {
       index_status: "idle",
       snapshot_note_path: null,
       status: "idle",
+      view_mode: "neighborhood",
     });
 
     expect(decision.action).toBe("load");
@@ -49,6 +51,7 @@ describe("resolve_graph_refresh_decision", () => {
       index_status: "idle",
       snapshot_note_path: "note.md",
       status: "ready",
+      view_mode: "neighborhood",
     });
 
     expect(decision.action).toBe("clear");
@@ -69,6 +72,7 @@ describe("resolve_graph_refresh_decision", () => {
       index_status: "completed",
       snapshot_note_path: "note.md",
       status: "ready",
+      view_mode: "neighborhood",
     });
 
     expect(decision.action).toBe("load");
@@ -90,6 +94,7 @@ describe("resolve_graph_refresh_decision", () => {
       index_status: "completed",
       snapshot_note_path: "old.md",
       status: "ready",
+      view_mode: "neighborhood",
     });
 
     expect(decision.action).toBe("load");

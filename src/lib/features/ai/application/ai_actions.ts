@@ -1,16 +1,13 @@
 import { toast } from "svelte-sonner";
 import type { ActionRegistrationInput } from "$lib/app";
 import { ACTION_IDS } from "$lib/app";
-import type {
-  AiApplyTarget,
-  AiMode,
-  AiProvider,
-} from "$lib/features/ai/domain/ai_types";
-import { AI_PROVIDER_DISPLAY } from "$lib/features/ai/domain/ai_types";
+import type { AiApplyTarget, AiMode } from "$lib/features/ai/domain/ai_types";
+import { find_provider } from "$lib/features/ai/domain/ai_types";
 import { resolve_auto_ai_backend } from "$lib/features/ai/domain/ai_backend_selection";
 import type { AiService } from "$lib/features/ai/application/ai_service";
 import type { AiStore } from "$lib/features/ai/state/ai_store.svelte";
 import { error_message } from "$lib/shared/utils/error_message";
+import type { AiProviderConfig } from "$lib/shared/types/ai_provider_config";
 
 export function register_ai_actions(
   input: ActionRegistrationInput & {
@@ -33,45 +30,49 @@ export function register_ai_actions(
     return false;
   }
 
-  function command_for(provider: AiProvider) {
-    const settings = input.stores.ui.editor_settings;
-    if (provider === "claude") return settings.ai_claude_command;
-    if (provider === "codex") return settings.ai_codex_command;
-    return settings.ai_ollama_command;
+  function get_providers() {
+    return input.stores.ui.editor_settings.ai_providers;
   }
 
-  function sync_provider_settings(provider: AiProvider) {
-    if (provider === "ollama") {
-      ai_store.set_ollama_model(
-        input.stores.ui.editor_settings.ai_ollama_model,
-      );
-    }
+  function get_provider(id: string): AiProviderConfig | undefined {
+    return find_provider(get_providers(), id);
   }
 
-  async function refresh_cli_status(provider: AiProvider, revision: number) {
+  async function refresh_cli_status(provider_id: string, revision: number) {
     ai_store.set_cli_status("checking");
-    sync_provider_settings(provider);
+
+    const config = get_provider(provider_id);
+    if (!config) {
+      ai_store.set_cli_status(
+        "error",
+        `Provider "${provider_id}" not found in settings.`,
+      );
+      return;
+    }
 
     try {
-      const available = await ai_service.check_cli(
-        provider,
-        command_for(provider),
-      );
+      const available = await ai_service.check_cli(config.command);
       if (revision !== dialog_revision) return;
-      if (!ai_store.dialog.open || ai_store.dialog.provider !== provider) {
+      if (
+        !ai_store.dialog.open ||
+        ai_store.dialog.provider_id !== provider_id
+      ) {
         return;
       }
       ai_store.set_cli_status(available ? "available" : "unavailable");
     } catch (error) {
       if (revision !== dialog_revision) return;
-      if (!ai_store.dialog.open || ai_store.dialog.provider !== provider) {
+      if (
+        !ai_store.dialog.open ||
+        ai_store.dialog.provider_id !== provider_id
+      ) {
         return;
       }
       ai_store.set_cli_status("error", error_message(error));
     }
   }
 
-  async function open_ai_dialog(provider?: AiProvider) {
+  async function open_ai_dialog(provider_id?: string) {
     if (!ensure_ai_enabled()) return;
 
     const context = services.editor.get_ai_context();
@@ -89,7 +90,7 @@ export function register_ai_actions(
     if (
       ai_store.dialog.open &&
       ai_store.dialog.context?.note_path === context.note_path &&
-      (provider === undefined || ai_store.dialog.provider === provider)
+      (provider_id === undefined || ai_store.dialog.provider_id === provider_id)
     ) {
       const selection = context.selection;
       ai_store.update_context({
@@ -101,44 +102,46 @@ export function register_ai_actions(
           selection && selection.text.trim() !== "" ? "selection" : "full_note",
       });
 
-      if (ai_store.dialog.cli_status === "idle" && provider !== undefined) {
+      if (ai_store.dialog.cli_status === "idle" && provider_id !== undefined) {
         const revision = ++dialog_revision;
-        await refresh_cli_status(provider, revision);
+        await refresh_cli_status(provider_id, revision);
       } else if (ai_store.dialog.cli_status === "idle") {
         const revision = ++dialog_revision;
-        await refresh_cli_status(ai_store.dialog.provider, revision);
+        await refresh_cli_status(ai_store.dialog.provider_id, revision);
       }
       return;
     }
 
-    let next_provider = provider;
+    let next_provider_id = provider_id;
     let preset_cli_status: "available" | "error" | null = null;
     let preset_cli_error: string | null = null;
 
-    if (!next_provider) {
-      const { ai_default_backend } = input.stores.ui.editor_settings;
-      if (ai_default_backend === "auto") {
+    if (!next_provider_id) {
+      const { ai_default_provider_id } = input.stores.ui.editor_settings;
+      if (ai_default_provider_id === "auto") {
+        const providers = get_providers();
         const auto_provider = await resolve_auto_ai_backend({
-          check_availability: async (candidate) =>
-            await ai_service.check_cli(candidate, command_for(candidate)),
+          providers,
+          check_availability: async (config) =>
+            await ai_service.check_cli(config.command),
         });
 
         if (auto_provider) {
-          next_provider = auto_provider;
+          next_provider_id = auto_provider.id;
           preset_cli_status = "available";
         } else {
-          next_provider = "claude";
+          next_provider_id = providers[0]?.id ?? "claude";
           preset_cli_status = "error";
           preset_cli_error =
-            "No configured AI backend is currently available. Install Claude Code, Codex, or Ollama, or choose a specific backend in Settings.";
+            "No configured AI backend is currently available. Add a provider in Settings or install a supported CLI.";
         }
       } else {
-        next_provider = ai_default_backend;
+        next_provider_id = ai_default_provider_id;
       }
     }
 
     const selection = context.selection;
-    ai_store.open_dialog(next_provider, {
+    ai_store.open_dialog(next_provider_id, {
       note_path: context.note_path,
       note_title: context.note_title,
       note_markdown: context.markdown,
@@ -146,8 +149,6 @@ export function register_ai_actions(
       target:
         selection && selection.text.trim() !== "" ? "selection" : "full_note",
     });
-
-    sync_provider_settings(next_provider);
 
     if (preset_cli_status === "available") {
       ai_store.set_cli_status("available");
@@ -160,7 +161,7 @@ export function register_ai_actions(
     }
 
     const revision = ++dialog_revision;
-    await refresh_cli_status(next_provider, revision);
+    await refresh_cli_status(next_provider_id, revision);
   }
 
   function close_ai_dialog() {
@@ -183,26 +184,10 @@ export function register_ai_actions(
   });
 
   registry.register({
-    id: ACTION_IDS.ai_open_claude,
-    label: AI_PROVIDER_DISPLAY.claude.command_label,
-    execute: async () => {
-      await open_ai_dialog("claude");
-    },
-  });
-
-  registry.register({
-    id: ACTION_IDS.ai_open_codex,
-    label: AI_PROVIDER_DISPLAY.codex.command_label,
-    execute: async () => {
-      await open_ai_dialog("codex");
-    },
-  });
-
-  registry.register({
-    id: ACTION_IDS.ai_open_ollama,
-    label: AI_PROVIDER_DISPLAY.ollama.command_label,
-    execute: async () => {
-      await open_ai_dialog("ollama");
+    id: ACTION_IDS.ai_open_with_provider,
+    label: "AI Assistant (Provider)",
+    execute: async (id: unknown) => {
+      await open_ai_dialog(String(id));
     },
   });
 
@@ -217,22 +202,18 @@ export function register_ai_actions(
   registry.register({
     id: ACTION_IDS.ai_update_provider,
     label: "Update AI Provider",
-    execute: async (provider: unknown) => {
+    execute: async (id: unknown) => {
       if (!ensure_ai_enabled()) return;
-      const next_provider = String(provider) as AiProvider;
-      if (
-        next_provider !== "claude" &&
-        next_provider !== "codex" &&
-        next_provider !== "ollama"
-      ) {
+      const provider_id = String(id);
+      if (!get_provider(provider_id)) {
         return;
       }
-      ai_store.set_provider(next_provider);
+      ai_store.set_provider(provider_id);
       if (!ai_store.dialog.open) {
         return;
       }
       const revision = ++dialog_revision;
-      await refresh_cli_status(next_provider, revision);
+      await refresh_cli_status(provider_id, revision);
     },
   });
 
@@ -282,14 +263,6 @@ export function register_ai_actions(
   });
 
   registry.register({
-    id: ACTION_IDS.ai_update_ollama_model,
-    label: "Update Ollama Model",
-    execute: (model: unknown) => {
-      ai_store.set_ollama_model(String(model));
-    },
-  });
-
-  registry.register({
     id: ACTION_IDS.ai_clear_result,
     label: "Clear AI Result",
     execute: () => {
@@ -315,24 +288,28 @@ export function register_ai_actions(
         return;
       }
 
+      const config = get_provider(dialog.provider_id);
+      if (!config) {
+        toast.error(`Provider "${dialog.provider_id}" not found in settings.`);
+        return;
+      }
+
       const revision = dialog_revision;
       ai_store.start_execution();
 
       try {
         const result = await ai_service.execute({
-          provider: dialog.provider,
+          provider_config: config,
           prompt: dialog.prompt,
           context: dialog.context,
           mode: dialog.mode,
-          command: command_for(dialog.provider),
-          ollama_model: dialog.ollama_model,
           timeout_seconds:
             input.stores.ui.editor_settings.ai_execution_timeout_seconds,
         });
         if (revision !== dialog_revision) return;
         if (
           !ai_store.dialog.open ||
-          ai_store.dialog.provider !== dialog.provider
+          ai_store.dialog.provider_id !== dialog.provider_id
         )
           return;
         ai_store.finish_execution(result);
@@ -340,7 +317,7 @@ export function register_ai_actions(
         if (revision !== dialog_revision) return;
         if (
           !ai_store.dialog.open ||
-          ai_store.dialog.provider !== dialog.provider
+          ai_store.dialog.provider_id !== dialog.provider_id
         )
           return;
         ai_store.finish_execution({
@@ -374,9 +351,8 @@ export function register_ai_actions(
         return;
       }
 
-      toast.success(
-        `${AI_PROVIDER_DISPLAY[dialog.provider].name} suggestion applied`,
-      );
+      const config = get_provider(dialog.provider_id);
+      toast.success(`${config?.name ?? "AI"} suggestion applied`);
       close_ai_dialog();
     },
   });

@@ -1,9 +1,6 @@
 import type { EditorSelectionSnapshot } from "$lib/shared/types/editor";
 import type { MarkdownText, NotePath } from "$lib/shared/types/ids";
 
-const DEFAULT_OLLAMA_MODEL = "qwen3:8b";
-
-type AiProvider = "claude" | "codex" | "ollama";
 type AiMode = "edit" | "ask";
 type AiCliStatus = "idle" | "checking" | "available" | "unavailable" | "error";
 
@@ -23,7 +20,7 @@ type AiDialogContext = {
 
 type AiConversationTurn = {
   id: number;
-  provider: AiProvider;
+  provider_id: string;
   target: "selection" | "full_note";
   mode: AiMode;
   prompt: string;
@@ -33,7 +30,7 @@ type AiConversationTurn = {
 
 export type AiDialogState = {
   open: boolean;
-  provider: AiProvider;
+  provider_id: string;
   mode: AiMode;
   prompt: string;
   context: AiDialogContext | null;
@@ -41,7 +38,6 @@ export type AiDialogState = {
   cli_error: string | null;
   is_executing: boolean;
   result: AiExecutionResult | null;
-  ollama_model: string;
   turns: AiConversationTurn[];
   next_turn_id: number;
 };
@@ -49,7 +45,7 @@ export type AiDialogState = {
 function initial_state(): AiDialogState {
   return {
     open: false,
-    provider: "claude",
+    provider_id: "claude",
     mode: "edit",
     prompt: "",
     context: null,
@@ -57,7 +53,6 @@ function initial_state(): AiDialogState {
     cli_error: null,
     is_executing: false,
     result: null,
-    ollama_model: DEFAULT_OLLAMA_MODEL,
     turns: [],
     next_turn_id: 1,
   };
@@ -66,12 +61,11 @@ function initial_state(): AiDialogState {
 export class AiStore {
   dialog = $state<AiDialogState>(initial_state());
 
-  open_dialog(provider: AiProvider, context: AiDialogContext) {
+  open_dialog(provider_id: string, context: AiDialogContext) {
     this.dialog = {
       ...initial_state(),
       open: true,
-      provider,
-      ollama_model: this.dialog.ollama_model,
+      provider_id,
       prompt: "",
       context,
       cli_status: "idle",
@@ -84,13 +78,12 @@ export class AiStore {
   close_dialog() {
     this.dialog = {
       ...initial_state(),
-      provider: this.dialog.provider,
-      ollama_model: this.dialog.ollama_model,
+      provider_id: this.dialog.provider_id,
     };
   }
 
-  set_provider(provider: AiProvider) {
-    this.dialog.provider = provider;
+  set_provider(provider_id: string) {
+    this.dialog.provider_id = provider_id;
     this.dialog.result = null;
     this.dialog.cli_status = "idle";
     this.dialog.cli_error = null;
@@ -132,10 +125,6 @@ export class AiStore {
     this.dialog.prompt = prompt;
   }
 
-  set_ollama_model(model: string) {
-    this.dialog.ollama_model = model;
-  }
-
   set_cli_status(status: AiCliStatus, error: string | null = null) {
     this.dialog.cli_status = status;
     this.dialog.cli_error = error;
@@ -151,7 +140,7 @@ export class AiStore {
       ...this.dialog.turns,
       {
         id: this.dialog.next_turn_id,
-        provider: this.dialog.provider,
+        provider_id: this.dialog.provider_id,
         target: this.dialog.context.target,
         mode: this.dialog.mode,
         prompt: this.dialog.prompt.trim(),

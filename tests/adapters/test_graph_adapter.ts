@@ -28,6 +28,12 @@ export function create_test_graph_adapter(): GraphPort {
           bidirectional_count: 0,
         },
       } as GraphNeighborhoodSnapshot),
+    load_vault_graph: () =>
+      Promise.resolve({
+        nodes: [],
+        edges: [],
+        stats: { node_count: 0, edge_count: 0 },
+      }),
     invalidate_cache: () => Promise.resolve(),
     cache_stats: () =>
       Promise.resolve({

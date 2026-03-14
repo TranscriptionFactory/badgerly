@@ -2,6 +2,7 @@ import type {
   GraphCacheStats,
   GraphNeighborhoodSnapshot,
   GraphPort,
+  VaultGraphSnapshot,
 } from "$lib/features/graph/ports";
 import { tauri_invoke } from "$lib/shared/adapters/tauri_invoke";
 import type { NoteId, NotePath, VaultId } from "$lib/shared/types/ids";
@@ -62,6 +63,12 @@ export function create_graph_tauri_adapter(): GraphPort {
         })),
         stats: snapshot.stats,
       };
+    },
+
+    async load_vault_graph(vault_id: VaultId): Promise<VaultGraphSnapshot> {
+      return tauri_invoke<VaultGraphSnapshot>("graph_load_vault_graph", {
+        vaultId: vault_id,
+      });
     },
 
     async invalidate_cache(vault_id: VaultId, note_id?: string): Promise<void> {

@@ -3,9 +3,20 @@ import { AiService } from "$lib/features/ai";
 import { VaultStore } from "$lib/features/vault";
 import { create_test_vault } from "../helpers/test_fixtures";
 import { as_markdown_text, as_note_path } from "$lib/shared/types/ids";
+import type { AiProviderConfig } from "$lib/shared/types/ai_provider_config";
+
+const ollama_config: AiProviderConfig = {
+  id: "ollama",
+  name: "Ollama",
+  command: "/opt/homebrew/bin/ollama",
+  args_template: { kind: "ollama" },
+  model: "llama3:8b",
+  install_url: "https://ollama.com",
+  is_preset: true,
+};
 
 describe("AiService", () => {
-  it("forwards CLI checks with command overrides", async () => {
+  it("forwards CLI checks with command string", async () => {
     const ai_port = {
       check_cli: vi.fn().mockResolvedValue(true),
       execute: vi.fn(),
@@ -13,10 +24,9 @@ describe("AiService", () => {
     const vault_store = new VaultStore();
     const service = new AiService(ai_port as never, vault_store);
 
-    await service.check_cli("claude", "/usr/local/bin/claude");
+    await service.check_cli("/usr/local/bin/claude");
 
     expect(ai_port.check_cli).toHaveBeenCalledWith({
-      provider: "claude",
       command: "/usr/local/bin/claude",
     });
   });
@@ -35,11 +45,9 @@ describe("AiService", () => {
     const service = new AiService(ai_port as never, vault_store);
 
     const result = await service.execute({
-      provider: "ollama",
+      provider_config: ollama_config,
       prompt: "Tighten this note",
       mode: "edit",
-      command: "/opt/homebrew/bin/ollama",
-      ollama_model: "llama3:8b",
       timeout_seconds: 120,
       context: {
         note_path: as_note_path("docs/demo.md"),
@@ -53,11 +61,9 @@ describe("AiService", () => {
     expect(result.success).toBe(true);
     expect(ai_port.execute).toHaveBeenCalledWith(
       expect.objectContaining({
-        provider: "ollama",
+        provider_config: ollama_config,
         vault_path: "/vault/demo",
         note_path: as_note_path("docs/demo.md"),
-        command: "/opt/homebrew/bin/ollama",
-        ollama_model: "llama3:8b",
         timeout_seconds: 120,
       }),
     );

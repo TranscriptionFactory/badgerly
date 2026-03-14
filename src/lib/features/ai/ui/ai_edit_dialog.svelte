@@ -1,20 +1,20 @@
 <script lang="ts">
   import OptionalSurface from "$lib/shared/ui/optional_surface.svelte";
+  import type { AiProviderConfig } from "$lib/shared/types/ai_provider_config";
   import type {
     AiApplyTarget,
     AiCliStatus,
     AiConversationTurn,
     AiExecutionResult,
     AiMode,
-    AiProvider,
   } from "$lib/features/ai/domain/ai_types";
 
   type AiEditDialogProps = {
     open: boolean;
-    provider: AiProvider;
+    provider_id: string;
+    providers: AiProviderConfig[];
     mode: AiMode;
     prompt: string;
-    ollama_model: string;
     cli_status: AiCliStatus;
     cli_error: string | null;
     target: AiApplyTarget;
@@ -26,11 +26,10 @@
     turns: AiConversationTurn[];
     result: AiExecutionResult | null;
     on_open_change: (open: boolean) => void;
-    on_provider_change: (provider: AiProvider) => void;
+    on_provider_change: (provider_id: string) => void;
     on_mode_change: (mode: AiMode) => void;
     on_target_change: (target: AiApplyTarget) => void;
     on_prompt_change: (prompt: string) => void;
-    on_ollama_model_change: (model: string) => void;
     on_execute: () => void;
     on_apply: (output?: string) => void;
     on_clear_result: () => void;
@@ -38,10 +37,10 @@
 
   let {
     open,
-    provider,
+    provider_id,
+    providers,
     mode,
     prompt,
-    ollama_model,
     cli_status,
     cli_error,
     target,
@@ -57,7 +56,6 @@
     on_mode_change,
     on_target_change,
     on_prompt_change,
-    on_ollama_model_change,
     on_execute,
     on_apply,
     on_clear_result,
@@ -71,10 +69,10 @@
   loader={load_ai_edit_dialog}
   component_props={{
     open,
-    provider,
+    provider_id,
+    providers,
     mode,
     prompt,
-    ollama_model,
     cli_status,
     cli_error,
     target,
@@ -90,7 +88,6 @@
     on_mode_change,
     on_target_change,
     on_prompt_change,
-    on_ollama_model_change,
     on_execute,
     on_apply,
     on_clear_result,

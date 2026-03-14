@@ -1,21 +1,21 @@
 <script lang="ts">
   import * as Dialog from "$lib/components/ui/dialog/index.js";
   import AiAssistantContent from "$lib/features/ai/ui/ai_assistant_content.svelte";
+  import type { AiProviderConfig } from "$lib/shared/types/ai_provider_config";
   import {
     type AiApplyTarget,
     type AiCliStatus,
     type AiConversationTurn,
     type AiExecutionResult,
     type AiMode,
-    type AiProvider,
   } from "$lib/features/ai/domain/ai_types";
 
   type Props = {
     open: boolean;
-    provider: AiProvider;
+    provider_id: string;
+    providers: AiProviderConfig[];
     mode: AiMode;
     prompt: string;
-    ollama_model: string;
     cli_status: AiCliStatus;
     cli_error: string | null;
     target: AiApplyTarget;
@@ -27,11 +27,10 @@
     turns: AiConversationTurn[];
     result: AiExecutionResult | null;
     on_open_change: (open: boolean) => void;
-    on_provider_change: (provider: AiProvider) => void;
+    on_provider_change: (provider_id: string) => void;
     on_mode_change: (mode: AiMode) => void;
     on_target_change: (target: AiApplyTarget) => void;
     on_prompt_change: (prompt: string) => void;
-    on_ollama_model_change: (model: string) => void;
     on_execute: () => void;
     on_apply: (output?: string) => void;
     on_clear_result: () => void;
@@ -39,10 +38,10 @@
 
   let {
     open,
-    provider,
+    provider_id,
+    providers,
     mode,
     prompt,
-    ollama_model,
     cli_status,
     cli_error,
     target,
@@ -58,7 +57,6 @@
     on_mode_change,
     on_target_change,
     on_prompt_change,
-    on_ollama_model_change,
     on_execute,
     on_apply,
     on_clear_result,
@@ -74,10 +72,10 @@
       >
     </Dialog.Header>
     <AiAssistantContent
-      {provider}
+      {provider_id}
+      {providers}
       {mode}
       {prompt}
-      {ollama_model}
       {cli_status}
       {cli_error}
       {target}
@@ -93,7 +91,6 @@
       {on_mode_change}
       {on_target_change}
       {on_prompt_change}
-      {on_ollama_model_change}
       {on_execute}
       {on_apply}
       {on_clear_result}

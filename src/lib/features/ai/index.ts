@@ -7,15 +7,16 @@ export {
 export type { AiPort } from "$lib/features/ai/ports";
 export { create_ai_tauri_adapter } from "$lib/features/ai/adapters/ai_tauri_adapter";
 export {
-  AI_PROVIDER_DISPLAY,
-  DEFAULT_OLLAMA_MODEL,
+  BUILTIN_PROVIDER_PRESETS,
   type AiApplyTarget,
+  type AiArgsTemplate,
   type AiMode,
   type AiCliStatus,
   type AiDialogContext,
   type AiExecutionResult,
-  type AiPortRequest,
-  type AiProvider,
+  type AiPortExecuteRequest,
+  type AiProviderConfig,
+  type AiProviderId,
 } from "$lib/features/ai/domain/ai_types";
 export { build_ai_prompt } from "$lib/features/ai/domain/ai_prompt_builder";
 export { default as AiEditDialog } from "$lib/features/ai/ui/ai_edit_dialog.svelte";

@@ -8,6 +8,8 @@ import { create_logger } from "$lib/shared/utils/logger";
 const log = create_logger("graph_service");
 
 export class GraphService {
+  private vault_load_revision = 0;
+
   constructor(
     private readonly graph_port: GraphPort,
     private readonly vault_store: VaultStore,
@@ -63,7 +65,48 @@ export class GraphService {
     await this.graph_port.invalidate_cache(vault_id, note_id);
   }
 
+  async load_vault_graph(): Promise<void> {
+    const vault_id = this.get_active_vault_id();
+    if (!vault_id) {
+      this.graph_store.clear();
+      return;
+    }
+
+    const revision = ++this.vault_load_revision;
+    this.graph_store.start_loading_vault();
+
+    try {
+      const snapshot = await this.graph_port.load_vault_graph(vault_id);
+      if (revision !== this.vault_load_revision) return;
+      this.graph_store.set_vault_snapshot(snapshot);
+    } catch (error) {
+      if (revision !== this.vault_load_revision) return;
+      const message = error_message(error);
+      log.error("Load vault graph failed", { error: message });
+      this.graph_store.set_error("vault", message);
+    }
+  }
+
+  async toggle_view_mode(): Promise<void> {
+    const current = this.graph_store.view_mode;
+    if (current === "neighborhood") {
+      this.graph_store.set_view_mode("vault");
+      await this.load_vault_graph();
+    } else {
+      this.graph_store.set_view_mode("neighborhood");
+      await this.focus_active_note();
+    }
+  }
+
   async refresh_current(): Promise<void> {
+    if (this.graph_store.view_mode === "vault") {
+      const vault_id = this.get_active_vault_id();
+      if (!vault_id) return;
+      await this.invalidate_cache();
+      await this.load_vault_graph();
+      return;
+    }
+
     const note_path = this.graph_store.center_note_path;
     if (!note_path) {
       return;

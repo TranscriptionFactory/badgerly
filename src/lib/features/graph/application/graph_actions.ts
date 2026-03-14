@@ -104,4 +104,22 @@ export function register_graph_actions(
       graph_service.set_filter_query(typeof query === "string" ? query : "");
     },
   });
+
+  registry.register({
+    id: ACTION_IDS.graph_toggle_view_mode,
+    label: "Toggle Graph View Mode",
+    execute: async () => {
+      stores.ui.set_context_rail_tab("graph");
+      await graph_service.toggle_view_mode();
+    },
+  });
+
+  registry.register({
+    id: ACTION_IDS.graph_load_vault_graph,
+    label: "Load Full Vault Graph",
+    execute: async () => {
+      stores.ui.set_context_rail_tab("graph");
+      await graph_service.load_vault_graph();
+    },
+  });
 }

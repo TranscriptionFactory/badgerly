@@ -46,6 +46,31 @@ pub struct GraphCacheStatsSnapshot {
     pub hit_rate: f64,
 }
 
+#[derive(Debug, Serialize, Clone, PartialEq, Eq)]
+pub struct VaultGraphNode {
+    pub path: String,
+    pub title: String,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq, Eq)]
+pub struct VaultGraphEdge {
+    pub source: String,
+    pub target: String,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq, Eq)]
+pub struct VaultGraphStats {
+    pub node_count: usize,
+    pub edge_count: usize,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq, Eq)]
+pub struct VaultGraphSnapshot {
+    pub nodes: Vec<VaultGraphNode>,
+    pub edges: Vec<VaultGraphEdge>,
+    pub stats: VaultGraphStats,
+}
+
 impl From<IndexNoteMeta> for GraphNoteMeta {
     fn from(value: IndexNoteMeta) -> Self {
         Self {

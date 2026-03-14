@@ -49,7 +49,7 @@ describe("SettingsService", () => {
         if (key === "editor_blockquote_border_width") return 4;
         if (key === "editor_link_underline_style") return "wavy";
         if (key === "ai_enabled") return false;
-        if (key === "ai_default_backend") return "ollama";
+        if (key === "ai_default_provider_id") return "ollama";
         if (key === "terminal_font_size_px") return 15;
         if (key === "document_pdf_default_zoom") return "fit_width";
         return null;
@@ -70,7 +70,7 @@ describe("SettingsService", () => {
     expect(result.settings.editor_blockquote_border_width).toBe(4);
     expect(result.settings.editor_link_underline_style).toBe("wavy");
     expect(result.settings.ai_enabled).toBe(false);
-    expect(result.settings.ai_default_backend).toBe("ollama");
+    expect(result.settings.ai_default_provider_id).toBe("ollama");
     expect(result.settings.terminal_font_size_px).toBe(15);
     expect(result.settings.document_pdf_default_zoom).toBe("fit_width");
     expect(result.settings.max_open_tabs).toBe(8);
@@ -90,7 +90,7 @@ describe("SettingsService", () => {
       editor_blockquote_border_width: 4 as const,
       editor_link_underline_style: "wavy" as const,
       ai_enabled: false,
-      ai_default_backend: "codex" as const,
+      ai_default_provider_id: "codex",
       ai_execution_timeout_seconds: 120,
     };
 
@@ -107,7 +107,7 @@ describe("SettingsService", () => {
     expect(saved_vault).not.toHaveProperty("editor_blockquote_border_width");
     expect(saved_vault).not.toHaveProperty("editor_link_underline_style");
     expect(saved_vault).not.toHaveProperty("ai_enabled");
-    expect(saved_vault).not.toHaveProperty("ai_default_backend");
+    expect(saved_vault).not.toHaveProperty("ai_default_provider_id");
     expect(saved_vault).not.toHaveProperty("ai_execution_timeout_seconds");
     expect(saved_vault).toHaveProperty("max_open_tabs");
     expect(saved_vault).toHaveProperty("ignored_folders", []);
@@ -142,7 +142,7 @@ describe("SettingsService", () => {
     );
     expect(settings_port.set_setting).toHaveBeenCalledWith("ai_enabled", false);
     expect(settings_port.set_setting).toHaveBeenCalledWith(
-      "ai_default_backend",
+      "ai_default_provider_id",
       "codex",
     );
     expect(settings_port.set_setting).toHaveBeenCalledWith(
@@ -160,7 +160,7 @@ describe("SettingsService", () => {
         git_autocommit_mode: "on_save",
         editor_selection_color: "#112233",
         ai_enabled: false,
-        ai_default_backend: "codex",
+        ai_default_provider_id: "codex",
       },
       global_get: () => false,
     });
@@ -178,7 +178,7 @@ describe("SettingsService", () => {
     expect(written_vault).not.toHaveProperty("git_autocommit_mode");
     expect(written_vault).not.toHaveProperty("editor_selection_color");
     expect(written_vault).not.toHaveProperty("ai_enabled");
-    expect(written_vault).not.toHaveProperty("ai_default_backend");
+    expect(written_vault).not.toHaveProperty("ai_default_provider_id");
     expect(written_vault).toHaveProperty("max_open_tabs", 7);
   });
 

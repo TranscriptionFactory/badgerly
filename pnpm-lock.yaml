@@ -71,6 +71,9 @@ importers:
       codemirror:
         specifier: ^6.0.2
         version: 6.0.2
+      d3-force:
+        specifier: ^3.0.0
+        version: 3.0.0
       formsnap:
         specifier: ^2.0.1
         version: 2.0.1(svelte@5.51.3)(sveltekit-superforms@2.29.1(@sveltejs/kit@2.52.0(@sveltejs/vite-plugin-svelte@4.0.4(svelte@5.51.3)(vite@5.4.21(@types/node@22.19.11)(lightningcss@1.30.2)(sass@1.51.0)))(svelte@5.51.3)(typescript@5.9.3)(vite@5.4.21(@types/node@22.19.11)(lightningcss@1.30.2)(sass@1.51.0)))(@types/json-schema@7.0.15)(svelte@5.51.3)(typescript@5.9.3))
@@ -138,6 +141,9 @@ importers:
       '@tauri-apps/cli':
         specifier: ^2.10.0
         version: 2.10.0
+      '@types/d3-force':
+        specifier: ^3.0.10
+        version: 3.0.10
       '@types/js-yaml':
         specifier: ^4.0.9
         version: 4.0.9

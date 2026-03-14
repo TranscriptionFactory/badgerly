@@ -1,6 +1,10 @@
-import type { GraphNeighborhoodSnapshot } from "$lib/features/graph/ports";
+import type {
+  GraphNeighborhoodSnapshot,
+  VaultGraphSnapshot,
+} from "$lib/features/graph/ports";
 
 export type GraphStatus = "idle" | "loading" | "ready" | "error";
+export type GraphViewMode = "neighborhood" | "vault";
 
 export class GraphStore {
   panel_open = $state(false);
@@ -11,6 +15,8 @@ export class GraphStore {
   selected_node_ids = $state<string[]>([]);
   hovered_node_id = $state<string | null>(null);
   filter_query = $state("");
+  view_mode = $state<GraphViewMode>("neighborhood");
+  vault_snapshot = $state<VaultGraphSnapshot | null>(null);
 
   set_panel_open(open: boolean) {
     this.panel_open = open;
@@ -69,8 +75,26 @@ export class GraphStore {
     this.filter_query = query;
   }
 
+  set_view_mode(mode: GraphViewMode) {
+    this.view_mode = mode;
+  }
+
+  start_loading_vault() {
+    this.vault_snapshot = null;
+    this.status = "loading";
+    this.error = null;
+  }
+
+  set_vault_snapshot(snapshot: VaultGraphSnapshot) {
+    this.vault_snapshot = snapshot;
+    this.status = "ready";
+    this.error = null;
+  }
+
   clear() {
     this.panel_open = false;
     this.clear_snapshot();
+    this.vault_snapshot = null;
+    this.view_mode = "neighborhood";
   }
 }

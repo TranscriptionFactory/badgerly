@@ -1,7 +1,6 @@
 <script lang="ts">
   import * as Select from "$lib/components/ui/select/index.js";
   import { Button } from "$lib/components/ui/button";
-  import { Input } from "$lib/components/ui/input";
   import AiDiffView from "$lib/features/ai/ui/ai_diff_view.svelte";
   import {
     apply_ai_draft_hunk_selection,
@@ -9,21 +8,20 @@
     type AiDraftDiff,
   } from "$lib/features/ai/domain/ai_diff";
   import { describe_ai_context_preview } from "$lib/features/ai/domain/ai_context_preview";
+  import type { AiProviderConfig } from "$lib/shared/types/ai_provider_config";
   import {
-    AI_PROVIDER_DISPLAY,
     type AiApplyTarget,
     type AiCliStatus,
     type AiConversationTurn,
     type AiExecutionResult,
     type AiMode,
-    type AiProvider,
   } from "$lib/features/ai/domain/ai_types";
 
   type Props = {
-    provider: AiProvider;
+    provider_id: string;
+    providers: AiProviderConfig[];
     mode: AiMode;
     prompt: string;
-    ollama_model: string;
     cli_status: AiCliStatus;
     cli_error: string | null;
     target: AiApplyTarget;
@@ -37,11 +35,10 @@
     title?: string;
     description?: string | null;
     close_label: string;
-    on_provider_change: (provider: AiProvider) => void;
+    on_provider_change: (provider_id: string) => void;
     on_mode_change: (mode: AiMode) => void;
     on_target_change: (target: AiApplyTarget) => void;
     on_prompt_change: (prompt: string) => void;
-    on_ollama_model_change: (model: string) => void;
     on_execute: () => void;
     on_apply: (output?: string) => void;
     on_clear_result: () => void;
@@ -49,10 +46,10 @@
   };
 
   let {
-    provider,
+    provider_id,
+    providers,
     mode,
     prompt,
-    ollama_model,
     cli_status,
     cli_error,
     target,
@@ -70,15 +67,13 @@
     on_mode_change,
     on_target_change,
     on_prompt_change,
-    on_ollama_model_change,
     on_execute,
     on_apply,
     on_clear_result,
     on_close,
   }: Props = $props();
 
-  const provider_display = $derived(AI_PROVIDER_DISPLAY[provider]);
-  const provider_options: AiProvider[] = ["claude", "codex", "ollama"];
+  const provider_config = $derived(providers.find((p) => p.id === provider_id));
   const is_ask_mode = $derived(mode === "ask");
   const last_turn = $derived(turns.length > 0 ? turns[turns.length - 1] : null);
   const last_turn_was_ask = $derived(last_turn?.mode === "ask");
@@ -117,7 +112,8 @@
     prompt.trim() === "" ||
       is_executing ||
       cli_status !== "available" ||
-      (provider === "ollama" && ollama_model.trim() === ""),
+      (provider_config?.args_template.kind === "ollama" &&
+        !provider_config?.model?.trim()),
   );
   let selected_hunk_ids = $state<string[]>([]);
   let last_diff_signature = $state("");
@@ -221,21 +217,19 @@
       <label class="text-sm font-medium" for="ai-provider"> Backend </label>
       <Select.Root
         type="single"
-        value={provider}
+        value={provider_id}
         onValueChange={(value: string | undefined) => {
-          if (value === "claude" || value === "codex" || value === "ollama") {
-            on_provider_change(value);
-          }
+          if (value) on_provider_change(value);
         }}
       >
         <Select.Trigger id="ai-provider" class="w-48">
-          <span data-slot="select-value">{provider_display.name}</span>
+          <span data-slot="select-value"
+            >{provider_config?.name ?? provider_id}</span
+          >
         </Select.Trigger>
         <Select.Content>
-          {#each provider_options as option (option)}
-            <Select.Item value={option}>
-              {AI_PROVIDER_DISPLAY[option].name}
-            </Select.Item>
+          {#each providers as p (p.id)}
+            <Select.Item value={p.id}>{p.name}</Select.Item>
           {/each}
         </Select.Content>
       </Select.Root>
@@ -284,45 +278,33 @@
       <div
         class="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground"
       >
-        Checking for {provider_display.cli_name}…
+        Checking for {provider_config?.name ?? "CLI"}…
       </div>
     {:else if cli_status === "unavailable"}
       <div
         class="rounded-md border border-orange-500/40 bg-orange-500/10 p-3 text-sm text-orange-700 dark:text-orange-400"
       >
-        <p class="font-medium">{provider_display.cli_name} not found</p>
-        <p>
-          Install it from
-          <a
-            class="font-medium underline underline-offset-4"
-            href={provider_display.install_url}
-            rel="noreferrer"
-            target="_blank"
-          >
-            {provider_display.install_url}
-          </a>
-          and restart Badgerly.
-        </p>
+        <p class="font-medium">{provider_config?.name ?? "CLI"} not found</p>
+        {#if provider_config?.install_url}
+          <p>
+            Install it from
+            <a
+              class="font-medium underline underline-offset-4"
+              href={provider_config.install_url}
+              rel="noreferrer"
+              target="_blank"
+            >
+              {provider_config.install_url}
+            </a>
+            and restart Badgerly.
+          </p>
+        {/if}
       </div>
     {:else if cli_status === "error"}
       <div
         class="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
       >
-        {cli_error ?? `Failed to check ${provider_display.cli_name}.`}
-      </div>
-    {/if}
-
-    {#if provider === "ollama"}
-      <div class="space-y-2">
-        <label class="text-sm font-medium" for="ai-ollama-model">
-          Ollama model
-        </label>
-        <Input
-          id="ai-ollama-model"
-          value={ollama_model}
-          oninput={(event) => on_ollama_model_change(event.currentTarget.value)}
-          disabled={is_executing}
-        />
+        {cli_error ?? `Failed to check ${provider_config?.name ?? "CLI"}.`}
       </div>
     {/if}
 
@@ -336,7 +318,7 @@
             <span class="font-medium text-foreground">
               {target === "selection" ? "selected text" : "full note"}
             </span>
-            to {provider_display.name}.
+            to {provider_config?.name ?? "AI"}.
           </p>
           <p class="text-xs">
             {context_preview.note_label}
@@ -401,7 +383,8 @@
                 You ·
                 {turn.mode === "ask" ? "Ask" : "Edit"} ·
                 {turn.target === "selection" ? "Selection" : "Full Note"} ·
-                {AI_PROVIDER_DISPLAY[turn.provider].name}
+                {providers.find((p) => p.id === turn.provider_id)?.name ??
+                  turn.provider_id}
               </div>
               <p class="whitespace-pre-wrap text-sm">{turn.prompt}</p>
               <div class="text-xs font-medium text-muted-foreground">
@@ -455,7 +438,7 @@
             >
               Answer from
               <span class="ml-1 text-foreground">
-                {provider_display.name}
+                {provider_config?.name ?? "AI"}
               </span>
             </div>
             <div
@@ -472,7 +455,7 @@
               >
                 Review the generated content before applying it to the note.
                 <span class="ml-1 text-foreground">
-                  Backend: {provider_display.name}
+                  Backend: {provider_config?.name ?? "AI"}
                 </span>
               </div>
               {#if draft_diff}
@@ -520,7 +503,7 @@
         <div
           class="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
         >
-          {result.error ?? `${provider_display.name} failed.`}
+          {result.error ?? `${provider_config?.name ?? "AI"} failed.`}
         </div>
       {/if}
     {/if}
@@ -558,7 +541,7 @@
       {/if}
       <Button size="sm" onclick={on_execute} disabled={execute_disabled}>
         {#if is_executing}
-          Running {provider_display.name}…
+          Running {provider_config?.name ?? "AI"}…
         {:else if result}
           {is_ask_mode ? "Ask Again" : "Refine Draft"}
         {:else}

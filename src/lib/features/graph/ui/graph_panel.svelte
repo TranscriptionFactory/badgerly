@@ -1,18 +1,23 @@
 <script lang="ts">
-  import { RefreshCw, Target, X } from "@lucide/svelte";
+  import { Globe, RefreshCw, Target, X } from "@lucide/svelte";
   import { ACTION_IDS } from "$lib/app";
   import { use_app_context } from "$lib/app/context/app_context.svelte";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import GraphCanvas from "$lib/features/graph/ui/graph_canvas.svelte";
+  import VaultGraphCanvas from "$lib/features/graph/ui/vault_graph_canvas.svelte";
 
   const { stores, action_registry } = use_app_context();
 
   const status = $derived(stores.graph.status);
   const snapshot = $derived(stores.graph.snapshot);
+  const vault_snapshot = $derived(stores.graph.vault_snapshot);
+  const view_mode = $derived(stores.graph.view_mode);
   const error = $derived(stores.graph.error);
   const filter_query = $derived(stores.graph.filter_query);
   const has_snapshot = $derived(snapshot !== null);
+  const has_vault_snapshot = $derived(vault_snapshot !== null);
+  const is_vault_mode = $derived(view_mode === "vault");
 
   let container_element = $state<HTMLElement | null>(null);
   let container_width = $state<number>(760);
@@ -47,7 +52,9 @@
   <div class="GraphPanel__header">
     <div class="GraphPanel__title_group">
       <h2 class="GraphPanel__title">Graph</h2>
-      {#if snapshot}
+      {#if is_vault_mode}
+        <p class="GraphPanel__subtitle">Full vault</p>
+      {:else if snapshot}
         <p class="GraphPanel__subtitle">{snapshot.center.title}</p>
       {/if}
     </div>
@@ -56,11 +63,24 @@
       <Button
         variant="ghost"
         size="icon"
+        title={is_vault_mode
+          ? "Switch to neighborhood"
+          : "Switch to full vault"}
         onclick={() =>
-          void action_registry.execute(ACTION_IDS.graph_focus_active_note)}
+          void action_registry.execute(ACTION_IDS.graph_toggle_view_mode)}
       >
-        <Target size={14} />
+        <Globe size={14} />
       </Button>
+      {#if !is_vault_mode}
+        <Button
+          variant="ghost"
+          size="icon"
+          onclick={() =>
+            void action_registry.execute(ACTION_IDS.graph_focus_active_note)}
+        >
+          <Target size={14} />
+        </Button>
+      {/if}
       <Button
         variant="ghost"
         size="icon"
@@ -90,7 +110,12 @@
     />
   </div>
 
-  {#if snapshot}
+  {#if is_vault_mode && vault_snapshot}
+    <div class="GraphPanel__stats">
+      <span>{String(vault_snapshot.stats.node_count)} notes</span>
+      <span>{String(vault_snapshot.stats.edge_count)} links</span>
+    </div>
+  {:else if snapshot}
     <div class="GraphPanel__stats">
       <span>{String(snapshot.stats.node_count)} nodes</span>
       <span>{String(snapshot.stats.edge_count)} edges</span>
@@ -101,12 +126,31 @@
 
   <div class="GraphPanel__body" bind:this={container_element}>
     {#if status === "loading"}
-      <p class="GraphPanel__message">Loading graph neighborhood...</p>
+      <p class="GraphPanel__message">
+        {is_vault_mode
+          ? "Loading vault graph..."
+          : "Loading graph neighborhood..."}
+      </p>
     {:else if status === "error"}
       <p class="GraphPanel__message GraphPanel__message--error">
         {error ?? "Graph unavailable"}
       </p>
-    {:else if has_snapshot && snapshot}
+    {:else if is_vault_mode && has_vault_snapshot && vault_snapshot}
+      <VaultGraphCanvas
+        snapshot={vault_snapshot}
+        {filter_query}
+        selected_node_ids={stores.graph.selected_node_ids}
+        hovered_node_id={stores.graph.hovered_node_id}
+        on_select_node={(node_id) =>
+          void action_registry.execute(ACTION_IDS.graph_select_node, node_id)}
+        on_hover_node={(node_id) =>
+          void action_registry.execute(
+            ACTION_IDS.graph_set_hovered_node,
+            node_id,
+          )}
+        on_open_node={open_existing_node}
+      />
+    {:else if !is_vault_mode && has_snapshot && snapshot}
       <GraphCanvas
         {snapshot}
         {filter_query}
@@ -126,15 +170,21 @@
     {:else}
       <div class="GraphPanel__empty">
         <p class="GraphPanel__message">
-          Open a note, then focus it in graph to load its neighborhood.
+          {#if is_vault_mode}
+            Switch to full vault view to see all notes and their connections.
+          {:else}
+            Open a note, then focus it in graph to load its neighborhood.
+          {/if}
         </p>
-        <Button
-          variant="outline"
-          onclick={() =>
-            void action_registry.execute(ACTION_IDS.graph_focus_active_note)}
-        >
-          Focus active note
-        </Button>
+        {#if !is_vault_mode}
+          <Button
+            variant="outline"
+            onclick={() =>
+              void action_registry.execute(ACTION_IDS.graph_focus_active_note)}
+          >
+            Focus active note
+          </Button>
+        {/if}
       </div>
     {/if}
   </div>

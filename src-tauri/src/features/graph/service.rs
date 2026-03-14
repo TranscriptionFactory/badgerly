@@ -1,6 +1,6 @@
 use crate::features::graph::types::{
     GraphCacheStatsSnapshot, GraphNeighborhoodSnapshot, GraphNeighborhoodStats, GraphNoteMeta,
-    GraphOrphanLink,
+    GraphOrphanLink, VaultGraphEdge, VaultGraphNode, VaultGraphSnapshot, VaultGraphStats,
 };
 use crate::features::search::db as search_db;
 use crate::shared::cache::ObservableCache;
@@ -14,6 +14,14 @@ pub struct GraphCacheState(pub Mutex<ObservableCache<String, GraphNeighborhoodSn
 impl Default for GraphCacheState {
     fn default() -> Self {
         Self(Mutex::new(ObservableCache::new(64)))
+    }
+}
+
+pub struct VaultGraphCacheState(pub Mutex<ObservableCache<String, VaultGraphSnapshot>>);
+
+impl Default for VaultGraphCacheState {
+    fn default() -> Self {
+        Self(Mutex::new(ObservableCache::new(4)))
     }
 }
 
@@ -106,24 +114,85 @@ pub fn graph_invalidate_cache(
     vault_id: String,
     note_id: Option<String>,
     cache_state: State<'_, GraphCacheState>,
+    vault_cache_state: State<'_, VaultGraphCacheState>,
 ) -> Result<(), String> {
-    let mut cache = cache_state.0.lock().map_err(|e| e.to_string())?;
-    match note_id {
-        Some(id) => {
-            let key = cache_key(&vault_id, &id);
-            cache.invalidate(&key);
-            cache.invalidate_matching(|k| {
-                k.starts_with(&format!("{vault_id}:"))
-                    && k != &key
-                    && would_be_affected_by(&id, k)
-            });
-        }
-        None => {
-            let prefix = format!("{vault_id}:");
-            cache.invalidate_matching(|k| k.starts_with(&prefix));
+    {
+        let mut cache = cache_state.0.lock().map_err(|e| e.to_string())?;
+        match &note_id {
+            Some(id) => {
+                let key = cache_key(&vault_id, id);
+                cache.invalidate(&key);
+                cache.invalidate_matching(|k| {
+                    k.starts_with(&format!("{vault_id}:"))
+                        && k != &key
+                        && would_be_affected_by(id, k)
+                });
+            }
+            None => {
+                let prefix = format!("{vault_id}:");
+                cache.invalidate_matching(|k| k.starts_with(&prefix));
+            }
         }
     }
+
+    {
+        let mut vault_cache = vault_cache_state.0.lock().map_err(|e| e.to_string())?;
+        let vault_key = format!("vault:{vault_id}");
+        vault_cache.invalidate(&vault_key);
+    }
+
     Ok(())
+}
+
+#[tauri::command]
+pub fn graph_load_vault_graph(
+    app: AppHandle,
+    vault_id: String,
+    vault_cache_state: State<'_, VaultGraphCacheState>,
+) -> Result<VaultGraphSnapshot, String> {
+    let cache_key = format!("vault:{vault_id}");
+
+    {
+        let mut cache = vault_cache_state.0.lock().map_err(|e| e.to_string())?;
+        if let Some(snapshot) = cache.get_cloned(&cache_key) {
+            return Ok(snapshot);
+        }
+    }
+
+    let conn = search_db::open_search_db(&app, &vault_id)?;
+    let notes_map = search_db::get_all_notes_from_db(&conn)?;
+    let edge_pairs = search_db::get_all_graph_edges(&conn)?;
+
+    let nodes: Vec<VaultGraphNode> = notes_map
+        .values()
+        .map(|meta| VaultGraphNode {
+            path: meta.path.clone(),
+            title: meta.title.clone(),
+        })
+        .collect();
+
+    let edges: Vec<VaultGraphEdge> = edge_pairs
+        .into_iter()
+        .map(|(source, target)| VaultGraphEdge { source, target })
+        .collect();
+
+    let stats = VaultGraphStats {
+        node_count: nodes.len(),
+        edge_count: edges.len(),
+    };
+
+    let snapshot = VaultGraphSnapshot {
+        nodes,
+        edges,
+        stats,
+    };
+
+    {
+        let mut cache = vault_cache_state.0.lock().map_err(|e| e.to_string())?;
+        cache.insert(cache_key, snapshot.clone());
+    }
+
+    Ok(snapshot)
 }
 
 fn would_be_affected_by(_changed_note_id: &str, _cache_key: &str) -> bool {

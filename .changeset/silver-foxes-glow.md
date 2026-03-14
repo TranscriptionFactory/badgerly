@@ -5,6 +5,7 @@
 Full-vault graph visualization and sqlite-vec semantic embeddings infrastructure
 
 **A1: Full-Vault Graph View**
+
 - Force-directed graph rendering of all vault notes using d3-force layout with SVG
 - New Rust command `graph_load_vault_graph` returning flat node + edge arrays with dedicated LRU cache
 - Viewport culling for efficient rendering at scale (up to 5000 nodes)
@@ -13,6 +14,7 @@ Full-vault graph visualization and sqlite-vec semantic embeddings infrastructure
 - Layout domain module with force simulation state management
 
 **B1: sqlite-vec Embeddings Infrastructure**
+
 - Embedding inference via `fastembed` crate with `bge-small-en-v1.5` (int8 quantized, 384-dim)
 - Vector storage via `sqlite-vec` extension with `vec0` virtual tables in existing per-vault SQLite DB
 - Hybrid search pipeline: FTS + vector KNN + Reciprocal Rank Fusion (k=60) with heuristic re-ranking
