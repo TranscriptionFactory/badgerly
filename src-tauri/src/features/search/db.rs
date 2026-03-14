@@ -226,9 +226,27 @@ fn init_schema(conn: &Connection) -> Result<(), String> {
 
         CREATE INDEX IF NOT EXISTS idx_tasks_path ON tasks(path);
         CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+
+        CREATE TABLE IF NOT EXISTS index_meta (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
         "
     ))
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?;
+
+    for col in &[
+        "word_count INTEGER DEFAULT 0",
+        "char_count INTEGER DEFAULT 0",
+        "heading_count INTEGER DEFAULT 0",
+        "outlink_count INTEGER DEFAULT 0",
+        "reading_time_secs INTEGER DEFAULT 0",
+        "last_indexed_at INTEGER DEFAULT 0",
+    ] {
+        let _ = conn.execute_batch(&format!("ALTER TABLE notes ADD COLUMN {col}"));
+    }
+
+    Ok(())
 }
 
 pub fn open_search_db(app: &AppHandle, vault_id: &str) -> Result<Connection, String> {
@@ -297,9 +315,19 @@ pub fn open_search_db_at_path(path: &Path) -> Result<Connection, String> {
 }
 
 pub fn upsert_note(conn: &Connection, meta: &IndexNoteMeta, body: &str) -> Result<(), String> {
+    let content = frontmatter::strip_frontmatter(body);
+    let word_count = content.split_whitespace().count() as i64;
+    let char_count = content.len() as i64;
+    let heading_count = content.lines().filter(|l| l.starts_with('#')).count() as i64;
+    let reading_time_secs = (word_count as f64 / 238.0 * 60.0) as i64;
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64;
+
     conn.execute(
-        "REPLACE INTO notes (path, title, mtime_ms, size_bytes) VALUES (?1, ?2, ?3, ?4)",
-        params![meta.path, meta.title, meta.mtime_ms, meta.size_bytes],
+        "REPLACE INTO notes (path, title, mtime_ms, size_bytes, word_count, char_count, heading_count, reading_time_secs, last_indexed_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![meta.path, meta.title, meta.mtime_ms, meta.size_bytes, word_count, char_count, heading_count, reading_time_secs, now_ms],
     )
     .map_err(|e| e.to_string())?;
 
@@ -312,7 +340,6 @@ pub fn upsert_note(conn: &Connection, meta: &IndexNoteMeta, body: &str) -> Resul
     )
     .map_err(|e| e.to_string())?;
 
-    // Index frontmatter
     let fm = frontmatter::extract_frontmatter(body);
 
     conn.execute(
@@ -349,7 +376,6 @@ pub fn upsert_note(conn: &Connection, meta: &IndexNoteMeta, body: &str) -> Resul
         .map_err(|e| e.to_string())?;
     }
 
-    // Index tasks
     let tasks = tasks_service::extract_tasks(&meta.path, body);
     tasks_service::save_tasks(conn, &meta.path, &tasks)?;
 
@@ -722,10 +748,26 @@ pub fn sync_index(
         yield_fn();
     }
 
+    if let Ok(head) = resolve_git_head(vault_root) {
+        let _ = set_index_meta(conn, "last_indexed_commit", &head);
+    }
+
     Ok(IndexResult {
         total: total + plan.unchanged,
         indexed,
     })
+}
+
+fn resolve_git_head(vault_root: &Path) -> Result<String, String> {
+    let output = std::process::Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(vault_root)
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !output.status.success() {
+        return Err("not a git repo".to_string());
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
 pub fn get_all_notes_from_db(conn: &Connection) -> Result<BTreeMap<String, IndexNoteMeta>, String> {
@@ -810,6 +852,31 @@ fn note_meta_from_row(row: &rusqlite::Row) -> rusqlite::Result<IndexNoteMeta> {
         mtime_ms: row.get(2)?,
         size_bytes: row.get(3)?,
     })
+}
+
+fn note_meta_with_stats_from_row(
+    row: &rusqlite::Row,
+) -> rusqlite::Result<(IndexNoteMeta, crate::features::search::model::NoteStats)> {
+    let path: String = row.get(0)?;
+    let title: String = row.get(1)?;
+    let name = file_stem_string(Path::new(&path));
+    let meta = IndexNoteMeta {
+        id: path.clone(),
+        path,
+        title,
+        name,
+        mtime_ms: row.get(2)?,
+        size_bytes: row.get(3)?,
+    };
+    let stats = crate::features::search::model::NoteStats {
+        word_count: row.get(4).unwrap_or(0),
+        char_count: row.get(5).unwrap_or(0),
+        heading_count: row.get(6).unwrap_or(0),
+        outlink_count: row.get(7).unwrap_or(0),
+        reading_time_secs: row.get(8).unwrap_or(0),
+        last_indexed_at: row.get(9).unwrap_or(0),
+    };
+    Ok((meta, stats))
 }
 
 pub fn search(
@@ -938,6 +1005,55 @@ pub fn set_outlinks(conn: &Connection, source: &str, targets: &[String]) -> Resu
         stmt.execute(params![source, target])
             .map_err(|e| e.to_string())?;
     }
+
+    update_outlink_count(conn, source)?;
+
+    Ok(())
+}
+
+pub fn update_outlink_count(conn: &Connection, path: &str) -> Result<(), String> {
+    conn.execute(
+        "UPDATE notes SET outlink_count = (SELECT COUNT(*) FROM outlinks WHERE source_path = ?1) WHERE path = ?1",
+        params![path],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+pub fn get_note_stats(
+    conn: &Connection,
+    path: &str,
+) -> Result<crate::features::search::model::NoteStats, String> {
+    conn.query_row(
+        "SELECT word_count, char_count, heading_count, outlink_count, reading_time_secs, last_indexed_at FROM notes WHERE path = ?1",
+        params![path],
+        |row| Ok(crate::features::search::model::NoteStats {
+            word_count: row.get(0)?,
+            char_count: row.get(1)?,
+            heading_count: row.get(2)?,
+            outlink_count: row.get(3)?,
+            reading_time_secs: row.get(4)?,
+            last_indexed_at: row.get(5)?,
+        }),
+    )
+    .map_err(|e| e.to_string())
+}
+
+pub fn get_index_meta(conn: &Connection, key: &str) -> Option<String> {
+    conn.query_row(
+        "SELECT value FROM index_meta WHERE key = ?1",
+        params![key],
+        |row| row.get(0),
+    )
+    .ok()
+}
+
+pub fn set_index_meta(conn: &Connection, key: &str, value: &str) -> Result<(), String> {
+    conn.execute(
+        "REPLACE INTO index_meta (key, value) VALUES (?1, ?2)",
+        params![key, value],
+    )
+    .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -1009,6 +1125,76 @@ mod tests {
         assert!(outlinks.is_empty());
         let orphans = get_orphan_outlinks(&conn, &source.path).expect("orphans should load");
         assert!(orphans.is_empty());
+    }
+
+    #[test]
+    fn upsert_note_computes_stats() {
+        let conn = Connection::open_in_memory().expect("in-memory db");
+        init_schema(&conn).expect("schema");
+
+        let meta = note("test.md", "Test");
+        let body = "---\ntitle: Test\n---\n# Heading One\n\nSome words here today.\n\n## Heading Two\n\nMore content.";
+        upsert_note(&conn, &meta, body).expect("upsert");
+
+        let stats = get_note_stats(&conn, "test.md").expect("stats");
+        assert_eq!(stats.heading_count, 2);
+        assert!(stats.word_count > 0);
+        assert!(stats.char_count > 0);
+        assert!(stats.reading_time_secs >= 0);
+        assert!(stats.last_indexed_at > 0);
+    }
+
+    #[test]
+    fn upsert_note_stats_no_frontmatter() {
+        let conn = Connection::open_in_memory().expect("in-memory db");
+        init_schema(&conn).expect("schema");
+
+        let meta = note("plain.md", "Plain");
+        let body = "Just some plain text with no frontmatter and no headings.";
+        upsert_note(&conn, &meta, body).expect("upsert");
+
+        let stats = get_note_stats(&conn, "plain.md").expect("stats");
+        assert_eq!(stats.heading_count, 0);
+        assert_eq!(stats.word_count, 10);
+    }
+
+    #[test]
+    fn set_outlinks_updates_outlink_count() {
+        let conn = Connection::open_in_memory().expect("in-memory db");
+        init_schema(&conn).expect("schema");
+
+        let source = note("s.md", "S");
+        let t1 = note("t1.md", "T1");
+        let t2 = note("t2.md", "T2");
+        upsert_note(&conn, &source, "body").expect("upsert source");
+        upsert_note(&conn, &t1, "body").expect("upsert t1");
+        upsert_note(&conn, &t2, "body").expect("upsert t2");
+
+        set_outlinks(&conn, "s.md", &["t1.md".to_string(), "t2.md".to_string()])
+            .expect("set outlinks");
+
+        let stats = get_note_stats(&conn, "s.md").expect("stats");
+        assert_eq!(stats.outlink_count, 2);
+    }
+
+    #[test]
+    fn index_meta_roundtrip() {
+        let conn = Connection::open_in_memory().expect("in-memory db");
+        init_schema(&conn).expect("schema");
+
+        assert!(get_index_meta(&conn, "last_indexed_commit").is_none());
+
+        set_index_meta(&conn, "last_indexed_commit", "abc123").expect("set");
+        assert_eq!(
+            get_index_meta(&conn, "last_indexed_commit"),
+            Some("abc123".to_string())
+        );
+
+        set_index_meta(&conn, "last_indexed_commit", "def456").expect("overwrite");
+        assert_eq!(
+            get_index_meta(&conn, "last_indexed_commit"),
+            Some("def456".to_string())
+        );
     }
 }
 
@@ -1213,6 +1399,19 @@ pub fn query_bases(
     conn: &Connection,
     query: crate::features::search::model::BaseQuery,
 ) -> Result<crate::features::search::model::BaseQueryResults, String> {
+    let stat_columns = [
+        "word_count",
+        "char_count",
+        "heading_count",
+        "outlink_count",
+        "reading_time_secs",
+    ];
+    let direct_columns = ["path", "title", "mtime_ms", "size_bytes"];
+
+    let is_direct_col = |prop: &str| {
+        direct_columns.contains(&prop) || stat_columns.contains(&prop)
+    };
+
     let mut where_clauses = Vec::new();
     let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
@@ -1223,11 +1422,15 @@ pub fn query_bases(
                 params.len() + 1
             ));
             params.push(Box::new(filter.value.clone()));
-        } else if filter.property == "path" {
-             let op = match filter.operator.as_str() {
+        } else if is_direct_col(&filter.property) {
+            let op = match filter.operator.as_str() {
                 "eq" => "=",
                 "neq" => "!=",
                 "contains" => "LIKE",
+                "gt" => ">",
+                "lt" => "<",
+                "gte" => ">=",
+                "lte" => "<=",
                 _ => "=",
             };
             let val = if filter.operator == "contains" {
@@ -1235,10 +1438,9 @@ pub fn query_bases(
             } else {
                 filter.value.clone()
             };
-            where_clauses.push(format!("path {} ?{}", op, params.len() + 1));
+            where_clauses.push(format!("{} {} ?{}", filter.property, op, params.len() + 1));
             params.push(Box::new(val));
         } else {
-            // Property filter
             let op = match filter.operator.as_str() {
                 "eq" => "=",
                 "neq" => "!=",
@@ -1273,50 +1475,44 @@ pub fn query_bases(
     };
 
     let order_sql = if let Some(sort) = query.sort.first() {
-        if sort.property == "path" || sort.property == "title" || sort.property == "mtime_ms" {
+        if is_direct_col(&sort.property) {
             format!("ORDER BY {} {}", sort.property, if sort.descending { "DESC" } else { "ASC" })
         } else {
-            // Sort by property requires a subquery or join
             format!(
                 "ORDER BY (SELECT value FROM note_properties WHERE path = notes.path AND key = ?{}) {}",
                 params.len() + 1,
                 if sort.descending { "DESC" } else { "ASC" }
             )
-            // We'll need to add the sort property name to params if we use this
         }
     } else {
         "ORDER BY path ASC".to_string()
     };
 
     let params_len = params.len();
-    // Re-bind sort param if needed
     let mut final_params = params;
     if let Some(sort) = query.sort.first() {
-        if sort.property != "path" && sort.property != "title" && sort.property != "mtime_ms" {
+        if !is_direct_col(&sort.property) {
             final_params.push(Box::new(sort.property.clone()));
         }
     }
 
     let sql = format!(
-        "SELECT path, title, mtime_ms, size_bytes FROM notes {} {} LIMIT {} OFFSET {}",
+        "SELECT path, title, mtime_ms, size_bytes, word_count, char_count, heading_count, outlink_count, reading_time_secs, last_indexed_at FROM notes {} {} LIMIT {} OFFSET {}",
         where_sql, order_sql, query.limit, query.offset
     );
 
     let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
-    
-    // rusqlite's params! macro doesn't work well with Vec of trait objects
-    // We have to use a slice of trait objects
+
     let param_refs: Vec<&dyn rusqlite::ToSql> = final_params.iter().map(|b| b.as_ref()).collect();
 
     let note_rows = stmt
-        .query_map(&param_refs[..], |row| note_meta_from_row(row))
+        .query_map(&param_refs[..], |row| note_meta_with_stats_from_row(row))
         .map_err(|e| e.to_string())?;
 
     let mut rows = Vec::new();
     for note_res in note_rows {
-        let note = note_res.map_err(|e| e.to_string())?;
+        let (note, stats) = note_res.map_err(|e| e.to_string())?;
 
-        // Fetch properties
         let mut prop_stmt = conn
             .prepare("SELECT key, value, type FROM note_properties WHERE path = ?1")
             .map_err(|e| e.to_string())?;
@@ -1338,7 +1534,6 @@ pub fn query_bases(
             properties.insert(key, val);
         }
 
-        // Fetch tags
         let mut tag_stmt = conn
             .prepare("SELECT tag FROM note_tags WHERE path = ?1")
             .map_err(|e| e.to_string())?;
@@ -1355,19 +1550,20 @@ pub fn query_bases(
             note,
             properties,
             tags,
+            stats,
         });
     }
 
     let count_sql = format!("SELECT COUNT(*) FROM notes {}", where_sql);
     let mut count_stmt = conn.prepare(&count_sql).map_err(|e| e.to_string())?;
-    // We need to exclude the sort param for count
     let count_param_refs = if final_params.len() > params_len {
         &param_refs[..params_len]
     } else {
         &param_refs[..]
     };
-    
-    let total: usize = count_stmt.query_row(count_param_refs, |row| row.get(0))
+
+    let total: usize = count_stmt
+        .query_row(count_param_refs, |row| row.get(0))
         .map_err(|e| e.to_string())?;
 
     Ok(crate::features::search::model::BaseQueryResults { rows, total })

@@ -1125,3 +1125,14 @@ pub fn embed_sync(app: AppHandle, vault_id: String) -> Result<(), String> {
         },
     )
 }
+
+#[tauri::command]
+pub fn get_note_stats(
+    app: AppHandle,
+    vault_id: String,
+    note_path: String,
+) -> Result<crate::features::search::model::NoteStats, String> {
+    with_read_conn(&app, &vault_id, |conn| {
+        search_db::get_note_stats(conn, &note_path)
+    })
+}

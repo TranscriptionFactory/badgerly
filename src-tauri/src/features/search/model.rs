@@ -68,6 +68,17 @@ pub struct BaseNoteRow {
     pub note: IndexNoteMeta,
     pub properties: BTreeMap<String, PropertyValue>,
     pub tags: Vec<String>,
+    pub stats: NoteStats,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct NoteStats {
+    pub word_count: i64,
+    pub char_count: i64,
+    pub heading_count: i64,
+    pub outlink_count: i64,
+    pub reading_time_secs: i64,
+    pub last_indexed_at: i64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
