@@ -76,7 +76,6 @@ export function register_graph_actions(
     id: ACTION_IDS.graph_refresh,
     label: "Refresh Graph",
     execute: async () => {
-      stores.ui.set_context_rail_tab("graph");
       await graph_service.refresh_current();
     },
   });
@@ -113,7 +112,6 @@ export function register_graph_actions(
     id: ACTION_IDS.graph_toggle_view_mode,
     label: "Toggle Graph View Mode",
     execute: async () => {
-      stores.ui.set_context_rail_tab("graph");
       await graph_service.toggle_view_mode();
     },
   });
@@ -122,7 +120,6 @@ export function register_graph_actions(
     id: ACTION_IDS.graph_load_vault_graph,
     label: "Load Full Vault Graph",
     execute: async () => {
-      stores.ui.set_context_rail_tab("graph");
       await graph_service.load_vault_graph();
     },
   });
