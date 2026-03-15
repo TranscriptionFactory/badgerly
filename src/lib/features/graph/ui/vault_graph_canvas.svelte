@@ -146,12 +146,9 @@
   onDestroy(cleanup);
 </script>
 
-<div
-  class="VaultGraph"
-  bind:this={container_el}
-  role="img"
-  aria-label="Full vault graph"
->
+<div class="VaultGraph" role="img" aria-label="Full vault graph">
+  <div class="VaultGraph__canvas" bind:this={container_el}></div>
+
   {#if snapshot.stats.node_count > 5000}
     <div class="VaultGraph__warning">
       Large vault ({String(snapshot.stats.node_count)} notes) — graph may be slow
@@ -169,6 +166,11 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
+  }
+
+  .VaultGraph__canvas {
+    position: absolute;
+    inset: 0;
     cursor: grab;
     touch-action: none;
   }
