@@ -37,6 +37,7 @@ export class GraphService {
       return;
     }
 
+    ++this.vault_load_revision;
     const revision = ++this.neighborhood_load_revision;
     this.graph_store.set_panel_open(true);
     this.graph_store.start_loading(note_path);
@@ -61,6 +62,7 @@ export class GraphService {
 
   async focus_active_note(): Promise<void> {
     this.graph_store.set_panel_open(true);
+    this.graph_store.set_view_mode("neighborhood");
 
     const note_path = this.editor_store.open_note?.meta.path ?? null;
     if (!note_path) {
@@ -84,6 +86,7 @@ export class GraphService {
       return;
     }
 
+    ++this.neighborhood_load_revision;
     const revision = ++this.vault_load_revision;
     this.graph_store.start_loading_vault();
 
