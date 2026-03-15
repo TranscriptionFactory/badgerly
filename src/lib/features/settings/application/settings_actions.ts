@@ -40,6 +40,13 @@ const SETTINGS_COMPARE_KEYS: readonly (keyof EditorSettings)[] = [
   "document_code_wrap",
   "document_image_background",
   "document_inactive_cache_limit",
+  "semantic_similarity_threshold",
+  "semantic_related_notes_limit",
+  "semantic_suggested_links_limit",
+  "semantic_graph_edges_per_note",
+  "semantic_graph_max_vault_size",
+  "semantic_omnibar_fallback_enabled",
+  "semantic_omnibar_min_words",
 ] as const;
 
 export function register_settings_actions(input: ActionRegistrationInput) {
@@ -222,6 +229,13 @@ export function register_settings_actions(input: ActionRegistrationInput) {
         settings.ignored_folders,
         persisted_settings.ignored_folders,
       );
+      const semantic_graph_changed =
+        settings.semantic_similarity_threshold !==
+          persisted_settings.semantic_similarity_threshold ||
+        settings.semantic_graph_edges_per_note !==
+          persisted_settings.semantic_graph_edges_per_note ||
+        settings.semantic_graph_max_vault_size !==
+          persisted_settings.semantic_graph_max_vault_size;
       const result = await services.settings.save_settings(settings);
 
       if (result.status === "success") {
@@ -243,6 +257,9 @@ export function register_settings_actions(input: ActionRegistrationInput) {
               is_vault_mode: stores.vault.is_vault_mode,
             },
           );
+        }
+        if (semantic_graph_changed) {
+          stores.graph.set_semantic_edges([]);
         }
       }
 

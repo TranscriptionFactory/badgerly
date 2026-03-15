@@ -206,7 +206,7 @@
   }
 
   .VaultGraph__edge {
-    stroke: var(--border-strong, var(--border));
+    stroke: var(--muted-foreground);
     stroke-width: 1;
     opacity: 0.4;
   }

@@ -198,6 +198,85 @@ describe("GraphService.toggle_semantic_edges", () => {
     expect(graph_store.semantic_edges).toHaveLength(1);
   });
 
+  it("reloads edges after cache is cleared (simulating settings change)", async () => {
+    const hits = new Map([["a.md", [make_hit("b.md", 0.1)]]]);
+    const { service, graph_store, search_port } = setup(hits);
+
+    graph_store.set_vault_snapshot({
+      nodes: [
+        { path: "a.md", title: "A" },
+        { path: "b.md", title: "B" },
+      ],
+      edges: [],
+      stats: { node_count: 2, edge_count: 0 },
+    });
+
+    await service.toggle_semantic_edges();
+    expect(graph_store.semantic_edges).toHaveLength(1);
+
+    const call_count = (
+      search_port.find_similar_notes as ReturnType<typeof vi.fn>
+    ).mock.calls.length;
+
+    graph_store.set_semantic_edges([]);
+    await service.toggle_semantic_edges();
+    await service.toggle_semantic_edges();
+
+    expect(
+      (search_port.find_similar_notes as ReturnType<typeof vi.fn>).mock.calls
+        .length,
+    ).toBeGreaterThan(call_count);
+  });
+
+  it("respects custom distance_threshold (similarity) setting", async () => {
+    const hits = new Map([
+      ["a.md", [make_hit("b.md", 0.15), make_hit("c.md", 0.35)]],
+      ["b.md", []],
+      ["c.md", []],
+    ]);
+    const { service, graph_store } = setup(hits);
+
+    graph_store.set_vault_snapshot({
+      nodes: [
+        { path: "a.md", title: "A" },
+        { path: "b.md", title: "B" },
+        { path: "c.md", title: "C" },
+      ],
+      edges: [],
+      stats: { node_count: 3, edge_count: 0 },
+    });
+
+    // similarity 0.5 → distance cutoff 0.5 → both hits included
+    await service.load_semantic_edges({ distance_threshold: 0.5 });
+    expect(graph_store.semantic_edges).toHaveLength(2);
+
+    // similarity 0.9 → distance cutoff 0.1 → neither hit included
+    graph_store.set_semantic_edges([]);
+    await service.load_semantic_edges({ distance_threshold: 0.9 });
+    expect(graph_store.semantic_edges).toHaveLength(0);
+  });
+
+  it("respects custom max_vault_size setting", async () => {
+    const hits = new Map([["a.md", [make_hit("b.md", 0.1)]]]);
+    const { service, graph_store, search_port } = setup(hits);
+
+    const nodes = Array.from({ length: 150 }, (_, i) => ({
+      path: `note-${String(i)}.md`,
+      title: `Note ${String(i)}`,
+    }));
+    graph_store.set_vault_snapshot({
+      nodes,
+      edges: [],
+      stats: { node_count: 150, edge_count: 0 },
+    });
+
+    await service.load_semantic_edges({ max_vault_size: 100 });
+    expect(search_port.find_similar_notes).not.toHaveBeenCalled();
+
+    await service.load_semantic_edges({ max_vault_size: 200 });
+    expect(search_port.find_similar_notes).toHaveBeenCalled();
+  });
+
   it("does not reload when toggling off then on with cached edges", async () => {
     const hits = new Map([["a.md", [make_hit("b.md", 0.1)]]]);
     const { service, graph_store, search_port } = setup(hits);
