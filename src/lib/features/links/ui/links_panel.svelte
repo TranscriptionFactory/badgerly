@@ -1,6 +1,7 @@
 <script lang="ts">
   import LinkSection from "$lib/features/links/ui/link_section.svelte";
   import LinkItem from "$lib/features/links/ui/link_item.svelte";
+  import SuggestedLinksSection from "$lib/features/links/ui/suggested_links_section.svelte";
   import { use_app_context } from "$lib/app/context/app_context.svelte";
   import { ACTION_IDS } from "$lib/app";
 
@@ -125,6 +126,8 @@
       {/each}
     {/if}
   </LinkSection>
+
+  <SuggestedLinksSection />
 </div>
 
 <style>
