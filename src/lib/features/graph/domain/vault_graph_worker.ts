@@ -28,7 +28,7 @@ type InboundMessage =
   | { type: "stop" };
 
 type OutboundMessage =
-  | { type: "positions"; ids: string[]; buffer: Float64Array }
+  | { type: "positions"; ids: string[]; buffer: ArrayBuffer }
   | { type: "stabilized" }
   | { type: "tick"; alpha: number };
 
@@ -58,7 +58,9 @@ function send_positions(): void {
     buffer[i * 2] = nodes[i]!.x ?? 0;
     buffer[i * 2 + 1] = nodes[i]!.y ?? 0;
   }
-  post({ type: "positions", ids: node_ids, buffer }, [buffer.buffer]);
+  post({ type: "positions", ids: node_ids, buffer: buffer.buffer }, [
+    buffer.buffer,
+  ]);
 }
 
 function handle_init(msg: Extract<InboundMessage, { type: "init" }>): void {

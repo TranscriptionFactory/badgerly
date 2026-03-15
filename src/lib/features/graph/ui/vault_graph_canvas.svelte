@@ -53,10 +53,7 @@
 
   function create_worker(): Worker {
     return new Worker(
-      new URL(
-        "$lib/features/graph/domain/vault_graph_worker.ts",
-        import.meta.url,
-      ),
+      new URL("../domain/vault_graph_worker.ts", import.meta.url),
       { type: "module" },
     );
   }
@@ -68,7 +65,7 @@
     const msg = event.data;
     if (msg.type === "positions") {
       const ids: string[] = msg.ids;
-      const buffer: Float64Array = msg.buffer;
+      const buffer = new Float64Array(msg.buffer as ArrayBuffer);
       const positions = new Map<string, { x: number; y: number }>();
       for (let i = 0; i < ids.length; i++) {
         positions.set(ids[i]!, {
