@@ -161,6 +161,7 @@ pub fn run() {
             features::graph::service::graph_invalidate_cache,
             features::graph::service::graph_cache_stats,
             features::graph::service::graph_load_vault_graph,
+            features::graph::service::graph_load_vault_graph_streamed,
             features::notes::service::list_notes,
             features::notes::service::list_folders,
             features::notes::service::read_note,

@@ -763,6 +763,75 @@ pub fn get_all_graph_edges(conn: &Connection) -> Result<Vec<(String, String)>, S
         .map_err(|e| e.to_string())
 }
 
+pub fn get_all_notes_chunked(
+    conn: &Connection,
+    chunk_size: usize,
+    callback: &dyn Fn(Vec<IndexNoteMeta>, usize),
+) -> Result<usize, String> {
+    let total = get_note_count(conn)?;
+    let mut stmt = conn
+        .prepare("SELECT path, title, mtime_ms, size_bytes FROM notes")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| note_meta_from_row(row))
+        .map_err(|e| e.to_string())?;
+
+    let mut chunk = Vec::with_capacity(chunk_size);
+    let mut emitted = 0usize;
+    for row in rows {
+        let meta = row.map_err(|e| e.to_string())?;
+        chunk.push(meta);
+        if chunk.len() >= chunk_size {
+            emitted += chunk.len();
+            callback(std::mem::take(&mut chunk), emitted);
+            chunk = Vec::with_capacity(chunk_size);
+        }
+    }
+    if !chunk.is_empty() {
+        emitted += chunk.len();
+        callback(chunk, emitted);
+    }
+    Ok(total)
+}
+
+pub fn get_all_graph_edges_chunked(
+    conn: &Connection,
+    chunk_size: usize,
+    callback: &dyn Fn(Vec<(String, String)>, usize),
+) -> Result<usize, String> {
+    let sql = "SELECT DISTINCT source_path, target_path
+               FROM outlinks
+               WHERE source_path IN (SELECT path FROM notes)
+                 AND target_path IN (SELECT path FROM notes)
+                 AND source_path != target_path";
+
+    let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            let source: String = row.get(0)?;
+            let target: String = row.get(1)?;
+            Ok((source, target))
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut chunk = Vec::with_capacity(chunk_size);
+    let mut emitted = 0usize;
+    for row in rows {
+        let pair = row.map_err(|e| e.to_string())?;
+        chunk.push(pair);
+        if chunk.len() >= chunk_size {
+            emitted += chunk.len();
+            callback(std::mem::take(&mut chunk), emitted);
+            chunk = Vec::with_capacity(chunk_size);
+        }
+    }
+    if !chunk.is_empty() {
+        emitted += chunk.len();
+        callback(chunk, emitted);
+    }
+    Ok(emitted)
+}
+
 fn escape_fts_query(query: &str) -> String {
     query
         .split_whitespace()

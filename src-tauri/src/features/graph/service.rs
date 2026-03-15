@@ -1,13 +1,14 @@
 use crate::features::graph::types::{
     GraphCacheStatsSnapshot, GraphNeighborhoodSnapshot, GraphNeighborhoodStats, GraphNoteMeta,
-    GraphOrphanLink, VaultGraphEdge, VaultGraphNode, VaultGraphSnapshot, VaultGraphStats,
+    GraphOrphanLink, VaultGraphChunkEvent, VaultGraphEdge, VaultGraphNode, VaultGraphSnapshot,
+    VaultGraphStats,
 };
 use crate::features::search::db as search_db;
 use crate::shared::cache::ObservableCache;
 use rusqlite::Connection;
 use std::collections::BTreeSet;
 use std::sync::Mutex;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 
 pub struct GraphCacheState(pub Mutex<ObservableCache<String, GraphNeighborhoodSnapshot>>);
 
@@ -196,6 +197,64 @@ pub fn graph_load_vault_graph(
     }
 
     Ok(snapshot)
+}
+
+#[tauri::command]
+pub fn graph_load_vault_graph_streamed(
+    app: AppHandle,
+    vault_id: String,
+    chunk_size: Option<usize>,
+) -> Result<(), String> {
+    let chunk_size = chunk_size.unwrap_or(1000);
+    let conn = search_db::open_search_db(&app, &vault_id)?;
+
+    let total_notes =
+        search_db::get_note_count(&conn).unwrap_or(0);
+
+    search_db::get_all_notes_chunked(&conn, chunk_size, &|batch, emitted| {
+        let nodes: Vec<VaultGraphNode> = batch
+            .into_iter()
+            .map(|meta| VaultGraphNode {
+                path: meta.path,
+                title: meta.title,
+            })
+            .collect();
+        let _ = app.emit(
+            "graph-chunk",
+            VaultGraphChunkEvent::Nodes {
+                nodes,
+                total: total_notes,
+                progress: emitted,
+            },
+        );
+    })?;
+
+    let total_edges = search_db::get_all_graph_edges_chunked(&conn, chunk_size, &|batch, emitted| {
+        let edges: Vec<VaultGraphEdge> = batch
+            .into_iter()
+            .map(|(source, target)| VaultGraphEdge { source, target })
+            .collect();
+        let _ = app.emit(
+            "graph-chunk",
+            VaultGraphChunkEvent::Edges {
+                edges,
+                total: 0,
+                progress: emitted,
+            },
+        );
+    })?;
+
+    let _ = app.emit(
+        "graph-chunk",
+        VaultGraphChunkEvent::Done {
+            stats: VaultGraphStats {
+                node_count: total_notes,
+                edge_count: total_edges,
+            },
+        },
+    );
+
+    Ok(())
 }
 
 fn get_connected_paths(app: &AppHandle, vault_id: &str, note_path: &str) -> Vec<String> {
