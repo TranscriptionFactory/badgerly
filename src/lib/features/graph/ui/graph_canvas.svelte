@@ -103,8 +103,9 @@
   }
 
   .GraphCanvas__edge {
-    stroke: var(--border-strong, var(--border));
+    stroke: var(--muted-foreground);
     stroke-width: 1.5;
+    opacity: 0.5;
   }
 
   .GraphCanvas__edge--dashed {
