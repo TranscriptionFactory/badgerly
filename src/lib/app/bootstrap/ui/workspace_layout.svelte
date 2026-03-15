@@ -312,7 +312,7 @@
         <Resizable.PaneGroup direction="horizontal" class="h-full">
           {#if stores.ui.sidebar_open && !zen_mode}
             <Resizable.Pane
-              defaultSize={15}
+              defaultSize={22}
               minSize={10}
               maxSize={40}
               order={1}

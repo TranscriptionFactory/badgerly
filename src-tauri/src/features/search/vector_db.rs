@@ -1,7 +1,7 @@
 use rusqlite::{params, Connection};
 
 pub const MODEL_VERSION: &str = "bge-small-en-v1.5";
-pub const EMBEDDING_DIMS: usize = 384;
+pub const _EMBEDDING_DIMS: usize = 384;
 
 pub fn init_vector_schema(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(

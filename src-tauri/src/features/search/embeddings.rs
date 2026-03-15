@@ -52,7 +52,7 @@ impl EmbeddingServiceState {
         Ok(arc)
     }
 
-    pub fn get(&self) -> Option<Arc<EmbeddingService>> {
+    pub fn _get(&self) -> Option<Arc<EmbeddingService>> {
         self.inner
             .lock()
             .ok()

@@ -531,8 +531,8 @@
                   {#if editing_provider_id === provider.id}
                     <div class="space-y-2 border-t pt-2">
                       <div class="flex items-center gap-2">
-                        <label class="w-20 text-xs text-muted-foreground"
-                          >Name</label
+                        <span class="w-20 text-xs text-muted-foreground"
+                          >Name</span
                         >
                         <Input
                           type="text"
@@ -548,8 +548,8 @@
                         />
                       </div>
                       <div class="flex items-center gap-2">
-                        <label class="w-20 text-xs text-muted-foreground"
-                          >Command</label
+                        <span class="w-20 text-xs text-muted-foreground"
+                          >Command</span
                         >
                         <Input
                           type="text"
@@ -565,8 +565,8 @@
                         />
                       </div>
                       <div class="flex items-center gap-2">
-                        <label class="w-20 text-xs text-muted-foreground"
-                          >Template</label
+                        <span class="w-20 text-xs text-muted-foreground"
+                          >Template</span
                         >
                         <Select.Root
                           type="single"
@@ -606,8 +606,8 @@
                         </Select.Root>
                       </div>
                       <div class="flex items-center gap-2">
-                        <label class="w-20 text-xs text-muted-foreground"
-                          >Model</label
+                        <span class="w-20 text-xs text-muted-foreground"
+                          >Model</span
                         >
                         <Input
                           type="text"
@@ -624,8 +624,8 @@
                         />
                       </div>
                       <div class="flex items-center gap-2">
-                        <label class="w-20 text-xs text-muted-foreground"
-                          >Install URL</label
+                        <span class="w-20 text-xs text-muted-foreground"
+                          >Install URL</span
                         >
                         <Input
                           type="text"
@@ -649,7 +649,7 @@
               {#if new_provider}
                 <div class="rounded-md border border-dashed p-3 space-y-2">
                   <div class="flex items-center gap-2">
-                    <label class="w-20 text-xs text-muted-foreground">ID</label>
+                    <span class="w-20 text-xs text-muted-foreground">ID</span>
                     <Input
                       type="text"
                       bind:value={new_provider.id}
@@ -659,8 +659,8 @@
                     />
                   </div>
                   <div class="flex items-center gap-2">
-                    <label class="w-20 text-xs text-muted-foreground"
-                      >Name</label
+                    <span class="w-20 text-xs text-muted-foreground"
+                      >Name</span
                     >
                     <Input
                       type="text"
@@ -671,8 +671,8 @@
                     />
                   </div>
                   <div class="flex items-center gap-2">
-                    <label class="w-20 text-xs text-muted-foreground"
-                      >Command</label
+                    <span class="w-20 text-xs text-muted-foreground"
+                      >Command</span
                     >
                     <Input
                       type="text"
@@ -683,8 +683,8 @@
                     />
                   </div>
                   <div class="flex items-center gap-2">
-                    <label class="w-20 text-xs text-muted-foreground"
-                      >Template</label
+                    <span class="w-20 text-xs text-muted-foreground"
+                      >Template</span
                     >
                     <Select.Root
                       type="single"
@@ -712,8 +712,8 @@
                     </Select.Root>
                   </div>
                   <div class="flex items-center gap-2">
-                    <label class="w-20 text-xs text-muted-foreground"
-                      >Model</label
+                    <span class="w-20 text-xs text-muted-foreground"
+                      >Model</span
                     >
                     <Input
                       type="text"

@@ -1066,6 +1066,7 @@ pub fn get_note_stats(
     .map_err(|e| e.to_string())
 }
 
+#[allow(dead_code)]
 pub fn get_index_meta(conn: &Connection, key: &str) -> Option<String> {
     conn.query_row(
         "SELECT value FROM index_meta WHERE key = ?1",

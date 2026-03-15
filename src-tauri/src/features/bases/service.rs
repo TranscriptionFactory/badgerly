@@ -3,7 +3,7 @@ use crate::features::search::model::{BaseQuery, BaseQueryResults, PropertyInfo};
 use crate::features::search::service as search_service;
 use crate::features::notes::service as notes_service;
 use crate::shared::storage;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 

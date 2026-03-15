@@ -113,6 +113,7 @@
       class="flex-shrink-0 {taskStore.kanbanOrientation === 'horizontal'
         ? 'w-72 flex flex-col'
         : 'w-full flex flex-col'} bg-muted/30 rounded-lg border"
+      role="list"
       ondragover={handleDragOver}
       ondrop={(e) => handleDrop(e, column.status)}
     >
@@ -139,6 +140,7 @@
         {#each column.tasks as task (task.id)}
           <div
             class="bg-background border rounded-md shadow-sm cursor-grab active:cursor-grabbing"
+            role="listitem"
             draggable="true"
             ondragstart={(e) => handleDragStart(e, task)}
           >

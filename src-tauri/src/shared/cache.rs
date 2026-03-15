@@ -97,6 +97,7 @@ impl<K: Eq + Hash + Clone, V: Clone> ObservableCache<K, V> {
         count
     }
 
+    #[allow(dead_code)]
     pub fn clear(&mut self) {
         self.entries.clear();
     }
