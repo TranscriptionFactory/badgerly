@@ -76,13 +76,7 @@
   {/if}
 
   <div class="GraphTabView__body">
-    {#if status === "loading"}
-      <p class="GraphTabView__message">Loading vault graph...</p>
-    {:else if status === "error"}
-      <p class="GraphTabView__message GraphTabView__message--error">
-        {stores.graph.error ?? "Graph unavailable"}
-      </p>
-    {:else if vault_snapshot}
+    {#if vault_snapshot}
       <VaultGraphCanvas
         snapshot={vault_snapshot}
         {filter_query}
@@ -99,6 +93,12 @@
           )}
         on_open_node={open_node}
       />
+    {:else if status === "loading"}
+      <p class="GraphTabView__message">Loading vault graph...</p>
+    {:else if status === "error"}
+      <p class="GraphTabView__message GraphTabView__message--error">
+        {stores.graph.error ?? "Graph unavailable"}
+      </p>
     {:else}
       <p class="GraphTabView__message">No vault graph data available.</p>
     {/if}

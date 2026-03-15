@@ -163,17 +163,7 @@
   {/if}
 
   <div class="GraphPanel__body" bind:this={container_element}>
-    {#if status === "loading"}
-      <p class="GraphPanel__message">
-        {is_vault_mode
-          ? "Loading vault graph..."
-          : "Loading graph neighborhood..."}
-      </p>
-    {:else if status === "error"}
-      <p class="GraphPanel__message GraphPanel__message--error">
-        {error ?? "Graph unavailable"}
-      </p>
-    {:else if is_vault_mode && has_vault_snapshot && vault_snapshot}
+    {#if is_vault_mode && has_vault_snapshot && vault_snapshot}
       <VaultGraphCanvas
         snapshot={vault_snapshot}
         {filter_query}
@@ -207,6 +197,16 @@
         on_open_existing_node={open_existing_node}
         on_open_orphan_node={open_orphan_node}
       />
+    {:else if status === "loading"}
+      <p class="GraphPanel__message">
+        {is_vault_mode
+          ? "Loading vault graph..."
+          : "Loading graph neighborhood..."}
+      </p>
+    {:else if status === "error"}
+      <p class="GraphPanel__message GraphPanel__message--error">
+        {error ?? "Graph unavailable"}
+      </p>
     {:else}
       <div class="GraphPanel__empty">
         <p class="GraphPanel__message">
