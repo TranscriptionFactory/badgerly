@@ -21,6 +21,9 @@
   const semantic_edges = $derived(stores.graph.semantic_edges);
   const show_semantic_edges = $derived(stores.graph.show_semantic_edges);
   const vault_node_count = $derived(vault_snapshot?.stats.node_count ?? 0);
+  const max_vault_size = $derived(
+    stores.ui.editor_settings.semantic_graph_max_vault_size,
+  );
 
   let container_element = $state<HTMLElement | null>(null);
   let container_width = $state<number>(760);
@@ -84,7 +87,7 @@
           <Target size={14} />
         </Button>
       {/if}
-      {#if is_vault_mode && vault_node_count > 0 && vault_node_count <= 200}
+      {#if is_vault_mode && vault_node_count > 0 && vault_node_count <= max_vault_size}
         <Button
           variant="ghost"
           size="icon"

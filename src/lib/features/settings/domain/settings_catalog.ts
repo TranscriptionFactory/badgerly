@@ -310,4 +310,58 @@ export const SETTINGS_REGISTRY: SettingDefinition[] = [
     category: "Documents",
     keywords: ["documents", "cache", "inactive", "performance", "memory"],
   },
+  {
+    key: "semantic_similarity_threshold",
+    label: "Similarity Threshold",
+    description:
+      "Minimum similarity (0–1) for suggested links and graph edges. Lower values show more connections.",
+    category: "Semantic",
+    keywords: ["semantic", "similarity", "threshold", "distance", "embedding"],
+  },
+  {
+    key: "semantic_related_notes_limit",
+    label: "Related Notes Limit",
+    description: "Maximum number of related notes shown in the panel",
+    category: "Semantic",
+    keywords: ["related", "notes", "limit", "similar", "panel"],
+  },
+  {
+    key: "semantic_suggested_links_limit",
+    label: "Suggested Links Limit",
+    description:
+      "Maximum number of suggested wiki-links shown in the links panel",
+    category: "Semantic",
+    keywords: ["suggested", "links", "limit", "prediction"],
+  },
+  {
+    key: "semantic_graph_edges_per_note",
+    label: "Graph Edges per Note",
+    description:
+      "How many semantic neighbors to find per note when computing graph edges",
+    category: "Semantic",
+    keywords: ["graph", "edges", "knn", "neighbors", "semantic"],
+  },
+  {
+    key: "semantic_graph_max_vault_size",
+    label: "Graph Max Vault Size",
+    description:
+      "Semantic graph edges are disabled for vaults larger than this (performance)",
+    category: "Semantic",
+    keywords: ["graph", "vault", "size", "limit", "performance"],
+  },
+  {
+    key: "semantic_omnibar_fallback_enabled",
+    label: "Omnibar Semantic Fallback",
+    description:
+      "Fall back to semantic search when keyword search returns few results",
+    category: "Semantic",
+    keywords: ["omnibar", "fallback", "hybrid", "search", "semantic"],
+  },
+  {
+    key: "semantic_omnibar_min_words",
+    label: "Omnibar Min Words",
+    description: "Minimum query word count to trigger semantic fallback",
+    category: "Semantic",
+    keywords: ["omnibar", "words", "minimum", "fallback", "threshold"],
+  },
 ];

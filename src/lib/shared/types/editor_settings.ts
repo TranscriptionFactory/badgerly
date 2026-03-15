@@ -11,6 +11,7 @@ export type SettingsCategory =
   | "git"
   | "documents"
   | "terminal"
+  | "semantic"
   | "misc"
   | "hotkeys";
 
@@ -58,6 +59,13 @@ export type EditorSettings = {
   document_code_wrap: boolean;
   document_image_background: DocumentImageBackground;
   document_inactive_cache_limit: number;
+  semantic_similarity_threshold: number;
+  semantic_related_notes_limit: number;
+  semantic_suggested_links_limit: number;
+  semantic_graph_edges_per_note: number;
+  semantic_graph_max_vault_size: number;
+  semantic_omnibar_fallback_enabled: boolean;
+  semantic_omnibar_min_words: number;
 };
 
 export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
@@ -93,6 +101,13 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   document_code_wrap: true,
   document_image_background: "checkerboard",
   document_inactive_cache_limit: 3,
+  semantic_similarity_threshold: 0.5,
+  semantic_related_notes_limit: 10,
+  semantic_suggested_links_limit: 5,
+  semantic_graph_edges_per_note: 3,
+  semantic_graph_max_vault_size: 200,
+  semantic_omnibar_fallback_enabled: true,
+  semantic_omnibar_min_words: 3,
 };
 
 export const SETTINGS_KEY = "editor" as const;

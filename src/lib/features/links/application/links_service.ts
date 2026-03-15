@@ -107,7 +107,7 @@ export class LinksService {
     }
   }
 
-  async load_related_notes(note_path: string): Promise<void> {
+  async load_related_notes(note_path: string, limit = 10): Promise<void> {
     const vault_id = this.get_active_vault_id();
     if (!vault_id) {
       this.links_store.clear_related_notes();
@@ -120,7 +120,7 @@ export class LinksService {
       const hits = await this.search_port.find_similar_notes(
         vault_id,
         note_path,
-        10,
+        limit,
         false,
       );
       if (this.links_store.related_notes_note_path !== note_path) return;
@@ -137,7 +137,11 @@ export class LinksService {
     this.links_store.clear_related_notes();
   }
 
-  async load_suggested_links(note_path: string): Promise<void> {
+  async load_suggested_links(
+    note_path: string,
+    limit = 5,
+    similarity_threshold = 0.5,
+  ): Promise<void> {
     const vault_id = this.get_active_vault_id();
     if (!vault_id) {
       this.links_store.clear_suggested_links();
@@ -150,13 +154,13 @@ export class LinksService {
       const hits = await this.search_port.find_similar_notes(
         vault_id,
         note_path,
-        5,
+        limit,
         true,
       );
       if (this.links_store.suggested_links_note_path !== note_path) return;
       const suggested = hits
         .map((hit) => ({ note: hit.note, similarity: 1 - hit.distance }))
-        .filter((s) => s.similarity > 0.5);
+        .filter((s) => s.similarity > similarity_threshold);
       this.links_store.set_suggested_links(note_path, suggested);
     } catch (error) {
       if (this.links_store.suggested_links_note_path !== note_path) return;

@@ -7,13 +7,14 @@ export const SEMANTIC_EDGE_KNN_LIMIT = 3;
 
 export function build_semantic_edges(
   results: Map<string, SemanticSearchHit[]>,
+  distance_threshold = SEMANTIC_EDGE_DISTANCE_THRESHOLD,
 ): SemanticEdge[] {
   const seen = new Set<string>();
   const edges: SemanticEdge[] = [];
 
   for (const [source, hits] of results) {
     for (const hit of hits) {
-      if (hit.distance >= SEMANTIC_EDGE_DISTANCE_THRESHOLD) continue;
+      if (hit.distance >= distance_threshold) continue;
       const target = String(hit.note.path);
       if (source === target) continue;
       const key =

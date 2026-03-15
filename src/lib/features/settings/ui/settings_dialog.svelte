@@ -14,6 +14,7 @@
   import FileTextIcon from "@lucide/svelte/icons/file-text";
   import TerminalIcon from "@lucide/svelte/icons/terminal";
   import SlidersIcon from "@lucide/svelte/icons/sliders-horizontal";
+  import BrainIcon from "@lucide/svelte/icons/brain";
   import KeyboardIcon from "@lucide/svelte/icons/keyboard";
   import { HotkeysPanel } from "$lib/features/hotkey";
   import ThemeSettings from "$lib/features/settings/ui/theme_settings.svelte";
@@ -286,6 +287,7 @@
     { id: "git", label: "Git", icon: GitBranchIcon },
     { id: "documents", label: "Documents", icon: FileTextIcon },
     { id: "terminal", label: "Terminal", icon: TerminalIcon },
+    { id: "semantic", label: "Semantic", icon: BrainIcon },
     { id: "misc", label: "Misc", icon: SlidersIcon },
     { id: "hotkeys", label: "Hotkeys", icon: KeyboardIcon },
   ];
@@ -1905,6 +1907,270 @@
                   update("terminal_follow_active_vault", v);
                 }}
               />
+            </div>
+          </div>
+        {:else if active_category === "semantic"}
+          <h2 class="SettingsDialog__content-header">Semantic</h2>
+
+          <div class="SettingsDialog__section-content">
+            <div class="SettingsDialog__row">
+              <div class="SettingsDialog__label-group">
+                <span class="SettingsDialog__label">Similarity Threshold</span>
+                <span class="SettingsDialog__description"
+                  >Minimum similarity for suggestions and graph edges (lower =
+                  more connections)</span
+                >
+              </div>
+              <div class="flex items-center gap-3">
+                <Slider
+                  type="single"
+                  value={editor_settings.semantic_similarity_threshold * 100}
+                  onValueChange={(v: number | undefined) => {
+                    if (v !== undefined)
+                      update("semantic_similarity_threshold", v / 100);
+                  }}
+                  min={10}
+                  max={90}
+                  step={5}
+                  class="w-32"
+                />
+                <span class="text-sm tabular-nums w-10"
+                  >{Math.round(
+                    editor_settings.semantic_similarity_threshold * 100,
+                  )}%</span
+                >
+                <button
+                  type="button"
+                  class="SettingsDialog__reset"
+                  onclick={() =>
+                    update(
+                      "semantic_similarity_threshold",
+                      DEFAULT_EDITOR_SETTINGS.semantic_similarity_threshold,
+                    )}
+                  disabled={editor_settings.semantic_similarity_threshold ===
+                    DEFAULT_EDITOR_SETTINGS.semantic_similarity_threshold}
+                  title={`Reset to default (${String(DEFAULT_EDITOR_SETTINGS.semantic_similarity_threshold * 100)}%)`}
+                >
+                  <RotateCcw />
+                </button>
+              </div>
+            </div>
+
+            <div class="SettingsDialog__row">
+              <div class="SettingsDialog__label-group">
+                <span class="SettingsDialog__label">Related Notes Limit</span>
+                <span class="SettingsDialog__description"
+                  >Max related notes shown in the Related panel</span
+                >
+              </div>
+              <div class="flex items-center gap-3">
+                <Slider
+                  type="single"
+                  value={editor_settings.semantic_related_notes_limit}
+                  onValueChange={(v: number | undefined) => {
+                    if (v !== undefined)
+                      update("semantic_related_notes_limit", v);
+                  }}
+                  min={3}
+                  max={25}
+                  step={1}
+                  class="w-32"
+                />
+                <span class="text-sm tabular-nums w-10"
+                  >{editor_settings.semantic_related_notes_limit}</span
+                >
+                <button
+                  type="button"
+                  class="SettingsDialog__reset"
+                  onclick={() =>
+                    update(
+                      "semantic_related_notes_limit",
+                      DEFAULT_EDITOR_SETTINGS.semantic_related_notes_limit,
+                    )}
+                  disabled={editor_settings.semantic_related_notes_limit ===
+                    DEFAULT_EDITOR_SETTINGS.semantic_related_notes_limit}
+                  title={`Reset to default (${String(DEFAULT_EDITOR_SETTINGS.semantic_related_notes_limit)})`}
+                >
+                  <RotateCcw />
+                </button>
+              </div>
+            </div>
+
+            <div class="SettingsDialog__row">
+              <div class="SettingsDialog__label-group">
+                <span class="SettingsDialog__label">Suggested Links Limit</span>
+                <span class="SettingsDialog__description"
+                  >Max suggested wiki-links shown in the Links panel</span
+                >
+              </div>
+              <div class="flex items-center gap-3">
+                <Slider
+                  type="single"
+                  value={editor_settings.semantic_suggested_links_limit}
+                  onValueChange={(v: number | undefined) => {
+                    if (v !== undefined)
+                      update("semantic_suggested_links_limit", v);
+                  }}
+                  min={1}
+                  max={15}
+                  step={1}
+                  class="w-32"
+                />
+                <span class="text-sm tabular-nums w-10"
+                  >{editor_settings.semantic_suggested_links_limit}</span
+                >
+                <button
+                  type="button"
+                  class="SettingsDialog__reset"
+                  onclick={() =>
+                    update(
+                      "semantic_suggested_links_limit",
+                      DEFAULT_EDITOR_SETTINGS.semantic_suggested_links_limit,
+                    )}
+                  disabled={editor_settings.semantic_suggested_links_limit ===
+                    DEFAULT_EDITOR_SETTINGS.semantic_suggested_links_limit}
+                  title={`Reset to default (${String(DEFAULT_EDITOR_SETTINGS.semantic_suggested_links_limit)})`}
+                >
+                  <RotateCcw />
+                </button>
+              </div>
+            </div>
+
+            <div class="SettingsDialog__row">
+              <div class="SettingsDialog__label-group">
+                <span class="SettingsDialog__label">Graph Edges per Note</span>
+                <span class="SettingsDialog__description"
+                  >Semantic neighbors per note in vault graph</span
+                >
+              </div>
+              <div class="flex items-center gap-3">
+                <Slider
+                  type="single"
+                  value={editor_settings.semantic_graph_edges_per_note}
+                  onValueChange={(v: number | undefined) => {
+                    if (v !== undefined)
+                      update("semantic_graph_edges_per_note", v);
+                  }}
+                  min={1}
+                  max={10}
+                  step={1}
+                  class="w-32"
+                />
+                <span class="text-sm tabular-nums w-10"
+                  >{editor_settings.semantic_graph_edges_per_note}</span
+                >
+                <button
+                  type="button"
+                  class="SettingsDialog__reset"
+                  onclick={() =>
+                    update(
+                      "semantic_graph_edges_per_note",
+                      DEFAULT_EDITOR_SETTINGS.semantic_graph_edges_per_note,
+                    )}
+                  disabled={editor_settings.semantic_graph_edges_per_note ===
+                    DEFAULT_EDITOR_SETTINGS.semantic_graph_edges_per_note}
+                  title={`Reset to default (${String(DEFAULT_EDITOR_SETTINGS.semantic_graph_edges_per_note)})`}
+                >
+                  <RotateCcw />
+                </button>
+              </div>
+            </div>
+
+            <div class="SettingsDialog__row">
+              <div class="SettingsDialog__label-group">
+                <span class="SettingsDialog__label">Graph Max Vault Size</span>
+                <span class="SettingsDialog__description"
+                  >Semantic edges disabled for vaults larger than this</span
+                >
+              </div>
+              <div class="flex items-center gap-3">
+                <Slider
+                  type="single"
+                  value={editor_settings.semantic_graph_max_vault_size}
+                  onValueChange={(v: number | undefined) => {
+                    if (v !== undefined)
+                      update("semantic_graph_max_vault_size", v);
+                  }}
+                  min={50}
+                  max={1000}
+                  step={50}
+                  class="w-32"
+                />
+                <span class="text-sm tabular-nums w-10"
+                  >{editor_settings.semantic_graph_max_vault_size}</span
+                >
+                <button
+                  type="button"
+                  class="SettingsDialog__reset"
+                  onclick={() =>
+                    update(
+                      "semantic_graph_max_vault_size",
+                      DEFAULT_EDITOR_SETTINGS.semantic_graph_max_vault_size,
+                    )}
+                  disabled={editor_settings.semantic_graph_max_vault_size ===
+                    DEFAULT_EDITOR_SETTINGS.semantic_graph_max_vault_size}
+                  title={`Reset to default (${String(DEFAULT_EDITOR_SETTINGS.semantic_graph_max_vault_size)})`}
+                >
+                  <RotateCcw />
+                </button>
+              </div>
+            </div>
+
+            <div class="SettingsDialog__row">
+              <div class="SettingsDialog__label-group">
+                <span class="SettingsDialog__label"
+                  >Omnibar Semantic Fallback</span
+                >
+                <span class="SettingsDialog__description"
+                  >Use semantic search when keyword search returns few results</span
+                >
+              </div>
+              <Switch.Root
+                checked={editor_settings.semantic_omnibar_fallback_enabled}
+                onCheckedChange={(v: boolean) => {
+                  update("semantic_omnibar_fallback_enabled", v);
+                }}
+              />
+            </div>
+
+            <div class="SettingsDialog__row">
+              <div class="SettingsDialog__label-group">
+                <span class="SettingsDialog__label">Omnibar Min Words</span>
+                <span class="SettingsDialog__description"
+                  >Minimum query words to trigger semantic fallback</span
+                >
+              </div>
+              <div class="flex items-center gap-3">
+                <Slider
+                  type="single"
+                  value={editor_settings.semantic_omnibar_min_words}
+                  onValueChange={(v: number | undefined) => {
+                    if (v !== undefined)
+                      update("semantic_omnibar_min_words", v);
+                  }}
+                  min={2}
+                  max={6}
+                  step={1}
+                  class="w-32"
+                />
+                <span class="text-sm tabular-nums w-10"
+                  >{editor_settings.semantic_omnibar_min_words}</span
+                >
+                <button
+                  type="button"
+                  class="SettingsDialog__reset"
+                  onclick={() =>
+                    update(
+                      "semantic_omnibar_min_words",
+                      DEFAULT_EDITOR_SETTINGS.semantic_omnibar_min_words,
+                    )}
+                  disabled={editor_settings.semantic_omnibar_min_words ===
+                    DEFAULT_EDITOR_SETTINGS.semantic_omnibar_min_words}
+                  title={`Reset to default (${String(DEFAULT_EDITOR_SETTINGS.semantic_omnibar_min_words)})`}
+                >
+                  <RotateCcw />
+                </button>
+              </div>
             </div>
           </div>
         {:else if active_category === "misc"}

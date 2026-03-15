@@ -14,6 +14,7 @@ export function create_related_notes_refresh_reactor(
       const note_path = editor_store.open_note?.meta.path ?? null;
       const panel_open =
         ui_store.context_rail_open && ui_store.context_rail_tab === "related";
+      const limit = ui_store.editor_settings.semantic_related_notes_limit;
 
       if (!note_path) {
         last_note_path = null;
@@ -27,7 +28,7 @@ export function create_related_notes_refresh_reactor(
 
       if (note_path !== last_note_path) {
         last_note_path = note_path;
-        void links_service.load_related_notes(note_path);
+        void links_service.load_related_notes(note_path, limit);
       }
     });
   });

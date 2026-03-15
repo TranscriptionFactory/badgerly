@@ -522,7 +522,10 @@ export class SearchService {
     return search_within_text(text, query);
   }
 
-  async search_omnibar(raw_query: string): Promise<OmnibarSearchResult> {
+  async search_omnibar(
+    raw_query: string,
+    semantic_fallback?: { enabled: boolean; min_words: number },
+  ): Promise<OmnibarSearchResult> {
     const parsed = parse_search_query(raw_query);
 
     if (parsed.domain === "commands") {
@@ -545,11 +548,16 @@ export class SearchService {
       snippet: r.snippet,
     }));
 
+    const fallback_enabled = semantic_fallback?.enabled ?? true;
+    const fallback_min_words =
+      semantic_fallback?.min_words ?? HYBRID_FALLBACK_MIN_WORDS;
+
     const vault_id = this.get_active_vault_id();
     if (
+      fallback_enabled &&
       vault_id !== null &&
       fts_items.length < HYBRID_FALLBACK_THRESHOLD &&
-      word_count(parsed.text) >= HYBRID_FALLBACK_MIN_WORDS
+      word_count(parsed.text) >= fallback_min_words
     ) {
       try {
         const hybrid_hits = await this.search_port.hybrid_search(

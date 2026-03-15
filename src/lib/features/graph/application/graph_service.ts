@@ -146,12 +146,20 @@ export class GraphService {
     this.graph_store.set_hovered_node(node_id);
   }
 
-  async load_semantic_edges(): Promise<void> {
+  async load_semantic_edges(settings?: {
+    max_vault_size?: number;
+    knn_limit?: number;
+    distance_threshold?: number;
+  }): Promise<void> {
     const vault_id = this.get_active_vault_id();
     const snapshot = this.graph_store.vault_snapshot;
     if (!vault_id || !snapshot) return;
 
-    if (snapshot.stats.node_count > SEMANTIC_EDGE_MAX_VAULT_SIZE) {
+    const max_size = settings?.max_vault_size ?? SEMANTIC_EDGE_MAX_VAULT_SIZE;
+    const knn_limit = settings?.knn_limit ?? SEMANTIC_EDGE_KNN_LIMIT;
+    const threshold = settings?.distance_threshold;
+
+    if (snapshot.stats.node_count > max_size) {
       log.warn("Vault too large for semantic edges", {
         node_count: snapshot.stats.node_count,
       });
@@ -162,7 +170,7 @@ export class GraphService {
 
     const tasks = snapshot.nodes.map((node) =>
       this.search_port
-        .find_similar_notes(vault_id, node.path, SEMANTIC_EDGE_KNN_LIMIT, true)
+        .find_similar_notes(vault_id, node.path, knn_limit, true)
         .then((hits): [string, SemanticSearchHit[]] => [node.path, hits])
         .catch((): [string, SemanticSearchHit[]] => [node.path, []]),
     );
@@ -178,17 +186,24 @@ export class GraphService {
       }
     }
 
-    const edges = build_semantic_edges(results);
+    const edges = build_semantic_edges(
+      results,
+      threshold !== undefined ? 1 - threshold : undefined,
+    );
     this.graph_store.set_semantic_edges(edges);
   }
 
-  async toggle_semantic_edges(): Promise<void> {
+  async toggle_semantic_edges(settings?: {
+    max_vault_size?: number;
+    knn_limit?: number;
+    distance_threshold?: number;
+  }): Promise<void> {
     this.graph_store.toggle_show_semantic_edges();
     if (
       this.graph_store.show_semantic_edges &&
       this.graph_store.semantic_edges.length === 0
     ) {
-      await this.load_semantic_edges();
+      await this.load_semantic_edges(settings);
     }
   }
 }
