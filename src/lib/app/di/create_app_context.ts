@@ -19,7 +19,11 @@ import { TabService } from "$lib/features/tab";
 import { GitService } from "$lib/features/git";
 import { HotkeyService } from "$lib/features/hotkey";
 import { ThemeService } from "$lib/features/theme";
-import { LinkRepairService, LinksService } from "$lib/features/links";
+import {
+  LinkRepairService,
+  LinksService,
+  register_links_actions,
+} from "$lib/features/links";
 import {
   SplitViewService,
   register_split_view_actions,
@@ -325,6 +329,8 @@ export function create_app_context(input: {
   };
 
   register_actions(base_action_input);
+
+  register_links_actions(action_registry, editor_service);
 
   plugin_service.initialize_rpc({
     services: base_action_input.services,
