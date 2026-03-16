@@ -157,8 +157,8 @@
   font-size: var(--editor-heading-1);
   font-weight: var(--editor-heading-weight);
   line-height: 1.2;
-  margin-top: calc(var(--editor-spacing) * 2);
-  margin-bottom: var(--editor-spacing);
+  margin-top: var(--editor-h1-mt, calc(var(--editor-spacing) * 1.75));
+  margin-bottom: var(--editor-h1-mb, calc(var(--editor-spacing) * 0.6));
   color: var(--editor-heading-color);
   letter-spacing: -0.01em;
 }
@@ -171,8 +171,8 @@
   font-size: var(--editor-heading-2);
   font-weight: var(--editor-heading-weight);
   line-height: 1.3;
-  margin-top: calc(var(--editor-spacing) * 1.75);
-  margin-bottom: calc(var(--editor-spacing) * 0.85);
+  margin-top: var(--editor-h2-mt, calc(var(--editor-spacing) * 1.4));
+  margin-bottom: var(--editor-h2-mb, calc(var(--editor-spacing) * 0.5));
   color: var(--editor-heading-color);
   letter-spacing: -0.005em;
 }
@@ -181,8 +181,8 @@
   font-size: var(--editor-heading-3);
   font-weight: var(--editor-heading-weight);
   line-height: 1.4;
-  margin-top: calc(var(--editor-spacing) * 1.5);
-  margin-bottom: calc(var(--editor-spacing) * 0.5);
+  margin-top: var(--editor-h3-mt, calc(var(--editor-spacing) * 1.15));
+  margin-bottom: var(--editor-h3-mb, calc(var(--editor-spacing) * 0.35));
   color: var(--editor-heading-color);
   letter-spacing: -0.005em;
 }
@@ -191,8 +191,8 @@
   font-size: var(--editor-heading-4);
   font-weight: var(--editor-heading-weight);
   line-height: 1.45;
-  margin-top: calc(var(--editor-spacing) * 1.25);
-  margin-bottom: calc(var(--editor-spacing) * 0.5);
+  margin-top: var(--editor-h4-mt, calc(var(--editor-spacing) * 0.95));
+  margin-bottom: var(--editor-h4-mb, calc(var(--editor-spacing) * 0.35));
   color: var(--editor-heading-color);
 }
 
@@ -200,8 +200,8 @@
   font-size: var(--editor-heading-5);
   font-weight: var(--editor-heading-weight);
   line-height: 1.55;
-  margin-top: calc(var(--editor-spacing) * 1);
-  margin-bottom: calc(var(--editor-spacing) * 0.4);
+  margin-top: var(--editor-h5-mt, calc(var(--editor-spacing) * 0.75));
+  margin-bottom: var(--editor-h5-mb, calc(var(--editor-spacing) * 0.25));
   color: var(--editor-heading-color);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -211,8 +211,8 @@
   font-size: var(--editor-heading-6);
   font-weight: var(--editor-heading-weight);
   line-height: 1.6;
-  margin-top: calc(var(--editor-spacing) * 0.75);
-  margin-bottom: calc(var(--editor-spacing) * 0.4);
+  margin-top: var(--editor-h6-mt, calc(var(--editor-spacing) * 0.55));
+  margin-bottom: var(--editor-h6-mb, calc(var(--editor-spacing) * 0.25));
   color: var(--editor-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;

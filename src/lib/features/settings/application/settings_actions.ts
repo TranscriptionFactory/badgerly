@@ -21,6 +21,7 @@ const SETTINGS_COMPARE_KEYS: readonly (keyof EditorSettings)[] = [
   "max_open_tabs",
   "editor_max_width_ch",
   "editor_selection_color",
+  "editor_heading_spacing_density",
   "editor_paragraph_spacing_density",
   "editor_list_spacing_density",
   "editor_code_block_padding",

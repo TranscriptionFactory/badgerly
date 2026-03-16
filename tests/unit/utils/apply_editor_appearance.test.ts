@@ -31,6 +31,7 @@ describe("apply_editor_appearance", () => {
     apply_editor_appearance({
       ...DEFAULT_EDITOR_SETTINGS,
       editor_selection_color: "#112233",
+      editor_heading_spacing_density: "compact",
       editor_paragraph_spacing_density: "relaxed",
       editor_list_spacing_density: "compact",
       editor_code_block_padding: "relaxed",
@@ -58,6 +59,73 @@ describe("apply_editor_appearance", () => {
     );
     expect(properties.get("--editor-blockquote-border-width")).toBe("4px");
     expect(properties.get("--editor-link-underline-style")).toBe("wavy");
+  });
+
+  it("applies heading spacing variables", () => {
+    apply_editor_appearance({
+      ...DEFAULT_EDITOR_SETTINGS,
+      editor_heading_spacing_density: "extra_compact",
+    });
+
+    expect(properties.get("--editor-h1-mt")).toBe(
+      "calc(var(--editor-spacing) * 0.75)",
+    );
+    expect(properties.get("--editor-h1-mb")).toBe(
+      "calc(var(--editor-spacing) * 0.25)",
+    );
+    expect(properties.get("--editor-h3-mt")).toBe(
+      "calc(var(--editor-spacing) * 0.5)",
+    );
+  });
+
+  it("applies spacious heading spacing", () => {
+    apply_editor_appearance({
+      ...DEFAULT_EDITOR_SETTINGS,
+      editor_heading_spacing_density: "spacious",
+    });
+
+    expect(properties.get("--editor-h1-mt")).toBe(
+      "calc(var(--editor-spacing) * 2.75)",
+    );
+    expect(properties.get("--editor-h2-mb")).toBe(
+      "calc(var(--editor-spacing) * 0.9)",
+    );
+  });
+
+  it("applies extra_compact density for paragraphs and lists", () => {
+    apply_editor_appearance({
+      ...DEFAULT_EDITOR_SETTINGS,
+      editor_paragraph_spacing_density: "extra_compact",
+      editor_list_spacing_density: "extra_compact",
+    });
+
+    expect(properties.get("--editor-paragraph-spacing")).toBe(
+      "calc(var(--editor-spacing) * 0.6)",
+    );
+    expect(properties.get("--editor-list-spacing")).toBe(
+      "calc(var(--editor-spacing) * 0.65)",
+    );
+    expect(properties.get("--editor-list-item-spacing")).toBe(
+      "calc(var(--editor-spacing) * 0.1)",
+    );
+  });
+
+  it("applies spacious density for paragraphs and blockquotes", () => {
+    apply_editor_appearance({
+      ...DEFAULT_EDITOR_SETTINGS,
+      editor_paragraph_spacing_density: "spacious",
+      editor_blockquote_padding: "spacious",
+    });
+
+    expect(properties.get("--editor-paragraph-spacing")).toBe(
+      "calc(var(--editor-spacing) * 1.5)",
+    );
+    expect(properties.get("--editor-blockquote-padding-y")).toBe(
+      "calc(var(--editor-spacing) * 1.15)",
+    );
+    expect(properties.get("--editor-blockquote-padding-x")).toBe(
+      "calc(var(--editor-spacing) * 1.4)",
+    );
   });
 
   it("clears stale properties when settings return to defaults", () => {

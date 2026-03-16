@@ -166,6 +166,13 @@ export const SETTINGS_REGISTRY: SettingDefinition[] = [
     keywords: ["editor", "selection", "highlight", "color", "appearance"],
   },
   {
+    key: "editor_heading_spacing_density",
+    label: "Heading Spacing",
+    description: "Controls vertical spacing around headings in the editor",
+    category: "Layout",
+    keywords: ["editor", "heading", "spacing", "density", "readability"],
+  },
+  {
     key: "editor_paragraph_spacing_density",
     label: "Paragraph Spacing",
     description: "Controls paragraph spacing density in the editor",

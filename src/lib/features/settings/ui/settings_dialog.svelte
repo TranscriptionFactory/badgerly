@@ -240,9 +240,11 @@
   }));
 
   const density_options = [
+    { value: "extra_compact", label: "Extra Compact" },
     { value: "compact", label: "Compact" },
     { value: "normal", label: "Normal" },
     { value: "relaxed", label: "Relaxed" },
+    { value: "spacious", label: "Spacious" },
   ] as const;
 
   const code_block_radius_options: {
@@ -896,6 +898,57 @@
                 class="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
               >
                 Reading
+              </div>
+
+              <div class="SettingsDialog__row">
+                <div class="SettingsDialog__label-group">
+                  <span class="SettingsDialog__label">Heading Spacing</span>
+                  <span class="SettingsDialog__description"
+                    >Adjust vertical spacing around headings</span
+                  >
+                </div>
+                <div class="flex items-center gap-3">
+                  <Select.Root
+                    type="single"
+                    value={editor_settings.editor_heading_spacing_density}
+                    onValueChange={(v: string | undefined) => {
+                      if (v)
+                        update(
+                          "editor_heading_spacing_density",
+                          v as EditorSpacingDensity,
+                        );
+                    }}
+                  >
+                    <Select.Trigger class="w-28">
+                      <span data-slot="select-value">
+                        {density_options.find(
+                          (o) =>
+                            o.value ===
+                            editor_settings.editor_heading_spacing_density,
+                        )?.label ?? "Normal"}
+                      </span>
+                    </Select.Trigger>
+                    <Select.Content>
+                      {#each density_options as opt (opt.value)}
+                        <Select.Item value={opt.value}>{opt.label}</Select.Item>
+                      {/each}
+                    </Select.Content>
+                  </Select.Root>
+                  <button
+                    type="button"
+                    class="SettingsDialog__reset"
+                    onclick={() =>
+                      update(
+                        "editor_heading_spacing_density",
+                        DEFAULT_EDITOR_SETTINGS.editor_heading_spacing_density,
+                      )}
+                    disabled={editor_settings.editor_heading_spacing_density ===
+                      DEFAULT_EDITOR_SETTINGS.editor_heading_spacing_density}
+                    title="Reset to default (Normal)"
+                  >
+                    <RotateCcw />
+                  </button>
+                </div>
               </div>
 
               <div class="SettingsDialog__row">

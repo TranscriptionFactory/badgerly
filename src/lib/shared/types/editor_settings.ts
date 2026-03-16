@@ -19,11 +19,16 @@ export type GitAutocommitMode = "off" | "on_save" | "interval";
 export type GitPullStrategy = "merge" | "rebase" | "ff_only";
 export type DocumentPdfZoomMode = "actual_size" | "fit_width";
 export type DocumentImageBackground = "checkerboard" | "light" | "dark";
-export type EditorSpacingDensity = "compact" | "normal" | "relaxed";
+export type EditorSpacingDensity =
+  | "extra_compact"
+  | "compact"
+  | "normal"
+  | "relaxed"
+  | "spacious";
 export type EditorLinkUnderlineStyle = "solid" | "dotted" | "wavy";
-export type EditorCodeBlockPadding = "compact" | "normal" | "relaxed";
+export type EditorCodeBlockPadding = EditorSpacingDensity;
 export type EditorCodeBlockRadius = "tight" | "normal" | "soft";
-export type EditorBlockquotePadding = "compact" | "normal" | "relaxed";
+export type EditorBlockquotePadding = EditorSpacingDensity;
 export type PanelSide = "left" | "right";
 
 export type EditorSettings = {
@@ -40,6 +45,7 @@ export type EditorSettings = {
   max_open_tabs: number;
   editor_max_width_ch: number;
   editor_selection_color: string;
+  editor_heading_spacing_density: EditorSpacingDensity;
   editor_paragraph_spacing_density: EditorSpacingDensity;
   editor_list_spacing_density: EditorSpacingDensity;
   editor_code_block_padding: EditorCodeBlockPadding;
@@ -81,6 +87,7 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   max_open_tabs: 5,
   editor_max_width_ch: 90,
   editor_selection_color: "",
+  editor_heading_spacing_density: "normal",
   editor_paragraph_spacing_density: "normal",
   editor_list_spacing_density: "normal",
   editor_code_block_padding: "normal",
@@ -120,6 +127,7 @@ export const GLOBAL_ONLY_SETTING_KEYS: readonly (keyof EditorSettings)[] = [
   "autosave_delay_ms",
   "editor_max_width_ch",
   "editor_selection_color",
+  "editor_heading_spacing_density",
   "editor_paragraph_spacing_density",
   "editor_list_spacing_density",
   "editor_code_block_padding",
