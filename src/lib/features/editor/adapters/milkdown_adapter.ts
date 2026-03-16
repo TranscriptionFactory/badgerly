@@ -79,6 +79,10 @@ import {
 import { code_block_view_plugin } from "./code_block_view_plugin";
 import { table_toolbar_plugin } from "./table_toolbar_plugin";
 import { image_toolbar_plugin } from "./image_toolbar_plugin";
+import {
+  image_block_schema_with_width,
+  image_width_plugin,
+} from "./image_width_plugin";
 import { emoji_plugin } from "./emoji_plugin";
 import { mark_escape_plugin } from "./mark_escape_plugin";
 import { paired_delimiter_plugin } from "./paired_delimiter_plugin";
@@ -363,6 +367,7 @@ export function create_milkdown_editor_port(args?: {
         .use(commonmark)
         .use(frontmatter_plugin)
         .use(imageBlockComponent)
+        .use(image_block_schema_with_width)
         .config((ctx) => {
           ctx.update(remarkPluginsCtx, (prev) => [
             ...prev,
@@ -491,6 +496,7 @@ export function create_milkdown_editor_port(args?: {
         .use(code_block_view_plugin)
         .use(table_toolbar_plugin)
         .use(image_toolbar_plugin)
+        .use(image_width_plugin)
         .use(emoji_plugin)
         .use(indent)
         .use(create_link_tooltip_plugin())
