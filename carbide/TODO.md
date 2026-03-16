@@ -284,19 +284,20 @@
 
 ---
 
-## Phase 6b: Math/LaTeX Support
+## Phase 6b: Math/LaTeX Support — COMPLETED
 
 > Detailed design in `carbide/scratch/scratch_highvalue.md` → Feature 6
+> Note: `@milkdown/plugin-math` is deprecated/incompatible with kit v7.18; built from scratch with `remark-math` + `katex` + `$node`.
 
-- [ ] Add `@milkdown/plugin-math` and `katex` dependencies
-- [ ] Register math plugin in `milkdown_adapter.ts`
-- [ ] Add KaTeX CSS import
-- [ ] Create `math_block_editor.svelte` (Enter/Space to edit, Cmd+Enter to apply, Escape to cancel)
-- [ ] Style math blocks to match editor theme
-- [ ] Exclude math nodes from wiki-link and slash-command processing
-- [ ] Add `/math` slash command
-- [ ] Add to help data: inline math `$expr$`, block math `$$expr$$`
-- [ ] Unit tests for math node roundtrip and wikilink exclusion
+- [x] Add `remark-math` and `katex` dependencies (replaces deprecated `@milkdown/plugin-math`)
+- [x] Register math plugin in `milkdown_adapter.ts`
+- [x] Add KaTeX CSS import
+- [x] Create `math_block_editor.svelte` (click to edit, Cmd+Enter to apply, Escape to cancel)
+- [x] Style math blocks to match editor theme
+- [x] Exclude math nodes from wiki-link and slash-command processing
+- [x] Add `/math` slash command
+- [x] Add to help data: inline math `$expr$`, block math `$$expr$$`
+- [x] Unit tests for slash command exclusion and wikilink exclusion
 
 ---
 
