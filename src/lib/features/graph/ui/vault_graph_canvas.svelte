@@ -5,6 +5,7 @@
   } from "$lib/features/graph/ports";
   import { VaultGraphRenderer } from "$lib/features/graph/domain/vault_graph_renderer";
   import { matches_filter } from "$lib/features/graph/domain/graph_filter";
+  import GraphWorker from "$lib/features/graph/domain/vault_graph_worker?worker&inline";
 
   type Props = {
     snapshot: VaultGraphSnapshot;
@@ -88,9 +89,11 @@
 
         resize_observer.observe(el);
 
-        const w = new Worker(
-          new URL("../domain/vault_graph_worker.ts", import.meta.url),
-        );
+        const w = new GraphWorker();
+        if (renderer !== r) {
+          w.terminate();
+          return;
+        }
         worker = w;
         w.onerror = (event) => {
           console.error("[VaultGraph] Worker error:", event);
