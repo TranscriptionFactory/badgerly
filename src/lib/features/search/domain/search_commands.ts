@@ -262,4 +262,20 @@ export const COMMANDS_REGISTRY: CommandDefinition[] = [
     ],
     icon: "maximize",
   },
+  {
+    id: "toggle_focus_mode",
+    label: "Toggle Focus Mode",
+    description: "Hide sidebar and panels to focus on writing",
+    keywords: [
+      "focus",
+      "zen",
+      "distraction",
+      "free",
+      "writing",
+      "minimal",
+      "clean",
+      "hide",
+    ],
+    icon: "maximize",
+  },
 ];

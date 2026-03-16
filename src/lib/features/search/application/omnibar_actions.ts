@@ -37,6 +37,7 @@ export const COMMAND_TO_ACTION_ID: Record<CommandId, string> = {
   terminal_new_session: ACTION_IDS.terminal_new_session,
   open_plugins: ACTION_IDS.ui_open_plugins,
   toggle_zen_mode: ACTION_IDS.ui_toggle_zen_mode,
+  toggle_focus_mode: ACTION_IDS.ui_toggle_focus_mode,
 };
 function set_omnibar_state(
   input: ActionRegistrationInput,
