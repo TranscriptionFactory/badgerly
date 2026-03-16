@@ -1787,6 +1787,44 @@ mod tests {
         let title = rows.iter().find(|(k, _, _)| k == "title").expect("title");
         assert_eq!(title.2, "string");
     }
+
+    #[test]
+    fn get_note_properties_returns_all_for_path() {
+        let conn = open_mem_db();
+        let meta = note("props/a.md", "A");
+        upsert_note(&conn, &meta, "---\nstatus: draft\npriority: 5\n---\nbody").expect("upsert");
+
+        let props = get_note_properties(&conn, "props/a.md").expect("props");
+        assert_eq!(props.len(), 2);
+        assert_eq!(props["status"].0, "draft");
+        assert_eq!(props["status"].1, "string");
+        assert_eq!(props["priority"].0, "5");
+        assert_eq!(props["priority"].1, "number");
+    }
+
+    #[test]
+    fn get_note_properties_empty_for_missing_path() {
+        let conn = open_mem_db();
+        let props = get_note_properties(&conn, "nonexistent.md").expect("props");
+        assert!(props.is_empty());
+    }
+
+    #[test]
+    fn get_note_tags_returns_sorted() {
+        let conn = open_mem_db();
+        let meta = note("tags/a.md", "A");
+        upsert_note(&conn, &meta, "---\ntags: [zebra, alpha, mid]\n---\nbody").expect("upsert");
+
+        let tags = get_note_tags(&conn, "tags/a.md").expect("tags");
+        assert_eq!(tags, vec!["alpha", "mid", "zebra"]);
+    }
+
+    #[test]
+    fn get_note_tags_empty_for_missing_path() {
+        let conn = open_mem_db();
+        let tags = get_note_tags(&conn, "nonexistent.md").expect("tags");
+        assert!(tags.is_empty());
+    }
 }
 
 pub fn get_orphan_outlinks(conn: &Connection, path: &str) -> Result<Vec<OrphanLink>, String> {
@@ -1958,6 +1996,30 @@ pub fn get_backlinks(conn: &Connection, path: &str) -> Result<Vec<IndexNoteMeta>
         .query_map(params![path], |row| note_meta_from_row(row))
         .map_err(|e| e.to_string())?;
 
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
+}
+
+pub fn get_note_properties(conn: &Connection, path: &str) -> Result<BTreeMap<String, (String, String)>, String> {
+    let mut stmt = conn
+        .prepare("SELECT key, value, type FROM note_properties WHERE path = ?1")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![path], |row| {
+            Ok((row.get::<_, String>(0)?, (row.get::<_, String>(1)?, row.get::<_, String>(2)?)))
+        })
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<BTreeMap<_, _>, _>>()
+        .map_err(|e| e.to_string())
+}
+
+pub fn get_note_tags(conn: &Connection, path: &str) -> Result<Vec<String>, String> {
+    let mut stmt = conn
+        .prepare("SELECT tag FROM note_tags WHERE path = ?1 ORDER BY tag")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![path], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
     rows.collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())
 }
