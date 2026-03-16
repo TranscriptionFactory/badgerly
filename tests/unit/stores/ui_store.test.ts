@@ -24,6 +24,14 @@ describe("UIStore", () => {
     expect(store.zen_mode).toBe(false);
   });
 
+  it("reset_for_new_vault resets zen_mode to false", () => {
+    const store = new UIStore();
+    store.toggle_zen_mode();
+    expect(store.zen_mode).toBe(true);
+    store.reset_for_new_vault();
+    expect(store.zen_mode).toBe(false);
+  });
+
   it("set_editor_settings does not overwrite an open settings draft", () => {
     const store = new UIStore();
     store.settings_dialog = {

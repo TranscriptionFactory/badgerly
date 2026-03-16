@@ -28,6 +28,7 @@ export type CommandId =
   | "terminal_new_session"
   | "open_plugins"
   | "toggle_zen_mode"
+  | "toggle_focus_mode"
   | (string & {});
 
 export type CommandIcon =

@@ -527,6 +527,7 @@ export class UIStore {
     this.checkpoint_dialog = { ...INITIAL_CHECKPOINT_DIALOG };
     this.add_remote_dialog = { ...INITIAL_ADD_REMOTE_DIALOG };
     this.vault_switcher_open = false;
+    this.zen_mode = false;
     this.context_rail_open = false;
     this.context_rail_tab = "links";
   }
