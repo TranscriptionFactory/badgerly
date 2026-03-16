@@ -81,6 +81,7 @@ export class VaultGraphRenderer {
 
     this.app = new pixi.Application();
     await this.app.init({
+      preference: "webgl",
       width: w,
       height: h,
       background: this.colors.bg,
