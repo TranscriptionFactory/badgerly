@@ -18,8 +18,15 @@
     stores.ui.editor_settings.semantic_graph_max_vault_size,
   );
 
+  const has_vault = $derived(stores.vault.vault !== null);
+
   $effect(() => {
-    if (!vault_snapshot && status !== "loading" && status !== "error") {
+    if (
+      has_vault &&
+      !vault_snapshot &&
+      status !== "loading" &&
+      status !== "error"
+    ) {
       void action_registry.execute(ACTION_IDS.graph_load_vault_graph);
     }
   });

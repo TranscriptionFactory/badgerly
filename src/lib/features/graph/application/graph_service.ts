@@ -37,7 +37,6 @@ export class GraphService {
       return;
     }
 
-    ++this.vault_load_revision;
     const revision = ++this.neighborhood_load_revision;
     this.graph_store.set_panel_open(true);
     this.graph_store.start_loading(note_path);
@@ -86,13 +85,30 @@ export class GraphService {
       return;
     }
 
-    ++this.neighborhood_load_revision;
     const revision = ++this.vault_load_revision;
     this.graph_store.start_loading_vault();
 
+    log.info("Starting vault graph load", { vault_id });
+
     try {
-      const snapshot = await this.graph_port.load_vault_graph(vault_id);
+      const timeout_ms = 15_000;
+      const snapshot = await Promise.race([
+        this.graph_port.load_vault_graph(vault_id),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => {
+            reject(
+              new Error(
+                `Vault graph load timed out after ${String(timeout_ms)}ms`,
+              ),
+            );
+          }, timeout_ms);
+        }),
+      ]);
       if (revision !== this.vault_load_revision) return;
+      log.info("Vault graph loaded", {
+        nodes: snapshot.stats.node_count,
+        edges: snapshot.stats.edge_count,
+      });
       this.graph_store.set_vault_snapshot(snapshot);
     } catch (error) {
       if (revision !== this.vault_load_revision) return;
