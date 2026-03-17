@@ -1,4 +1,5 @@
 import type { Theme } from "$lib/shared/types/theme";
+import { apply_auto_palette } from "$lib/shared/utils/palette_generator";
 import { resolve_font_stack } from "$lib/shared/utils/theme_helpers";
 
 const SPACING_MAP: Record<string, string> = {
@@ -123,7 +124,8 @@ export function apply_theme(
   root.setAttribute("data-color-scheme", theme.color_scheme);
   root.style.setProperty("color-scheme", theme.color_scheme);
 
-  const entries = build_token_entries(theme);
+  const resolved = apply_auto_palette(theme);
+  const entries = build_token_entries(resolved);
   applied_property_keys = entries.map(([k]) => k);
 
   for (const [key, value] of entries) {

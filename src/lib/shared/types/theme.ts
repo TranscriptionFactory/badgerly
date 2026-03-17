@@ -50,6 +50,7 @@ export type Theme = {
   highlight_text_color: string | null;
 
   token_overrides: Record<string, string>;
+  auto_palette: boolean;
 };
 
 const SHARED_DEFAULTS: Omit<
@@ -81,6 +82,7 @@ const SHARED_DEFAULTS: Omit<
   highlight_bg: null,
   highlight_text_color: null,
   token_overrides: {},
+  auto_palette: true,
 };
 
 export const BUILTIN_NORDIC_LIGHT: Theme = {

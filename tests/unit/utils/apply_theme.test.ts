@@ -87,12 +87,13 @@ describe("apply_theme", () => {
     const custom = {
       ...BUILTIN_NORDIC_DARK,
       editor_text_color: "oklch(0.5 0.1 200)",
+      token_overrides: { "--custom-cleanup": "yes" },
     };
     apply_theme(custom);
-    expect(store.has("--editor-text")).toBe(true);
+    expect(store.has("--custom-cleanup")).toBe(true);
 
     apply_theme(BUILTIN_NORDIC_LIGHT);
-    expect(store.has("--editor-text")).toBe(false);
+    expect(store.has("--custom-cleanup")).toBe(false);
   });
 
   it("applies token_overrides", () => {

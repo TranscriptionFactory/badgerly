@@ -1,21 +1,17 @@
 <script lang="ts">
   import * as Select from "$lib/components/ui/select/index.js";
-  import * as Slider from "$lib/components/ui/slider/index.js";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import Trash2 from "@lucide/svelte/icons/trash-2";
   import Copy from "@lucide/svelte/icons/copy";
-  import Plus from "@lucide/svelte/icons/plus";
-  import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
+  import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import type { Theme } from "$lib/shared/types/theme";
-  import { get_all_themes } from "$lib/shared/types/theme";
-  import {
-    parse_hsl,
-    format_hsl,
-    SANS_FONT_OPTIONS,
-    MONO_FONT_OPTIONS,
-    COLOR_PRESETS,
-  } from "$lib/shared/utils/theme_helpers";
+  import ThemeGallery from "./theme/theme_gallery.svelte";
+  import AccentPicker from "./theme/accent_picker.svelte";
+  import TypographyPresets from "./theme/typography_presets.svelte";
+  import ThemePreview from "./theme/theme_preview.svelte";
+  import AdvancedPanel from "./theme/advanced_panel.svelte";
+  import ColorPopover from "./theme/color_popover.svelte";
 
   type Props = {
     user_themes: Theme[];
@@ -39,48 +35,100 @@
     on_update,
   }: Props = $props();
 
-  const all_themes = $derived(get_all_themes(user_themes));
   const locked = $derived(active_theme.is_builtin);
 
-  let accent_hue = $derived(active_theme.accent_hue);
-  let accent_chroma = $derived(active_theme.accent_chroma);
-  let font_size = $derived(active_theme.font_size);
-  let line_height = $derived(active_theme.line_height);
-  let heading_font_weight = $derived(active_theme.heading_font_weight);
+  let new_theme_name = $state("");
+  let show_create = $state(false);
+  let show_advanced = $state(false);
+
+  let popover_role = $state<string | null>(null);
+  let popover_anchor = $state<HTMLElement | null>(null);
+
+  function handle_create() {
+    const name = new_theme_name.trim();
+    if (!name) return;
+    on_create(name, active_theme);
+    new_theme_name = "";
+    show_create = false;
+  }
 
   function update<K extends keyof Theme>(key: K, value: Theme[K]) {
     if (locked) return;
     on_update({ ...active_theme, [key]: value });
   }
 
-  function update_select<K extends keyof Theme>(
-    key: K,
-    value: string | undefined,
-  ) {
-    if (value && !locked) {
-      on_update({ ...active_theme, [key]: value });
-    }
+  function handle_accent_change(hue: number, chroma: number) {
+    if (locked) return;
+    on_update({ ...active_theme, accent_hue: hue, accent_chroma: chroma });
   }
 
-  function clamp(v: number, lo: number, hi: number): number {
-    return Math.max(lo, Math.min(hi, Math.round(v)));
+  function handle_typo_update(key: keyof Theme, value: Theme[keyof Theme]) {
+    if (locked) return;
+    on_update({ ...active_theme, [key]: value });
   }
 
-  const accent_preview_style = $derived(
-    `background: oklch(0.55 ${active_theme.accent_chroma} ${active_theme.accent_hue})`,
-  );
+  function handle_element_click(role: string, anchor: HTMLElement) {
+    if (locked) return;
+    popover_role = role;
+    popover_anchor = anchor;
+  }
+
+  const ROLE_TO_KEY: Record<string, keyof Theme> = {
+    editor_text: "editor_text_color",
+    bold: "bold_color",
+    italic: "italic_color",
+    link: "link_color",
+    heading: "editor_text_color",
+    blockquote: "blockquote_border_color",
+    blockquote_text: "blockquote_text_color",
+    code_block: "code_block_bg",
+    code_block_text: "code_block_text_color",
+    inline_code: "inline_code_bg",
+    highlight: "highlight_bg",
+  };
+
+  const ROLE_LABELS: Record<string, string> = {
+    editor_text: "Body Text",
+    bold: "Bold",
+    italic: "Italic",
+    link: "Links",
+    heading: "Headings",
+    blockquote: "Blockquote Border",
+    blockquote_text: "Blockquote Text",
+    code_block: "Code Block BG",
+    code_block_text: "Code Block Text",
+    inline_code: "Inline Code BG",
+    highlight: "Highlight BG",
+  };
+
+  function handle_popover_change(color: string) {
+    if (!popover_role) return;
+    const key = ROLE_TO_KEY[popover_role];
+    if (key) update(key, color as never);
+  }
+
+  function handle_popover_reset() {
+    if (!popover_role) return;
+    const key = ROLE_TO_KEY[popover_role];
+    if (key) update(key, null as never);
+    popover_role = null;
+    popover_anchor = null;
+  }
+
+  function handle_import(imported: Theme) {
+    on_create(imported.name, imported);
+  }
+
+  const popover_color = $derived.by(() => {
+    if (!popover_role) return "oklch(0.5 0.1 0)";
+    const key = ROLE_TO_KEY[popover_role];
+    if (!key) return "oklch(0.5 0.1 0)";
+    return (active_theme[key] as string | null) ?? "oklch(0.5 0.1 0)";
+  });
 
   const color_scheme_options = [
     { value: "light", label: "Light" },
     { value: "dark", label: "Dark" },
-  ];
-
-  const spacing_options = [
-    { value: "extra_compact", label: "Extra Compact" },
-    { value: "compact", label: "Compact" },
-    { value: "normal", label: "Normal" },
-    { value: "spacious", label: "Spacious" },
-    { value: "extra_spacious", label: "Extra Spacious" },
   ];
 
   const heading_color_options = [
@@ -90,14 +138,14 @@
   ];
 
   const bold_style_options = [
-    { value: "default", label: "Default (600)" },
-    { value: "heavier", label: "Heavy (700)" },
+    { value: "default", label: "Default" },
+    { value: "heavier", label: "Heavy" },
     { value: "color-accent", label: "Accent Color" },
   ];
 
   const blockquote_style_options = [
     { value: "default", label: "Default" },
-    { value: "minimal", label: "Minimal (no bg)" },
+    { value: "minimal", label: "Minimal" },
     { value: "accent-bar", label: "Accent Bar" },
   ];
 
@@ -107,165 +155,26 @@
     { value: "filled", label: "Filled" },
   ];
 
-  let new_theme_name = $state("");
-  let show_create = $state(false);
-
-  function handle_create() {
-    const name = new_theme_name.trim();
-    if (!name) return;
-    on_create(name, active_theme);
-    new_theme_name = "";
-    show_create = false;
+  function update_select<K extends keyof Theme>(
+    key: K,
+    value: string | undefined,
+  ) {
+    if (value && !locked) {
+      on_update({ ...active_theme, [key]: value });
+    }
   }
 </script>
 
-{#snippet color_field(
-  label: string,
-  key: keyof Theme,
-  current_value: string | null,
-)}
-  {@const parsed = parse_hsl(current_value)}
-  <div class="ColorField">
-    <div class="ColorField__header">
-      <div class="ColorField__header-left">
-        <span class="ColorField__label">{label}</span>
-        {#if current_value}
-          <button
-            type="button"
-            class="ColorField__reset"
-            onclick={() => update(key, null as never)}
-            disabled={locked}
-            title="Reset to default"
-          >
-            <RotateCcw />
-          </button>
-        {/if}
-      </div>
-      <div class="ColorField__header-right">
-        <span class="ColorField__channel-label ColorField__channel-label--pad"
-        ></span>
-        <span class="ColorField__channel-label">H</span>
-        <span class="ColorField__channel-label">S</span>
-        <span class="ColorField__channel-label">L</span>
-      </div>
-    </div>
-    <div class="ColorField__body">
-      <div class="ColorField__swatches">
-        {#each COLOR_PRESETS as preset (preset.value)}
-          <button
-            type="button"
-            class="ColorField__swatch"
-            class:ColorField__swatch--active={current_value === preset.value}
-            style="background: {preset.value}"
-            title={preset.label}
-            onclick={() => update(key, preset.value as never)}
-            disabled={locked}
-          ></button>
-        {/each}
-      </div>
-      <div class="ColorField__hsl">
-        <span
-          class="ColorField__preview"
-          style="background: {current_value ?? 'var(--muted)'}"
-        ></span>
-        <Input
-          type="number"
-          value={parsed ? String(parsed.h) : ""}
-          placeholder="—"
-          min={0}
-          max={360}
-          onchange={(e: Event & { currentTarget: HTMLInputElement }) => {
-            const h = clamp(Number(e.currentTarget.value) || 0, 0, 360);
-            const base = parsed ?? { h: 0, s: 0, l: 50 };
-            update(key, format_hsl({ ...base, h }) as never);
-          }}
-          class="ColorField__channel-input"
-          disabled={locked}
-        />
-        <Input
-          type="number"
-          value={parsed ? String(parsed.s) : ""}
-          placeholder="—"
-          min={0}
-          max={100}
-          onchange={(e: Event & { currentTarget: HTMLInputElement }) => {
-            const s = clamp(Number(e.currentTarget.value) || 0, 0, 100);
-            const base = parsed ?? { h: 0, s: 0, l: 50 };
-            update(key, format_hsl({ ...base, s }) as never);
-          }}
-          class="ColorField__channel-input"
-          disabled={locked}
-        />
-        <Input
-          type="number"
-          value={parsed ? String(parsed.l) : ""}
-          placeholder="—"
-          min={0}
-          max={100}
-          onchange={(e: Event & { currentTarget: HTMLInputElement }) => {
-            const l = clamp(Number(e.currentTarget.value) || 0, 0, 100);
-            const base = parsed ?? { h: 0, s: 0, l: 50 };
-            update(key, format_hsl({ ...base, l }) as never);
-          }}
-          class="ColorField__channel-input"
-          disabled={locked}
-        />
-      </div>
-    </div>
-  </div>
-{/snippet}
-
 <div class="ThemeSettings">
-  <!-- ─── Profile Bar ─── -->
-  <div class="ThemeSettings__profile-bar">
-    <Select.Root
-      type="single"
-      value={active_theme.id}
-      onValueChange={(v: string | undefined) => {
-        if (v) on_switch(v);
-      }}
-    >
-      <Select.Trigger class="ThemeSettings__theme-select">
-        <span data-slot="select-value">{active_theme.name}</span>
-      </Select.Trigger>
-      <Select.Content>
-        {#each all_themes as theme (theme.id)}
-          <Select.Item value={theme.id}>{theme.name}</Select.Item>
-        {/each}
-      </Select.Content>
-    </Select.Root>
-
-    <div class="ThemeSettings__profile-actions">
-      <Button
-        variant="ghost"
-        size="icon"
-        onclick={() => on_duplicate(active_theme.id)}
-        aria-label="Duplicate theme"
-      >
-        <Copy />
-      </Button>
-      {#if !locked}
-        <Button
-          variant="ghost"
-          size="icon"
-          onclick={() => on_delete(active_theme.id)}
-          aria-label="Delete theme"
-        >
-          <Trash2 />
-        </Button>
-      {/if}
-      <Button
-        variant="ghost"
-        size="icon"
-        onclick={() => {
-          show_create = !show_create;
-        }}
-        aria-label="New theme"
-      >
-        <Plus />
-      </Button>
-    </div>
-  </div>
+  <!-- ─── Theme Gallery ─── -->
+  <ThemeGallery
+    {user_themes}
+    active_theme_id={active_theme.id}
+    {on_switch}
+    on_create_click={() => {
+      show_create = !show_create;
+    }}
+  />
 
   {#if show_create}
     <div class="ThemeSettings__create-row">
@@ -288,431 +197,319 @@
     </div>
   {/if}
 
-  {#if !locked}
-    <div class="ThemeSettings__row" style="margin-bottom: var(--space-2)">
-      <span class="ThemeSettings__label">Name</span>
+  <!-- ─── Theme Actions ─── -->
+  <div class="ThemeSettings__actions-bar">
+    {#if !locked}
       <Input
         type="text"
         value={active_theme.name}
         onchange={(e: Event & { currentTarget: HTMLInputElement }) => {
           on_rename(active_theme.id, e.currentTarget.value);
         }}
-        class="w-48"
+        class="w-40"
       />
+    {:else}
+      <span class="ThemeSettings__theme-name">{active_theme.name}</span>
+    {/if}
+    <div class="ThemeSettings__action-buttons">
+      <Button
+        variant="ghost"
+        size="icon"
+        onclick={() => on_duplicate(active_theme.id)}
+        aria-label="Duplicate theme"
+      >
+        <Copy />
+      </Button>
+      {#if !locked}
+        <Button
+          variant="ghost"
+          size="icon"
+          onclick={() => on_delete(active_theme.id)}
+          aria-label="Delete theme"
+        >
+          <Trash2 />
+        </Button>
+      {/if}
     </div>
-  {/if}
+  </div>
 
   {#if locked}
     <p class="ThemeSettings__hint">Duplicate this theme to customize it.</p>
   {/if}
 
-  <!-- ═══ Interface ═══ -->
-  <div class="ThemeSettings__section-header">Interface</div>
-
-  <div class="ThemeSettings__section-content">
-    <div class="ThemeSettings__row">
-      <span class="ThemeSettings__label">Base</span>
-      <Select.Root
-        type="single"
-        value={active_theme.color_scheme}
-        onValueChange={(v: string | undefined) =>
-          update_select("color_scheme", v)}
-        disabled={locked}
-      >
-        <Select.Trigger class="w-28">
-          <span data-slot="select-value">
-            {color_scheme_options.find(
-              (o) => o.value === active_theme.color_scheme,
-            )?.label}
-          </span>
-        </Select.Trigger>
-        <Select.Content>
-          {#each color_scheme_options as option (option.value)}
-            <Select.Item value={option.value}>{option.label}</Select.Item>
-          {/each}
-        </Select.Content>
-      </Select.Root>
-    </div>
-
-    <div class="ThemeSettings__row">
-      <span class="ThemeSettings__label">Sans Font</span>
-      <Select.Root
-        type="single"
-        value={active_theme.font_family_sans}
-        onValueChange={(v: string | undefined) =>
-          update_select("font_family_sans", v)}
-        disabled={locked}
-      >
-        <Select.Trigger class="w-44">
-          <span data-slot="select-value">{active_theme.font_family_sans}</span>
-        </Select.Trigger>
-        <Select.Content>
-          {#each SANS_FONT_OPTIONS as opt (opt.value)}
-            <Select.Item value={opt.value}>{opt.label}</Select.Item>
-          {/each}
-        </Select.Content>
-      </Select.Root>
-    </div>
-
-    <div class="ThemeSettings__row">
-      <span class="ThemeSettings__label">Mono Font</span>
-      <Select.Root
-        type="single"
-        value={active_theme.font_family_mono}
-        onValueChange={(v: string | undefined) =>
-          update_select("font_family_mono", v)}
-        disabled={locked}
-      >
-        <Select.Trigger class="w-44">
-          <span data-slot="select-value">{active_theme.font_family_mono}</span>
-        </Select.Trigger>
-        <Select.Content>
-          {#each MONO_FONT_OPTIONS as opt (opt.value)}
-            <Select.Item value={opt.value}>{opt.label}</Select.Item>
-          {/each}
-        </Select.Content>
-      </Select.Root>
-    </div>
-
-    <div class="ThemeSettings__row--stacked">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <span class="ThemeSettings__label">Accent Color</span>
-          <span class="ThemeSettings__color-dot" style={accent_preview_style}
-          ></span>
-        </div>
-        <span class="ThemeSettings__badge">{active_theme.accent_hue}°</span>
-      </div>
-      <Slider.Root
-        type="single"
-        value={accent_hue}
-        onValueChange={(v: number) => update("accent_hue", Math.round(v))}
-        min={0}
-        max={360}
-        step={1}
-        class="w-full"
-        disabled={locked}
-      />
-    </div>
-
-    <div class="ThemeSettings__row--stacked">
-      <div class="flex items-center justify-between">
-        <span class="ThemeSettings__label">Color Intensity</span>
-        <span class="ThemeSettings__badge"
-          >{active_theme.accent_chroma.toFixed(2)}</span
+  <!-- ─── Two-Column Layout ─── -->
+  <div class="ThemeSettings__body">
+    <!-- Controls Column -->
+    <div class="ThemeSettings__controls">
+      <!-- Color Scheme -->
+      <div class="ThemeSettings__row">
+        <span class="ThemeSettings__label">Color Scheme</span>
+        <Select.Root
+          type="single"
+          value={active_theme.color_scheme}
+          onValueChange={(v: string | undefined) =>
+            update_select("color_scheme", v)}
+          disabled={locked}
         >
+          <Select.Trigger class="w-28">
+            <span data-slot="select-value">
+              {color_scheme_options.find(
+                (o) => o.value === active_theme.color_scheme,
+              )?.label}
+            </span>
+          </Select.Trigger>
+          <Select.Content>
+            {#each color_scheme_options as option (option.value)}
+              <Select.Item value={option.value}>{option.label}</Select.Item>
+            {/each}
+          </Select.Content>
+        </Select.Root>
       </div>
-      <Slider.Root
-        type="single"
-        value={accent_chroma}
-        onValueChange={(v: number) =>
-          update("accent_chroma", Math.round(v * 100) / 100)}
-        min={0.02}
-        max={0.3}
-        step={0.01}
-        class="w-full"
+
+      <!-- Accent Color -->
+      <AccentPicker
+        hue={active_theme.accent_hue}
+        chroma={active_theme.accent_chroma}
+        on_change={handle_accent_change}
         disabled={locked}
       />
-    </div>
-  </div>
 
-  <!-- ═══ Typography ═══ -->
-  <div class="ThemeSettings__section-header">Typography</div>
+      <!-- Typography Presets -->
+      <div class="ThemeSettings__section-header">Typography</div>
+      <TypographyPresets
+        theme={active_theme}
+        disabled={locked}
+        on_update={handle_typo_update}
+      />
 
-  <div class="ThemeSettings__section-content">
-    <div class="ThemeSettings__row--stacked">
-      <div class="flex items-center justify-between">
-        <span class="ThemeSettings__label">Font Size</span>
-        <span class="ThemeSettings__badge"
-          >{active_theme.font_size.toFixed(2)}rem</span
+      <!-- Style Options -->
+      <div class="ThemeSettings__section-header">Style</div>
+
+      <div class="ThemeSettings__row">
+        <span class="ThemeSettings__label">Heading Color</span>
+        <Select.Root
+          type="single"
+          value={active_theme.heading_color}
+          onValueChange={(v: string | undefined) =>
+            update_select("heading_color", v)}
+          disabled={locked}
         >
+          <Select.Trigger class="w-28">
+            <span data-slot="select-value">
+              {heading_color_options.find(
+                (o) => o.value === active_theme.heading_color,
+              )?.label}
+            </span>
+          </Select.Trigger>
+          <Select.Content>
+            {#each heading_color_options as option (option.value)}
+              <Select.Item value={option.value}>{option.label}</Select.Item>
+            {/each}
+          </Select.Content>
+        </Select.Root>
       </div>
-      <Slider.Root
-        type="single"
-        value={font_size}
-        onValueChange={(v: number) => update("font_size", v)}
-        min={0.875}
-        max={1.25}
-        step={0.0625}
-        class="w-full"
-        disabled={locked}
-      />
-    </div>
 
-    <div class="ThemeSettings__row--stacked">
-      <div class="flex items-center justify-between">
-        <span class="ThemeSettings__label">Line Height</span>
-        <span class="ThemeSettings__badge"
-          >{active_theme.line_height.toFixed(2)}</span
+      <div class="ThemeSettings__row">
+        <span class="ThemeSettings__label">Bold Style</span>
+        <Select.Root
+          type="single"
+          value={active_theme.bold_style}
+          onValueChange={(v: string | undefined) =>
+            update_select("bold_style", v)}
+          disabled={locked}
         >
+          <Select.Trigger class="w-32">
+            <span data-slot="select-value">
+              {bold_style_options.find(
+                (o) => o.value === active_theme.bold_style,
+              )?.label}
+            </span>
+          </Select.Trigger>
+          <Select.Content>
+            {#each bold_style_options as option (option.value)}
+              <Select.Item value={option.value}>{option.label}</Select.Item>
+            {/each}
+          </Select.Content>
+        </Select.Root>
       </div>
-      <Slider.Root
-        type="single"
-        value={line_height}
-        onValueChange={(v: number) => update("line_height", v)}
-        min={1.35}
-        max={2.1}
-        step={0.05}
-        class="w-full"
-        disabled={locked}
-      />
-    </div>
 
-    <div class="ThemeSettings__row">
-      <span class="ThemeSettings__label">Content Spacing</span>
-      <Select.Root
-        type="single"
-        value={active_theme.spacing}
-        onValueChange={(v: string | undefined) => update_select("spacing", v)}
-        disabled={locked}
-      >
-        <Select.Trigger class="w-32">
-          <span data-slot="select-value">
-            {spacing_options.find((o) => o.value === active_theme.spacing)
-              ?.label}
-          </span>
-        </Select.Trigger>
-        <Select.Content>
-          {#each spacing_options as option (option.value)}
-            <Select.Item value={option.value}>{option.label}</Select.Item>
-          {/each}
-        </Select.Content>
-      </Select.Root>
-    </div>
-
-    {@render color_field(
-      "Body Text",
-      "editor_text_color",
-      active_theme.editor_text_color,
-    )}
-    {@render color_field("Links", "link_color", active_theme.link_color)}
-  </div>
-
-  <!-- ═══ Headings ═══ -->
-  <div class="ThemeSettings__section-header">Headings</div>
-
-  <div class="ThemeSettings__section-content">
-    <div class="ThemeSettings__row">
-      <span class="ThemeSettings__label">Color</span>
-      <Select.Root
-        type="single"
-        value={active_theme.heading_color}
-        onValueChange={(v: string | undefined) =>
-          update_select("heading_color", v)}
-        disabled={locked}
-      >
-        <Select.Trigger class="w-28">
-          <span data-slot="select-value">
-            {heading_color_options.find(
-              (o) => o.value === active_theme.heading_color,
-            )?.label}
-          </span>
-        </Select.Trigger>
-        <Select.Content>
-          {#each heading_color_options as option (option.value)}
-            <Select.Item value={option.value}>{option.label}</Select.Item>
-          {/each}
-        </Select.Content>
-      </Select.Root>
-    </div>
-
-    <div class="ThemeSettings__row--stacked">
-      <div class="flex items-center justify-between">
-        <span class="ThemeSettings__label">Weight</span>
-        <span class="ThemeSettings__badge"
-          >{active_theme.heading_font_weight}</span
+      <div class="ThemeSettings__row">
+        <span class="ThemeSettings__label">Blockquote</span>
+        <Select.Root
+          type="single"
+          value={active_theme.blockquote_style}
+          onValueChange={(v: string | undefined) =>
+            update_select("blockquote_style", v)}
+          disabled={locked}
         >
+          <Select.Trigger class="w-32">
+            <span data-slot="select-value">
+              {blockquote_style_options.find(
+                (o) => o.value === active_theme.blockquote_style,
+              )?.label}
+            </span>
+          </Select.Trigger>
+          <Select.Content>
+            {#each blockquote_style_options as option (option.value)}
+              <Select.Item value={option.value}>{option.label}</Select.Item>
+            {/each}
+          </Select.Content>
+        </Select.Root>
       </div>
-      <Slider.Root
-        type="single"
-        value={heading_font_weight}
-        onValueChange={(v: number) =>
-          update("heading_font_weight", Math.round(v / 100) * 100)}
-        min={300}
-        max={700}
-        step={100}
-        class="w-full"
-        disabled={locked}
+
+      <div class="ThemeSettings__row">
+        <span class="ThemeSettings__label">Code Blocks</span>
+        <Select.Root
+          type="single"
+          value={active_theme.code_block_style}
+          onValueChange={(v: string | undefined) =>
+            update_select("code_block_style", v)}
+          disabled={locked}
+        >
+          <Select.Trigger class="w-32">
+            <span data-slot="select-value">
+              {code_block_style_options.find(
+                (o) => o.value === active_theme.code_block_style,
+              )?.label}
+            </span>
+          </Select.Trigger>
+          <Select.Content>
+            {#each code_block_style_options as option (option.value)}
+              <Select.Item value={option.value}>{option.label}</Select.Item>
+            {/each}
+          </Select.Content>
+        </Select.Root>
+      </div>
+
+      <!-- Advanced Toggle -->
+      <button
+        type="button"
+        class="ThemeSettings__advanced-toggle"
+        onclick={() => {
+          show_advanced = !show_advanced;
+        }}
+      >
+        <ChevronDown
+          class="ThemeSettings__chevron {show_advanced
+            ? 'ThemeSettings__chevron--open'
+            : ''}"
+        />
+        Advanced
+      </button>
+
+      {#if show_advanced}
+        <AdvancedPanel
+          theme={active_theme}
+          disabled={locked}
+          on_update={(t) => on_update(t)}
+          on_reset_color={(key) => update(key, null as never)}
+          on_import={handle_import}
+        />
+      {/if}
+    </div>
+
+    <!-- Preview Column -->
+    <div class="ThemeSettings__preview">
+      <ThemePreview
+        interactive={!locked}
+        on_element_click={handle_element_click}
+      />
+      {#if !locked}
+        <span class="ThemeSettings__preview-hint"
+          >Click elements to customize colors</span
+        >
+      {/if}
+    </div>
+  </div>
+
+  <!-- Color Popover (inline below preview) -->
+  {#if popover_role}
+    <div class="ThemeSettings__popover-overlay">
+      <ColorPopover
+        role_label={ROLE_LABELS[popover_role] ?? popover_role}
+        color={popover_color}
+        on_change={handle_popover_change}
+        on_reset={handle_popover_reset}
+        on_close={() => {
+          popover_role = null;
+          popover_anchor = null;
+        }}
       />
     </div>
-  </div>
-
-  <!-- ═══ Bold & Italic ═══ -->
-  <div class="ThemeSettings__section-header">Bold & Italic</div>
-
-  <div class="ThemeSettings__section-content">
-    <div class="ThemeSettings__row">
-      <span class="ThemeSettings__label">Bold Style</span>
-      <Select.Root
-        type="single"
-        value={active_theme.bold_style}
-        onValueChange={(v: string | undefined) =>
-          update_select("bold_style", v)}
-        disabled={locked}
-      >
-        <Select.Trigger class="w-40">
-          <span data-slot="select-value">
-            {bold_style_options.find((o) => o.value === active_theme.bold_style)
-              ?.label}
-          </span>
-        </Select.Trigger>
-        <Select.Content>
-          {#each bold_style_options as option (option.value)}
-            <Select.Item value={option.value}>{option.label}</Select.Item>
-          {/each}
-        </Select.Content>
-      </Select.Root>
-    </div>
-
-    {@render color_field("Bold Color", "bold_color", active_theme.bold_color)}
-    {@render color_field(
-      "Italic Color",
-      "italic_color",
-      active_theme.italic_color,
-    )}
-  </div>
-
-  <!-- ═══ Blockquotes ═══ -->
-  <div class="ThemeSettings__section-header">Blockquotes</div>
-
-  <div class="ThemeSettings__section-content">
-    <div class="ThemeSettings__row">
-      <span class="ThemeSettings__label">Style</span>
-      <Select.Root
-        type="single"
-        value={active_theme.blockquote_style}
-        onValueChange={(v: string | undefined) =>
-          update_select("blockquote_style", v)}
-        disabled={locked}
-      >
-        <Select.Trigger class="w-40">
-          <span data-slot="select-value">
-            {blockquote_style_options.find(
-              (o) => o.value === active_theme.blockquote_style,
-            )?.label}
-          </span>
-        </Select.Trigger>
-        <Select.Content>
-          {#each blockquote_style_options as option (option.value)}
-            <Select.Item value={option.value}>{option.label}</Select.Item>
-          {/each}
-        </Select.Content>
-      </Select.Root>
-    </div>
-
-    {@render color_field(
-      "Border",
-      "blockquote_border_color",
-      active_theme.blockquote_border_color,
-    )}
-    {@render color_field(
-      "Text",
-      "blockquote_text_color",
-      active_theme.blockquote_text_color,
-    )}
-  </div>
-
-  <!-- ═══ Inline Code ═══ -->
-  <div class="ThemeSettings__section-header">Inline Code</div>
-
-  <div class="ThemeSettings__section-content">
-    {@render color_field(
-      "Background",
-      "inline_code_bg",
-      active_theme.inline_code_bg,
-    )}
-    {@render color_field(
-      "Text",
-      "inline_code_text_color",
-      active_theme.inline_code_text_color,
-    )}
-  </div>
-
-  <!-- ═══ Code Blocks ═══ -->
-  <div class="ThemeSettings__section-header">Code Blocks</div>
-
-  <div class="ThemeSettings__section-content">
-    <div class="ThemeSettings__row">
-      <span class="ThemeSettings__label">Style</span>
-      <Select.Root
-        type="single"
-        value={active_theme.code_block_style}
-        onValueChange={(v: string | undefined) =>
-          update_select("code_block_style", v)}
-        disabled={locked}
-      >
-        <Select.Trigger class="w-40">
-          <span data-slot="select-value">
-            {code_block_style_options.find(
-              (o) => o.value === active_theme.code_block_style,
-            )?.label}
-          </span>
-        </Select.Trigger>
-        <Select.Content>
-          {#each code_block_style_options as option (option.value)}
-            <Select.Item value={option.value}>{option.label}</Select.Item>
-          {/each}
-        </Select.Content>
-      </Select.Root>
-    </div>
-
-    {@render color_field(
-      "Background",
-      "code_block_bg",
-      active_theme.code_block_bg,
-    )}
-    {@render color_field(
-      "Text",
-      "code_block_text_color",
-      active_theme.code_block_text_color,
-    )}
-  </div>
-
-  <!-- ═══ Highlights ═══ -->
-  <div class="ThemeSettings__section-header">Highlights</div>
-
-  <div class="ThemeSettings__section-content">
-    {@render color_field(
-      "Background",
-      "highlight_bg",
-      active_theme.highlight_bg,
-    )}
-    {@render color_field(
-      "Text",
-      "highlight_text_color",
-      active_theme.highlight_text_color,
-    )}
-  </div>
+  {/if}
 </div>
 
 <style>
   .ThemeSettings {
     display: flex;
     flex-direction: column;
-  }
-
-  .ThemeSettings__profile-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    margin-bottom: var(--space-5);
-  }
-
-  :global(.ThemeSettings__theme-select) {
-    min-width: 10rem;
-  }
-
-  .ThemeSettings__profile-actions {
-    display: flex;
-    gap: var(--space-1);
+    gap: var(--space-4);
   }
 
   .ThemeSettings__create-row {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    margin-bottom: var(--space-5);
+  }
+
+  .ThemeSettings__actions-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .ThemeSettings__theme-name {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--foreground);
+  }
+
+  .ThemeSettings__action-buttons {
+    display: flex;
+    gap: var(--space-1);
+  }
+
+  .ThemeSettings__hint {
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    font-style: italic;
+    padding: var(--space-2) var(--space-3);
+    background: var(--muted);
+    border-radius: var(--radius-md);
+  }
+
+  .ThemeSettings__body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-5);
+    align-items: start;
+  }
+
+  @media (max-width: 640px) {
+    .ThemeSettings__body {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .ThemeSettings__controls {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .ThemeSettings__preview {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    position: sticky;
+    top: var(--space-4);
+  }
+
+  .ThemeSettings__preview-hint {
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    text-align: center;
   }
 
   .ThemeSettings__section-header {
@@ -723,18 +520,6 @@
     color: var(--muted-foreground);
     padding-bottom: var(--space-2);
     border-bottom: 1px solid var(--border);
-    margin-top: var(--space-6);
-    margin-bottom: var(--space-4);
-  }
-
-  .ThemeSettings__section-header:first-of-type {
-    margin-top: var(--space-4);
-  }
-
-  .ThemeSettings__section-content {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-5);
   }
 
   .ThemeSettings__row {
@@ -744,12 +529,6 @@
     gap: var(--space-4);
   }
 
-  .ThemeSettings__row--stacked {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-  }
-
   .ThemeSettings__label {
     font-size: var(--text-sm);
     font-weight: 500;
@@ -757,172 +536,38 @@
     white-space: nowrap;
   }
 
-  .ThemeSettings__badge {
-    font-size: var(--text-xs);
-    font-family: var(--font-mono, ui-monospace, monospace);
-    color: var(--muted-foreground);
-    background-color: var(--muted);
-    padding: var(--space-0-5) var(--space-2);
-    border-radius: var(--radius-sm);
-  }
-
-  .ThemeSettings__color-dot {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    border: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-
-  .ThemeSettings__hint {
-    font-size: var(--text-xs);
-    color: var(--muted-foreground);
-    font-style: italic;
-    padding: var(--space-2) var(--space-3);
-    background: var(--muted);
-    border-radius: var(--radius-md);
-    margin-bottom: var(--space-2);
-  }
-
-  /* ─── Color Field ─── */
-
-  .ColorField {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-  }
-
-  .ColorField__header {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--space-4);
-  }
-
-  .ColorField__header-left {
+  .ThemeSettings__advanced-toggle {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    flex: 1;
-    min-width: 0;
-  }
-
-  .ColorField__header-right {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1-5);
-    flex-shrink: 0;
-  }
-
-  .ColorField__label {
     font-size: var(--text-sm);
     font-weight: 500;
+    color: var(--muted-foreground);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: var(--space-2) 0;
+    transition: color 100ms ease;
+  }
+
+  .ThemeSettings__advanced-toggle:hover {
     color: var(--foreground);
   }
 
-  .ColorField__reset {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  :global(.ThemeSettings__chevron) {
     width: 16px;
     height: 16px;
-    border-radius: var(--radius-sm);
-    color: var(--muted-foreground);
-    opacity: 0.5;
-    transition: all var(--duration-fast) var(--ease-default);
+    transition: transform 150ms ease;
   }
 
-  .ColorField__reset:hover:not(:disabled) {
-    opacity: 1;
-    color: var(--destructive);
+  :global(.ThemeSettings__chevron--open) {
+    transform: rotate(180deg);
   }
 
-  :global(.ColorField__reset svg) {
-    width: 11px;
-    height: 11px;
-  }
-
-  .ColorField__body {
-    display: flex;
-    align-items: center;
-    gap: var(--space-4);
-  }
-
-  .ColorField__swatches {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-    flex: 1;
-    min-width: 0;
-    align-content: flex-start;
-  }
-
-  .ColorField__swatch {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    border: 2px solid transparent;
-    cursor: pointer;
-    transition: all var(--duration-fast) var(--ease-default);
-    flex-shrink: 0;
-  }
-
-  .ColorField__swatch:hover:not(:disabled) {
-    border-color: var(--muted-foreground);
-    transform: scale(1.15);
-  }
-
-  .ColorField__swatch--active {
-    border-color: var(--interactive);
-    box-shadow: 0 0 0 1px var(--interactive);
-  }
-
-  .ColorField__swatch:disabled {
-    opacity: 0.3;
-    cursor: default;
-  }
-
-  .ColorField__hsl {
-    display: flex;
-    align-items: center;
-    gap: var(--space-1-5);
-    flex-shrink: 0;
-  }
-
-  .ColorField__preview {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    border: 2px solid var(--border);
-    flex-shrink: 0;
-  }
-
-  .ColorField__channel-label {
-    font-size: 9px;
-    font-weight: 600;
-    color: var(--muted-foreground);
-    text-transform: uppercase;
-    line-height: 1;
-    width: 2.75rem;
-    text-align: center;
-  }
-
-  .ColorField__channel-label--pad {
-    width: 20px;
-  }
-
-  :global(.ColorField__channel-input) {
-    width: 2.75rem !important;
-    height: 20px !important;
-    font-size: var(--text-xs) !important;
-    font-family: var(--font-mono, ui-monospace, monospace) !important;
-    text-align: center !important;
-    padding: 0 var(--space-1) !important;
-  }
-
-  :global(.ColorField__channel-input::-webkit-inner-spin-button),
-  :global(.ColorField__channel-input::-webkit-outer-spin-button) {
-    -webkit-appearance: none;
-    margin: 0;
+  .ThemeSettings__popover-overlay {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 0.5rem);
+    box-shadow: var(--shadow-lg, 0 10px 30px oklch(0 0 0 / 15%));
   }
 </style>

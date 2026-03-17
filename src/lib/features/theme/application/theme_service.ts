@@ -70,7 +70,14 @@ export class ThemeService {
 
 function parse_stored_themes(raw: unknown): Theme[] {
   if (!raw || !Array.isArray(raw)) return [];
-  return raw.filter(is_theme_record);
+  return raw.filter(is_theme_record).map(migrate_theme);
+}
+
+function migrate_theme(theme: Theme): Theme {
+  if (typeof theme.auto_palette !== "boolean") {
+    return { ...theme, auto_palette: false };
+  }
+  return theme;
 }
 
 function is_theme_record(entry: unknown): entry is Theme {
