@@ -27,6 +27,7 @@ import { create_dirty_state_prose_plugin } from "./dirty_state_plugin";
 import { dirty_state_plugin_key } from "./dirty_state_plugin";
 import { create_markdown_link_input_rule_prose_plugin } from "./markdown_link_input_rule";
 import { create_image_input_rule_prose_plugin } from "./image_input_rule_plugin";
+import { create_block_input_rules_prose_plugin } from "./block_input_rules_plugin";
 import { create_task_keymap_prose_plugin } from "./task_keymap_plugin";
 import { create_markdown_paste_prose_plugin } from "./markdown_paste_plugin";
 import { create_image_paste_prose_plugin } from "./image_paste_plugin";
@@ -410,6 +411,8 @@ export function create_prosemirror_editor_port(args?: {
           "Mod-Shift-z": redo,
         }),
       );
+      plugins.push((create_slash_command_prose_plugin as () => Plugin)());
+      plugins.push((create_date_suggest_prose_plugin as () => Plugin)());
       plugins.push(keymap(baseKeymap));
       plugins.push(history());
       plugins.push(dropCursor());
@@ -433,7 +436,6 @@ export function create_prosemirror_editor_port(args?: {
       );
       plugins.push(create_emoji_prose_plugin());
       plugins.push(create_typography_prose_plugin());
-      plugins.push((create_date_suggest_prose_plugin as () => Plugin)());
       const link_mark_type = schema.marks["link"];
       if (link_mark_type) {
         plugins.push(create_link_tooltip_prose_plugin(link_mark_type));
@@ -445,6 +447,7 @@ export function create_prosemirror_editor_port(args?: {
       }
       plugins.push(create_task_keymap_prose_plugin());
       plugins.push(create_image_input_rule_prose_plugin());
+      plugins.push(create_block_input_rules_prose_plugin());
       plugins.push(
         create_editor_context_plugin_instance({
           note_path: current_note_path,
@@ -457,7 +460,6 @@ export function create_prosemirror_editor_port(args?: {
           }),
         );
       }
-      plugins.push((create_slash_command_prose_plugin as () => Plugin)());
       plugins.push(create_find_highlight_prose_plugin());
       plugins.push(create_outline_prose_plugin());
       plugins.push(create_shiki_prose_plugin());
