@@ -8,8 +8,6 @@
 Users want common character sequences to auto-convert to their typographic equivalents while typing:
 - `-->` → `→`, `<--` → `←`, `<->` → `↔`
 - `==>` → `⇒`, `<==` → `⇐`, `<=>` → `⇔`
-- `---` → `—` (em dash)
-- `...` → `…` (ellipsis)
 
 ## Design Decisions
 
@@ -20,13 +18,13 @@ Used the same `handleTextInput` prop pattern as `emoji_plugin.ts` rather than Pr
 2. Natural code block / math block exclusion via parent node type check
 3. Consistent with existing codebase conventions
 
-### Em dash uses `---` not `--`
+### Dropped em dash and ellipsis
 
-Using three hyphens avoids a conflict with `-->` arrow substitution. If `--` triggered em dash, typing `-->` would first convert `--` to `—` before the `>` arrives, breaking the arrow pattern. Three hyphens is also the standard Markdown convention for horizontal rules and is used by many editors (iA Writer, Typora) for em dash.
+`---` conflicts with Markdown horizontal rules/thematic breaks. `...` is ambiguous in prose. Both removed to avoid surprising substitutions in a Markdown editor.
 
 ### Dropped `!=`, `>=`, `<=` operators
 
-These conflict with double-arrow patterns (`<==`, `<=>`) and are extremely common in code/math contexts where substitution would be unwanted. The code block exclusion helps but inline code references in prose would still be affected.
+These conflict with double-arrow patterns (`<==`, `<=>`) and are extremely common in code/math contexts where substitution would be unwanted.
 
 ## Implementation
 

@@ -69,7 +69,7 @@
 **Symptom:** User wants `->` to auto-convert to `→`, `--` to `—`, etc.
 **Status:** Not tracked. Small editor polish item.
 **Action:** ProseMirror `inputRules` — a handful of regex rules. Small, self-contained. Could be a quick win or a demo plugin for the plugin system (Phase 8).
-**Resolution:** Implemented via `handleTextInput` plugin (same pattern as emoji plugin). Supports 8 substitutions: arrows (`-->` → `→`, `<--` → `←`, `<->` → `↔`, `==>` → `⇒`, `<==` → `⇐`, `<=>` → `⇔`), em dash (`---` → `—`), and ellipsis (`...` → `…`). Skips code blocks and math blocks. Used `---` for em dash (not `--`) to avoid conflict with `-->` arrow. See `carbide/sprints/2026-03-16_typographic_substitution.md` for details.
+**Resolution:** Implemented via `handleTextInput` plugin (same pattern as emoji plugin). Supports 6 arrow substitutions: `-->` → `→`, `<--` → `←`, `<->` → `↔`, `==>` → `⇒`, `<==` → `⇐`, `<=>` → `⇔`. Skips code blocks and math blocks. Em dash (`---`) and ellipsis (`...`) intentionally excluded — they conflict with Markdown syntax (thematic breaks) and are ambiguous in prose. See `carbide/sprints/2026-03-16_typographic_substitution.md` for details.
 
 ### 10. Configurable default note naming (`{YYYY-MM-DD-HHMM}` vs `Untitled`) — NOT STARTED
 
