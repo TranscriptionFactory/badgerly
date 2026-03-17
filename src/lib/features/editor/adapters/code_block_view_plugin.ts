@@ -1,9 +1,10 @@
-import { Plugin, PluginKey } from "prosemirror-state";
+import { Plugin, PluginKey, TextSelection } from "prosemirror-state";
 import type { Node as ProseNode } from "prosemirror-model";
 import type { EditorView, NodeView } from "prosemirror-view";
 import { Check, Copy } from "lucide-static";
 import { find_language_label, search_languages } from "./language_registry";
 import { LruCache } from "$lib/shared/utils/lru_cache";
+import { schema } from "./schema";
 
 const mermaid_svg_cache = new LruCache<string, string>(128);
 
@@ -252,6 +253,12 @@ class CodeBlockView implements NodeView {
     if (this.current_language === "mermaid") {
       this.setup_mermaid(pre);
     }
+
+    this.dom.addEventListener("keydown", (e) => {
+      if (this.handle_keydown(e)) {
+        e.stopPropagation();
+      }
+    });
   }
 
   private setup_mermaid(pre: HTMLElement) {
@@ -308,6 +315,69 @@ class CodeBlockView implements NodeView {
     }, 150);
   }
 
+  private teardown_mermaid() {
+    if (!this.mermaid) return;
+    clearTimeout(this.mermaid.render_timer);
+    this.mermaid.preview_container.remove();
+    this.mermaid.toggle_btn.remove();
+    this.mermaid = null;
+    const pre = this.dom.querySelector("pre");
+    if (pre) pre.style.display = "";
+  }
+
+  private handle_keydown(event: KeyboardEvent): boolean {
+    const pos = this.get_pos();
+    if (pos === undefined) return false;
+
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      this.exit_code_block(pos, "after");
+      return true;
+    }
+
+    if (event.key === "ArrowDown") {
+      const { to } = this.view.state.selection;
+      const code_block_end = pos + this.node.nodeSize - 1;
+      if (to === code_block_end) {
+        const doc_size = this.view.state.doc.content.size;
+        if (code_block_end >= doc_size - 1) {
+          event.preventDefault();
+          this.exit_code_block(pos, "after");
+          return true;
+        }
+      }
+    }
+
+    if (event.key === "ArrowUp") {
+      const { from } = this.view.state.selection;
+      const code_block_start = pos + 1;
+      if (from === code_block_start && pos === 0) {
+        event.preventDefault();
+        this.exit_code_block(pos, "before");
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private exit_code_block(pos: number, direction: "before" | "after") {
+    const tr = this.view.state.tr;
+    const para = schema.nodes.paragraph.create();
+
+    if (direction === "after") {
+      const insert_pos = pos + this.node.nodeSize;
+      tr.insert(insert_pos, para);
+      tr.setSelection(TextSelection.create(tr.doc, insert_pos + 1));
+    } else {
+      tr.insert(pos, para);
+      tr.setSelection(TextSelection.create(tr.doc, pos + 1));
+    }
+
+    this.view.dispatch(tr);
+    this.view.focus();
+  }
+
   private toggle_picker() {
     if (this.picker_el) {
       this.dismiss_picker();
@@ -355,6 +425,15 @@ class CodeBlockView implements NodeView {
     if (updated.type.name !== "code_block") return false;
 
     const new_lang = (updated.attrs.language as string) ?? "";
+    const old_lang = this.current_language;
+
+    if (new_lang === "mermaid" && old_lang !== "mermaid") {
+      const pre = this.dom.querySelector("pre");
+      if (pre) this.setup_mermaid(pre);
+    } else if (new_lang !== "mermaid" && old_lang === "mermaid") {
+      this.teardown_mermaid();
+    }
+
     if (new_lang !== this.current_language) {
       this.current_language = new_lang;
       this.contentDOM.className = new_lang

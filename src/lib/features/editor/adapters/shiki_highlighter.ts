@@ -30,6 +30,7 @@ import langSwift from "shiki/dist/langs/swift.mjs";
 import langToml from "shiki/dist/langs/toml.mjs";
 import langTsx from "shiki/dist/langs/tsx.mjs";
 import langTypescript from "shiki/dist/langs/typescript.mjs";
+import langMermaid from "shiki/dist/langs/mermaid.mjs";
 import langXml from "shiki/dist/langs/xml.mjs";
 import langYaml from "shiki/dist/langs/yaml.mjs";
 
@@ -54,6 +55,7 @@ const BUNDLED_LANGS = [
   langKotlin,
   langLua,
   langMarkdown,
+  langMermaid,
   langPhp,
   langPython,
   langRuby,
