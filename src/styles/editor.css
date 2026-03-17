@@ -357,58 +357,42 @@
    TASK LIST / CHECKBOXES
    ============================================ */
 
-.milkdown-list-item-block > .list-item > .label-wrapper .label.unchecked,
-.milkdown-list-item-block > .list-item > .label-wrapper .label.checked {
-  cursor: pointer;
+li[data-item-type="task"] {
+  list-style: none;
   position: relative;
+  padding-left: calc(var(--editor-checkbox-size) + 0.5rem);
 }
 
-.milkdown-list-item-block
-  > .list-item
-  > .label-wrapper
-  .label.unchecked::before {
+li[data-item-type="task"]::before {
   content: "";
+  position: absolute;
+  left: 0;
+  top: calc((1.75em - var(--editor-checkbox-size)) / 2);
   width: var(--editor-checkbox-size);
   height: var(--editor-checkbox-size);
   border-radius: 3px;
   background-color: transparent;
   border: 1.5px solid var(--border-strong);
   transition: all 0.15s ease;
+  cursor: pointer;
 }
 
-.milkdown-list-item-block
-  > .list-item
-  > .label-wrapper
-  .label.unchecked:hover::before {
+li[data-item-type="task"]:hover::before {
   border-color: var(--primary);
   background-color: color-mix(in oklch, var(--primary) 10%, transparent);
 }
 
-.milkdown-list-item-block > .list-item > .label-wrapper .label.checked::before {
-  content: "";
-  width: var(--editor-checkbox-size);
-  height: var(--editor-checkbox-size);
-  border-radius: 3px;
+li[data-item-type="task"][data-checked="true"]::before {
   background-color: var(--primary);
-  border: 1.5px solid var(--primary);
-  transition: all 0.15s ease;
+  border-color: var(--primary);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 5l2.5 2.5 4.5-4.5' stroke='white' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 70%;
 }
 
-.milkdown-list-item-block > .list-item > .label-wrapper .label.checked::after {
-  content: "";
-  position: absolute;
-  width: var(--editor-checkmark-width);
-  height: var(--editor-checkmark-height);
-  border: solid var(--primary-foreground);
-  border-width: 0 var(--editor-checkmark-stroke) var(--editor-checkmark-stroke)
-    0;
-  transform: rotate(45deg);
-  margin-top: var(--editor-checkmark-offset);
-}
-
-.milkdown-list-item-block
-  > .list-item:has(> .label-wrapper .label.checked)
-  > .children {
+li[data-item-type="task"][data-checked="true"] > p,
+li[data-item-type="task"][data-checked="true"] {
   color: var(--editor-text-muted);
   text-decoration: line-through;
   text-decoration-color: color-mix(
@@ -418,22 +402,9 @@
   );
 }
 
-/* Child checkboxes inherit checked appearance from parent */
-.list-item:has(> .label-wrapper .label.checked) .label.unchecked::before {
-  background-color: var(--primary);
-  border-color: var(--primary);
-}
-
-.list-item:has(> .label-wrapper .label.checked) .label.unchecked::after {
-  content: "";
-  position: absolute;
-  width: var(--editor-checkmark-width);
-  height: var(--editor-checkmark-height);
-  border: solid var(--primary-foreground);
-  border-width: 0 var(--editor-checkmark-stroke) var(--editor-checkmark-stroke)
-    0;
-  transform: rotate(45deg);
-  margin-top: var(--editor-checkmark-offset);
+li[data-item-type="task"][data-checked="false"]::before {
+  background-color: transparent;
+  border-color: var(--border-strong);
 }
 
 /* ============================================
