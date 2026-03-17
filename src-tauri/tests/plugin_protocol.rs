@@ -13,20 +13,13 @@ fn now_ms() -> u128 {
 
 fn mk_temp_dir() -> PathBuf {
     let counter = TEST_DIR_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!(
-        "badgerly-plugin-test-{}-{}",
-        now_ms(),
-        counter
-    ));
+    let dir = std::env::temp_dir().join(format!("badgerly-plugin-test-{}-{}", now_ms(), counter));
     std::fs::create_dir_all(&dir).expect("temp dir should be created");
     dir
 }
 
 fn make_plugin_dir(vault_root: &std::path::Path, plugin_id: &str) -> PathBuf {
-    let dir = vault_root
-        .join(".carbide")
-        .join("plugins")
-        .join(plugin_id);
+    let dir = vault_root.join(".carbide").join("plugins").join(plugin_id);
     std::fs::create_dir_all(&dir).expect("plugin dir should be created");
     dir
 }
@@ -38,9 +31,13 @@ fn plugin_serves_file_within_plugin_dir() {
     std::fs::write(plugin_dir.join("index.html"), "<html></html>")
         .expect("index.html should be written");
 
-    let canonical_plugin = plugin_dir.canonicalize().expect("plugin dir should canonicalize");
+    let canonical_plugin = plugin_dir
+        .canonicalize()
+        .expect("plugin dir should canonicalize");
     let target = canonical_plugin.join("index.html");
-    let canonical_target = target.canonicalize().expect("index.html should canonicalize");
+    let canonical_target = target
+        .canonicalize()
+        .expect("index.html should canonicalize");
 
     assert!(canonical_target.starts_with(&canonical_plugin));
     assert!(canonical_target.exists());
@@ -55,9 +52,15 @@ fn plugin_rejects_path_traversal() {
     std::fs::write(outside.join("secret.txt"), "secret").expect("secret file should be written");
 
     let plugin_dir = make_plugin_dir(&vault, "bad-plugin");
-    let canonical_plugin = plugin_dir.canonicalize().expect("plugin dir should canonicalize");
+    let canonical_plugin = plugin_dir
+        .canonicalize()
+        .expect("plugin dir should canonicalize");
 
-    let traversal_path = canonical_plugin.join("..").join("..").join("..").join("secret.txt");
+    let traversal_path = canonical_plugin
+        .join("..")
+        .join("..")
+        .join("..")
+        .join("secret.txt");
     let resolved = traversal_path.canonicalize();
 
     if let Ok(resolved) = resolved {
@@ -75,7 +78,9 @@ fn plugin_rejects_path_traversal() {
 fn plugin_rejects_missing_file() {
     let vault = mk_temp_dir();
     let plugin_dir = make_plugin_dir(&vault, "empty-plugin");
-    let canonical_plugin = plugin_dir.canonicalize().expect("plugin dir should canonicalize");
+    let canonical_plugin = plugin_dir
+        .canonicalize()
+        .expect("plugin dir should canonicalize");
 
     let missing = canonical_plugin.join("nonexistent.js");
     assert!(!missing.exists());
@@ -86,34 +91,32 @@ fn plugin_rejects_missing_file() {
 #[test]
 fn plugin_url_decode_strips_vault_param() {
     let encoded = "vault=%2Fhome%2Fuser%2Fmy%20vault";
-    let vault_val = encoded
-        .split('&')
-        .find_map(|pair| {
-            let mut kv = pair.splitn(2, '=');
-            let key = kv.next()?;
-            if key == "vault" {
-                kv.next().map(|v| {
-                    let mut result = String::with_capacity(v.len());
-                    let mut chars = v.bytes();
-                    while let Some(b) = chars.next() {
-                        if b == b'%' {
-                            let hi = chars.next().and_then(|c| (c as char).to_digit(16));
-                            let lo = chars.next().and_then(|c| (c as char).to_digit(16));
-                            if let (Some(h), Some(l)) = (hi, lo) {
-                                result.push((h * 16 + l) as u8 as char);
-                            } else {
-                                result.push('%');
-                            }
+    let vault_val = encoded.split('&').find_map(|pair| {
+        let mut kv = pair.splitn(2, '=');
+        let key = kv.next()?;
+        if key == "vault" {
+            kv.next().map(|v| {
+                let mut result = String::with_capacity(v.len());
+                let mut chars = v.bytes();
+                while let Some(b) = chars.next() {
+                    if b == b'%' {
+                        let hi = chars.next().and_then(|c| (c as char).to_digit(16));
+                        let lo = chars.next().and_then(|c| (c as char).to_digit(16));
+                        if let (Some(h), Some(l)) = (hi, lo) {
+                            result.push((h * 16 + l) as u8 as char);
                         } else {
-                            result.push(b as char);
+                            result.push('%');
                         }
+                    } else {
+                        result.push(b as char);
                     }
-                    result
-                })
-            } else {
-                None
-            }
-        });
+                }
+                result
+            })
+        } else {
+            None
+        }
+    });
 
     assert_eq!(vault_val.as_deref(), Some("/home/user/my vault"));
 }

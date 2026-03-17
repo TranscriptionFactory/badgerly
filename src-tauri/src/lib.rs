@@ -1,6 +1,6 @@
-mod app;
-mod features;
-mod shared;
+pub mod app;
+pub mod features;
+pub mod shared;
 
 #[cfg(test)]
 mod tests;

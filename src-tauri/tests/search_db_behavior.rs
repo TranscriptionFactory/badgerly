@@ -260,7 +260,8 @@ fn rebuild_resolves_batch_outlinks_before_yield() {
             if first_yield_checked {
                 return;
             }
-            let outlinks = get_outlinks(&conn, "notes/001-source.md").expect("outlinks should load");
+            let outlinks =
+                get_outlinks(&conn, "notes/001-source.md").expect("outlinks should load");
             assert_eq!(outlinks.len(), 1);
             assert_eq!(outlinks[0].path, "notes/000-target.md");
             first_yield_checked = true;
@@ -403,7 +404,12 @@ fn upsert_note_populates_note_links() {
         mtime_ms: 100,
         size_bytes: 100,
     };
-    upsert_note(&conn, &meta, "[[Other]] and [link](./local.md) and [ext](https://example.com)").expect("upsert");
+    upsert_note(
+        &conn,
+        &meta,
+        "[[Other]] and [link](./local.md) and [ext](https://example.com)",
+    )
+    .expect("upsert");
 
     let rows: Vec<(String, String, Option<String>, String)> = conn
         .prepare("SELECT source_path, target_path, link_text, link_type FROM note_links WHERE source_path = ?1 ORDER BY link_type")
@@ -451,10 +457,18 @@ fn remove_note_clears_headings_and_links() {
     remove_note(&conn, "test.md").expect("remove");
 
     let h_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM note_headings WHERE note_path = 'test.md'", [], |r| r.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM note_headings WHERE note_path = 'test.md'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     let l_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM note_links WHERE source_path = 'test.md'", [], |r| r.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM note_links WHERE source_path = 'test.md'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
 
     assert_eq!(h_count, 0);
@@ -480,13 +494,25 @@ fn rename_note_propagates_to_headings_and_links() {
     rename_note_path(&conn, "old.md", "new.md").expect("rename");
 
     let h_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM note_headings WHERE note_path = 'new.md'", [], |r| r.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM note_headings WHERE note_path = 'new.md'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     let l_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM note_links WHERE source_path = 'new.md'", [], |r| r.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM note_links WHERE source_path = 'new.md'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     let old_h: i64 = conn
-        .query_row("SELECT COUNT(*) FROM note_headings WHERE note_path = 'old.md'", [], |r| r.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM note_headings WHERE note_path = 'old.md'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
 
     assert_eq!(h_count, 1);

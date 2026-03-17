@@ -4,6 +4,7 @@ use crate::shared::io_utils;
 use crate::shared::storage;
 use crate::shared::vault_ignore;
 use serde::{Deserialize, Serialize};
+use specta::Type;
 use std::collections::{HashMap, HashSet};
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write as IoWrite};
@@ -23,7 +24,7 @@ fn is_viewable_extension(ext: &str) -> bool {
     VIEWABLE_EXTENSIONS.contains(&ext.to_lowercase().as_str())
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Type)]
 pub struct NoteMeta {
     pub id: String,
     pub path: String,
@@ -33,7 +34,7 @@ pub struct NoteMeta {
     pub size_bytes: i64,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Type)]
 pub struct FileMeta {
     pub path: String,
     pub name: String,
@@ -42,13 +43,13 @@ pub struct FileMeta {
     pub mtime_ms: i64,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Type)]
 pub struct NoteDoc {
     pub meta: NoteMeta,
     pub markdown: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Type)]
 pub struct NoteWriteArgs {
     pub vault_id: String,
     pub note_id: String,
@@ -255,6 +256,7 @@ fn build_note_meta(root: &Path, rel_path: &str) -> Result<NoteMeta, String> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn list_notes(app: AppHandle, vault_id: String) -> Result<Vec<NoteMeta>, String> {
     log::info!("Listing notes vault_id={}", vault_id);
     let root = storage::vault_path(&app, &vault_id).map_err(|e| {
@@ -292,6 +294,7 @@ pub fn list_notes(app: AppHandle, vault_id: String) -> Result<Vec<NoteMeta>, Str
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn read_note(
     app: AppHandle,
     vault_id: String,
@@ -315,6 +318,7 @@ pub fn read_note(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn write_note(
     args: NoteWriteArgs,
     app: AppHandle,
@@ -362,7 +366,7 @@ pub fn write_note(
     Ok(new_mtime)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Type)]
 pub struct NoteCreateArgs {
     pub vault_id: String,
     pub note_path: String,
@@ -370,6 +374,7 @@ pub struct NoteCreateArgs {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn create_note(args: NoteCreateArgs, app: AppHandle) -> Result<NoteMeta, String> {
     log::info!(
         "Creating note vault_id={} note_path={}",
@@ -398,7 +403,7 @@ pub fn create_note(args: NoteCreateArgs, app: AppHandle) -> Result<NoteMeta, Str
     Ok(note)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Type)]
 pub struct WriteImageAssetArgs {
     pub vault_id: String,
     pub note_path: String,
@@ -454,6 +459,7 @@ fn sanitize_stem(value: &str) -> String {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn write_image_asset(args: WriteImageAssetArgs, app: AppHandle) -> Result<String, String> {
     log::debug!(
         "Writing image asset vault_id={} note_path={}",
@@ -518,7 +524,7 @@ pub fn write_image_asset(args: WriteImageAssetArgs, app: AppHandle) -> Result<St
     Ok(rel)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Type)]
 pub struct NoteRenameArgs {
     pub vault_id: String,
     pub from: String,
@@ -565,6 +571,7 @@ pub(crate) fn rename_with_temp_path(from_abs: &Path, to_abs: &Path) -> Result<()
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn rename_note(args: NoteRenameArgs, app: AppHandle) -> Result<(), String> {
     log::info!(
         "Renaming note vault_id={} from={} to={}",
@@ -594,7 +601,7 @@ pub fn rename_note(args: NoteRenameArgs, app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Type)]
 pub struct NoteDeleteArgs {
     pub vault_id: String,
     pub note_id: String,
@@ -749,7 +756,7 @@ pub(crate) fn get_or_scan_folder_entries(
     Ok(items)
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Type)]
 pub struct FolderContents {
     pub notes: Vec<NoteMeta>,
     pub files: Vec<FileMeta>,
@@ -758,13 +765,14 @@ pub struct FolderContents {
     pub has_more: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Type)]
 pub struct FolderStats {
     pub note_count: usize,
     pub folder_count: usize,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn delete_note(args: NoteDeleteArgs, app: AppHandle) -> Result<(), String> {
     log::info!(
         "Deleting note vault_id={} note_id={}",
@@ -779,6 +787,7 @@ pub fn delete_note(args: NoteDeleteArgs, app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn list_folders(app: AppHandle, vault_id: String) -> Result<Vec<String>, String> {
     log::debug!("Listing folders vault_id={}", vault_id);
     let root = storage::vault_path(&app, &vault_id)?;
@@ -809,7 +818,7 @@ pub fn list_folders(app: AppHandle, vault_id: String) -> Result<Vec<String>, Str
     Ok(out)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Type)]
 pub struct FolderCreateArgs {
     pub vault_id: String,
     pub parent_path: String,
@@ -817,6 +826,7 @@ pub struct FolderCreateArgs {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn create_folder(args: FolderCreateArgs, app: AppHandle) -> Result<(), String> {
     log::debug!(
         "Creating folder vault_id={} parent_path={} folder_name={}",
@@ -839,20 +849,20 @@ pub fn create_folder(args: FolderCreateArgs, app: AppHandle) -> Result<(), Strin
     Ok(())
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Type)]
 pub struct FolderRenameArgs {
     pub vault_id: String,
     pub from_path: String,
     pub to_path: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Type)]
 pub struct MoveItem {
     pub path: String,
     pub is_folder: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Type)]
 pub struct MoveItemsArgs {
     pub vault_id: String,
     pub items: Vec<MoveItem>,
@@ -860,7 +870,7 @@ pub struct MoveItemsArgs {
     pub overwrite: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Type)]
 pub struct MoveItemResult {
     pub path: String,
     pub new_path: String,
@@ -1121,6 +1131,7 @@ fn execute_pending_moves(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn move_items(args: MoveItemsArgs, app: AppHandle) -> Result<Vec<MoveItemResult>, String> {
     log::info!(
         "Moving items vault_id={} target_folder={} item_count={}",
@@ -1145,6 +1156,7 @@ pub fn move_items(args: MoveItemsArgs, app: AppHandle) -> Result<Vec<MoveItemRes
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn rename_folder(args: FolderRenameArgs, app: AppHandle) -> Result<(), String> {
     log::debug!(
         "Renaming folder vault_id={} from_path={} to_path={}",
@@ -1174,13 +1186,14 @@ pub fn rename_folder(args: FolderRenameArgs, app: AppHandle) -> Result<(), Strin
     Ok(())
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Type)]
 pub struct FolderDeleteArgs {
     pub vault_id: String,
     pub folder_path: String,
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn delete_folder(args: FolderDeleteArgs, app: AppHandle) -> Result<(), String> {
     log::debug!(
         "Deleting folder vault_id={} folder_path={}",
@@ -1202,6 +1215,7 @@ pub fn delete_folder(args: FolderDeleteArgs, app: AppHandle) -> Result<(), Strin
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn list_folder_contents(
     app: AppHandle,
     vault_id: String,
@@ -1268,6 +1282,7 @@ pub fn list_folder_contents(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_folder_stats(
     app: AppHandle,
     vault_id: String,
@@ -1325,6 +1340,7 @@ pub fn get_folder_stats(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn read_vault_file(
     app: AppHandle,
     vault_id: String,
@@ -1342,6 +1358,7 @@ pub fn read_vault_file(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn write_vault_file(
     app: AppHandle,
     vault_id: String,

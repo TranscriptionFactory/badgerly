@@ -1,5 +1,4 @@
 import type { NotesPort } from "$lib/features/note/ports";
-import { tauri_invoke } from "$lib/shared/adapters/tauri_invoke";
 import type {
   MarkdownText,
   NoteId,
@@ -13,33 +12,62 @@ import type {
   MoveItem,
   MoveItemResult,
 } from "$lib/shared/types/filetree";
+import { commands } from "$lib/generated/bindings";
+import { is_tauri } from "$lib/shared/utils/detect_platform";
+
+function assert_tauri() {
+  if (!is_tauri) {
+    throw new Error("Tauri commands called in non-Tauri environment");
+  }
+}
+
+function unwrap_result<T>(
+  result: { status: "ok"; data: T } | { status: "error"; error: string },
+): T {
+  if (result.status === "ok") {
+    return result.data;
+  }
+  throw new Error(result.error);
+}
+
+function to_note_meta(meta: {
+  id: string;
+  path: string;
+  name: string;
+  title: string;
+  mtime_ms: number;
+  size_bytes: number;
+}): NoteMeta {
+  return {
+    id: meta.id as NoteId,
+    path: meta.path as NotePath,
+    name: meta.name,
+    title: meta.title,
+    mtime_ms: meta.mtime_ms,
+    size_bytes: meta.size_bytes,
+  };
+}
 
 export function create_notes_tauri_adapter(): NotesPort {
-  const invoke_notes = <Result>(
-    command: string,
-    payload: Record<string, unknown>,
-  ) => tauri_invoke<Result>(command, payload);
-  const invoke_notes_args = <Result>(
-    command: string,
-    args: Record<string, unknown>,
-  ) => tauri_invoke<Result>(command, { args });
-
   return {
     async list_notes(vault_id: VaultId) {
-      return await invoke_notes<NoteMeta[]>("list_notes", {
-        vaultId: vault_id,
-      });
+      assert_tauri();
+      const result = await commands.listNotes(vault_id);
+      return unwrap_result(result).map(to_note_meta);
     },
     async list_folders(vault_id: VaultId) {
-      return await invoke_notes<string[]>("list_folders", {
-        vaultId: vault_id,
-      });
+      assert_tauri();
+      const result = await commands.listFolders(vault_id);
+      return unwrap_result(result);
     },
     async read_note(vault_id: VaultId, note_id: NoteId) {
-      return await invoke_notes<NoteDoc>("read_note", {
-        vaultId: vault_id,
-        noteId: note_id,
-      });
+      assert_tauri();
+      const result = await commands.readNote(vault_id, note_id);
+      const doc = unwrap_result(result);
+      return {
+        meta: to_note_meta(doc.meta),
+        markdown: doc.markdown as MarkdownText,
+      };
     },
     async write_note(
       vault_id: VaultId,
@@ -47,47 +75,57 @@ export function create_notes_tauri_adapter(): NotesPort {
       markdown: MarkdownText,
       expected_mtime_ms?: number,
     ) {
-      return await invoke_notes_args<number>("write_note", {
+      assert_tauri();
+      const result = await commands.writeNote({
         vault_id,
         note_id,
         markdown,
         expected_mtime_ms: expected_mtime_ms ?? null,
       });
+      return unwrap_result(result);
     },
     async create_note(
       vault_id: VaultId,
       note_path: NotePath,
       initial_markdown: MarkdownText,
     ) {
-      return await invoke_notes_args<NoteMeta>("create_note", {
+      assert_tauri();
+      const result = await commands.createNote({
         vault_id,
         note_path,
         initial_markdown,
       });
+      return to_note_meta(unwrap_result(result));
     },
     async create_folder(
       vault_id: VaultId,
       parent_path: string,
       folder_name: string,
     ) {
-      await invoke_notes_args<undefined>("create_folder", {
+      assert_tauri();
+      const result = await commands.createFolder({
         vault_id,
         parent_path,
         folder_name,
       });
+      unwrap_result(result);
     },
     async rename_note(vault_id: VaultId, from: NotePath, to: NotePath) {
-      await invoke_notes_args<undefined>("rename_note", {
+      assert_tauri();
+      const result = await commands.renameNote({
         vault_id,
         from,
         to,
       });
+      unwrap_result(result);
     },
     async delete_note(vault_id: VaultId, note_id: NoteId) {
-      await invoke_notes_args<undefined>("delete_note", {
+      assert_tauri();
+      const result = await commands.deleteNote({
         vault_id,
         note_id,
       });
+      unwrap_result(result);
     },
     async list_folder_contents(
       vault_id: VaultId,
@@ -95,38 +133,46 @@ export function create_notes_tauri_adapter(): NotesPort {
       offset: number,
       limit: number,
     ): Promise<FolderContents> {
-      const contents = await invoke_notes<FolderContents>(
-        "list_folder_contents",
-        {
-          vaultId: vault_id,
-          folderPath: folder_path,
-          offset,
-          limit,
-        },
+      assert_tauri();
+      const result = await commands.listFolderContents(
+        vault_id,
+        folder_path,
+        offset,
+        limit,
       );
-      return { ...contents, files: contents.files ?? [] };
+      const contents = unwrap_result(result);
+      return {
+        notes: contents.notes.map(to_note_meta),
+        files: contents.files ?? [],
+        subfolders: contents.subfolders,
+        total_count: contents.total_count,
+        has_more: contents.has_more,
+      };
     },
     async rename_folder(vault_id: VaultId, from_path: string, to_path: string) {
-      await invoke_notes_args<undefined>("rename_folder", {
+      assert_tauri();
+      const result = await commands.renameFolder({
         vault_id,
         from_path,
         to_path,
       });
+      unwrap_result(result);
     },
     async delete_folder(vault_id: VaultId, folder_path: string) {
-      await invoke_notes_args<undefined>("delete_folder", {
+      assert_tauri();
+      const result = await commands.deleteFolder({
         vault_id,
         folder_path,
       });
+      unwrap_result(result);
     },
     async get_folder_stats(
       vault_id: VaultId,
       folder_path: string,
     ): Promise<FolderStats> {
-      return await invoke_notes<FolderStats>("get_folder_stats", {
-        vaultId: vault_id,
-        folderPath: folder_path,
-      });
+      assert_tauri();
+      const result = await commands.getFolderStats(vault_id, folder_path);
+      return unwrap_result(result);
     },
     async move_items(
       vault_id: VaultId,
@@ -134,12 +180,14 @@ export function create_notes_tauri_adapter(): NotesPort {
       target_folder: string,
       overwrite: boolean,
     ): Promise<MoveItemResult[]> {
-      return await invoke_notes_args<MoveItemResult[]>("move_items", {
+      assert_tauri();
+      const result = await commands.moveItems({
         vault_id,
         items,
         target_folder,
         overwrite,
       });
+      return unwrap_result(result);
     },
   };
 }
