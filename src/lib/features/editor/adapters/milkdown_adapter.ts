@@ -91,6 +91,7 @@ import { typography_plugin } from "./typography_plugin";
 import { mark_escape_plugin } from "./mark_escape_plugin";
 import { paired_delimiter_plugin } from "./paired_delimiter_plugin";
 import { slash_command_plugin } from "./slash_command_plugin";
+import { date_suggest_plugin } from "./date_suggest_plugin";
 import { outline_plugin, outline_plugin_key } from "./outline_plugin";
 import { create_file_drop_plugin } from "$lib/features/editor/domain/file_drop_plugin";
 import {
@@ -517,6 +518,7 @@ export function create_milkdown_editor_port(args?: {
         .use(image_width_plugin)
         .use(emoji_plugin)
         .use(typography_plugin)
+        .use(date_suggest_plugin)
         .use(indent)
         .use(create_link_tooltip_plugin())
         .use(listItemBlockComponent)
