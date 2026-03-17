@@ -222,6 +222,13 @@
 - [x] `bases_refresh.reactor` syncs on vault change
 - [ ] UI tests for table and list rendering (deferred — requires browser environment)
 
+### Phase 3C: Tags Sidebar Panel — COMPLETED
+
+- [x] Rust Tauri commands: `tags_list_all`, `tags_get_notes_for_tag` (query existing `note_tags` table)
+- [x] Frontend feature slice: port, adapter, store, service, actions
+- [x] Tags sidebar panel — browsable tag list with counts, search input, click-to-filter notes
+- [x] Tags button in activity bar; auto-refreshes on index-complete
+
 ### Testing — COMPLETED
 
 - [x] Frontmatter parsing tests (13 tests)
