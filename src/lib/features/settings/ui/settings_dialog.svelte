@@ -41,6 +41,7 @@
   import type { HotkeyConfig, HotkeyBinding } from "$lib/features/hotkey";
   import { slide } from "svelte/transition";
   import { draggable } from "$lib/shared/utils/draggable";
+  import { resizable_element } from "$lib/shared/utils/resizable_element";
 
   type Props = {
     open: boolean;
@@ -315,6 +316,10 @@
     if (!dialog_element) return;
     dialog_element.style.left = "";
     dialog_element.style.top = "";
+    dialog_element.style.width = "";
+    dialog_element.style.height = "";
+    dialog_element.style.maxWidth = "";
+    dialog_element.style.maxHeight = "";
     dialog_element.style.transform = "";
     dialog_element.style.translate = "";
     dialog_element.style.transition = "";
@@ -331,12 +336,19 @@
     if (!dialog_element) return;
 
     const element = dialog_element;
-    const action = draggable(element, {
+    const drag_action = draggable(element, {
       handle_selector: ".SettingsDialog__drag-handle",
+    });
+    const resize_action = resizable_element(element, {
+      min_width: 480,
+      min_height: 320,
+      max_width: window.innerWidth - 40,
+      max_height: window.innerHeight - 40,
     });
 
     return () => {
-      action.destroy();
+      drag_action.destroy();
+      resize_action.destroy();
     };
   });
 
