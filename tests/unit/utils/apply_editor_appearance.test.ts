@@ -143,6 +143,40 @@ describe("apply_editor_appearance", () => {
     expect(properties.get("--editor-link-underline-style")).toBe("solid");
   });
 
+  it("applies divider style properties for solid", () => {
+    apply_editor_appearance({
+      ...DEFAULT_EDITOR_SETTINGS,
+      editor_divider_style: "solid",
+    });
+
+    expect(properties.get("--editor-hr-background")).toBe("none");
+    expect(properties.get("--editor-hr-border-top")).toBe(
+      "1px solid var(--editor-hr-gradient-mid)",
+    );
+    expect(properties.get("--editor-hr-opacity")).toBe("0.7");
+  });
+
+  it("applies divider style properties for dashed", () => {
+    apply_editor_appearance({
+      ...DEFAULT_EDITOR_SETTINGS,
+      editor_divider_style: "dashed",
+    });
+
+    expect(properties.get("--editor-hr-border-top")).toBe(
+      "1px dashed var(--editor-hr-gradient-mid)",
+    );
+  });
+
+  it("applies gradient divider style by default", () => {
+    apply_editor_appearance(DEFAULT_EDITOR_SETTINGS);
+
+    expect(properties.get("--editor-hr-background")).toContain(
+      "linear-gradient",
+    );
+    expect(properties.get("--editor-hr-border-top")).toBe("none");
+    expect(properties.get("--editor-hr-opacity")).toBe("0.5");
+  });
+
   it("does not throw when document is undefined", () => {
     (globalThis as { document: Document | undefined }).document = undefined;
 

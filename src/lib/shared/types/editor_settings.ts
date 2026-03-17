@@ -27,6 +27,7 @@ export type EditorSpacingDensity =
   | "relaxed"
   | "spacious";
 export type EditorLinkUnderlineStyle = "solid" | "dotted" | "wavy";
+export type EditorDividerStyle = "gradient" | "solid" | "dashed" | "dotted";
 export type EditorCodeBlockPadding = EditorSpacingDensity;
 export type EditorCodeBlockRadius = "tight" | "normal" | "soft";
 export type EditorBlockquotePadding = EditorSpacingDensity;
@@ -55,6 +56,7 @@ export type EditorSettings = {
   editor_blockquote_padding: EditorBlockquotePadding;
   editor_blockquote_border_width: 2 | 3 | 4;
   editor_link_underline_style: EditorLinkUnderlineStyle;
+  editor_divider_style: EditorDividerStyle;
   terminal_shell_path: string;
   terminal_font_size_px: number;
   terminal_cursor_blink: boolean;
@@ -102,6 +104,7 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   editor_blockquote_padding: "normal",
   editor_blockquote_border_width: 2,
   editor_link_underline_style: "solid",
+  editor_divider_style: "gradient",
   terminal_shell_path: "/bin/zsh",
   terminal_font_size_px: 13,
   terminal_cursor_blink: true,
@@ -147,6 +150,7 @@ export const GLOBAL_ONLY_SETTING_KEYS: readonly (keyof EditorSettings)[] = [
   "editor_blockquote_padding",
   "editor_blockquote_border_width",
   "editor_link_underline_style",
+  "editor_divider_style",
   "terminal_shell_path",
   "terminal_font_size_px",
   "terminal_cursor_blink",

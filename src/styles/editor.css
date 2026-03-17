@@ -905,15 +905,19 @@
 .ProseMirror hr {
   border: none;
   height: 1px;
-  background: linear-gradient(
-    90deg,
-    var(--editor-hr-gradient-start),
-    var(--editor-hr-gradient-mid) 50%,
-    var(--editor-hr-gradient-end)
+  background: var(
+    --editor-hr-background,
+    linear-gradient(
+      90deg,
+      var(--editor-hr-gradient-start),
+      var(--editor-hr-gradient-mid) 50%,
+      var(--editor-hr-gradient-end)
+    )
   );
+  border-top: var(--editor-hr-border-top, none);
   margin-top: calc(var(--editor-spacing) * 2.5);
   margin-bottom: calc(var(--editor-spacing) * 2.5);
-  opacity: 0.5;
+  opacity: var(--editor-hr-opacity, 0.5);
 }
 
 /* ============================================

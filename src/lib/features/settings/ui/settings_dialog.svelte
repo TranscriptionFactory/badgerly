@@ -26,6 +26,7 @@
     EditorBlockquotePadding,
     EditorCodeBlockPadding,
     EditorCodeBlockRadius,
+    EditorDividerStyle,
     EditorLinkUnderlineStyle,
     EditorSpacingDensity,
     EditorSettings,
@@ -270,6 +271,16 @@
     { value: "solid", label: "Solid" },
     { value: "dotted", label: "Dotted" },
     { value: "wavy", label: "Wavy" },
+  ];
+
+  const divider_style_options: {
+    value: EditorDividerStyle;
+    label: string;
+  }[] = [
+    { value: "gradient", label: "Gradient" },
+    { value: "solid", label: "Solid" },
+    { value: "dashed", label: "Dashed" },
+    { value: "dotted", label: "Dotted" },
   ];
 
   function update<K extends keyof EditorSettings>(
@@ -1392,6 +1403,61 @@
                     disabled={editor_settings.editor_link_underline_style ===
                       DEFAULT_EDITOR_SETTINGS.editor_link_underline_style}
                     title="Reset to default (Solid)"
+                  >
+                    <RotateCcw />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-4 border-t pt-4">
+              <div
+                class="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+              >
+                Dividers
+              </div>
+
+              <div class="SettingsDialog__row">
+                <div class="SettingsDialog__label-group">
+                  <span class="SettingsDialog__label">Divider Style</span>
+                  <span class="SettingsDialog__description"
+                    >Choose how horizontal rules are displayed</span
+                  >
+                </div>
+                <div class="flex items-center gap-3">
+                  <Select.Root
+                    type="single"
+                    value={editor_settings.editor_divider_style}
+                    onValueChange={(v: string | undefined) => {
+                      if (v)
+                        update("editor_divider_style", v as EditorDividerStyle);
+                    }}
+                  >
+                    <Select.Trigger class="w-28">
+                      <span data-slot="select-value">
+                        {divider_style_options.find(
+                          (o) =>
+                            o.value === editor_settings.editor_divider_style,
+                        )?.label ?? "Gradient"}
+                      </span>
+                    </Select.Trigger>
+                    <Select.Content>
+                      {#each divider_style_options as opt (opt.value)}
+                        <Select.Item value={opt.value}>{opt.label}</Select.Item>
+                      {/each}
+                    </Select.Content>
+                  </Select.Root>
+                  <button
+                    type="button"
+                    class="SettingsDialog__reset"
+                    onclick={() =>
+                      update(
+                        "editor_divider_style",
+                        DEFAULT_EDITOR_SETTINGS.editor_divider_style,
+                      )}
+                    disabled={editor_settings.editor_divider_style ===
+                      DEFAULT_EDITOR_SETTINGS.editor_divider_style}
+                    title="Reset to default (Gradient)"
                   >
                     <RotateCcw />
                   </button>

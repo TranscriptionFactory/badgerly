@@ -222,6 +222,22 @@ export const SETTINGS_REGISTRY: SettingDefinition[] = [
     keywords: ["editor", "link", "underline", "style", "appearance"],
   },
   {
+    key: "editor_divider_style",
+    label: "Divider Style",
+    description: "Controls how horizontal rules are displayed in the editor",
+    category: "Layout",
+    keywords: [
+      "editor",
+      "divider",
+      "horizontal",
+      "rule",
+      "hr",
+      "separator",
+      "line",
+      "style",
+    ],
+  },
+  {
     key: "terminal_shell_path",
     label: "Shell Path",
     description: "Path to the shell executable used by the terminal",

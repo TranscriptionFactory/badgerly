@@ -1,4 +1,5 @@
 import type {
+  EditorDividerStyle,
   EditorSettings,
   EditorSpacingDensity,
 } from "$lib/shared/types/editor_settings";
@@ -63,6 +64,33 @@ const blockquote_padding_map = {
     x: "calc(var(--editor-spacing) * 1.4)",
   },
 } as const;
+
+const divider_style_map: Record<
+  EditorDividerStyle,
+  { background: string; border_top: string; opacity: string }
+> = {
+  gradient: {
+    background:
+      "linear-gradient(90deg, var(--editor-hr-gradient-start), var(--editor-hr-gradient-mid) 50%, var(--editor-hr-gradient-end))",
+    border_top: "none",
+    opacity: "0.5",
+  },
+  solid: {
+    background: "none",
+    border_top: "1px solid var(--editor-hr-gradient-mid)",
+    opacity: "0.7",
+  },
+  dashed: {
+    background: "none",
+    border_top: "1px dashed var(--editor-hr-gradient-mid)",
+    opacity: "0.7",
+  },
+  dotted: {
+    background: "none",
+    border_top: "1px dotted var(--editor-hr-gradient-mid)",
+    opacity: "0.7",
+  },
+};
 
 type HeadingMargins = { mt: string; mb: string };
 type HeadingLevel = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
@@ -210,6 +238,7 @@ export function apply_editor_appearance(settings: EditorSettings): void {
   const blockquote_padding =
     blockquote_padding_map[settings.editor_blockquote_padding];
   const headings = heading_spacing_map[settings.editor_heading_spacing_density];
+  const divider = divider_style_map[settings.editor_divider_style];
 
   for (const key of applied_property_keys) {
     root.style.removeProperty(key);
@@ -243,6 +272,9 @@ export function apply_editor_appearance(settings: EditorSettings): void {
       `${String(settings.editor_blockquote_border_width)}px`,
     ],
     ["--editor-link-underline-style", settings.editor_link_underline_style],
+    ["--editor-hr-background", divider.background],
+    ["--editor-hr-border-top", divider.border_top],
+    ["--editor-hr-opacity", divider.opacity],
     ["--editor-h1-mt", headings.h1.mt],
     ["--editor-h1-mb", headings.h1.mb],
     ["--editor-h2-mt", headings.h2.mt],
