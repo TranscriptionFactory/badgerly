@@ -36,6 +36,20 @@ describe("normalize_markdown_line_breaks", () => {
     expect(normalize_markdown_line_breaks("`one<br />`")).toBe("`one<br />`");
   });
 
+  it("strips stray backslash on an otherwise empty line", () => {
+    expect(normalize_markdown_line_breaks("one\n\\\ntwo")).toBe("one\n\ntwo");
+  });
+
+  it("strips stray backslash with surrounding whitespace on an otherwise empty line", () => {
+    expect(normalize_markdown_line_breaks("one\n  \\  \ntwo")).toBe(
+      "one\n\ntwo",
+    );
+  });
+
+  it("preserves valid hard break with text before backslash", () => {
+    expect(normalize_markdown_line_breaks("one\\\ntwo")).toBe("one\\\ntwo");
+  });
+
   it("strips zero-width spaces while normalizing", () => {
     expect(normalize_markdown_line_breaks("one\u200B<br />\ntwo")).toBe(
       "one\\\ntwo",

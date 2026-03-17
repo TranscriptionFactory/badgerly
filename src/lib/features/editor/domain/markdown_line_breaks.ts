@@ -148,6 +148,7 @@ function normalize_line_break_line(line: string): string {
   const trimmed = trim_trailing_whitespace(line);
   if (trimmed.endsWith("\\")) {
     if (!trimmed.endsWith("\\\\")) {
+      if (trimmed.trim() === "\\") return "";
       return trimmed;
     }
     return line;

@@ -367,7 +367,17 @@ export function create_milkdown_editor_port(args?: {
             defaultValueCtx,
             prepare_markdown_for_editor(current_markdown),
           );
-          ctx.set(editorViewOptionsCtx, { editable: () => true });
+          ctx.set(editorViewOptionsCtx, {
+            editable: () => true,
+            clipboardTextSerializer: (slice) => {
+              return slice.content.textBetween(
+                0,
+                slice.content.size,
+                "\n\n",
+                "\n",
+              );
+            },
+          });
         })
 
         .use(commonmark)
