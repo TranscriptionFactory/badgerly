@@ -7,12 +7,18 @@ import FrontmatterWidget from "../ui/frontmatter_widget.svelte";
 
 export const frontmatter_node = $node("frontmatter", () => ({
   group: "block",
-  content: "",
+  content: "text*",
+  code: true,
+  defining: true,
   attrs: {},
   parseMarkdown: {
     match: (node) => node.type === "yaml",
     runner: (state, node, type) => {
-      state.addNode(type, { value: node.value as string });
+      state.openNode(type);
+      if (node.value) {
+        state.addText(node.value as string);
+      }
+      state.closeNode();
     },
   },
   toMarkdown: {

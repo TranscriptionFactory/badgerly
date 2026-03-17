@@ -38,10 +38,13 @@
     const pos = get_pos();
     if (pos === undefined) return;
 
+    const current = view.state.doc.nodeAt(pos);
+    if (!current || current.type.name !== "frontmatter") return;
+
     const tr = view.state.tr.insertText(
       new_content,
       pos + 1,
-      pos + 1 + node.content.size,
+      pos + 1 + current.content.size,
     );
     view.dispatch(tr);
   }
@@ -63,7 +66,11 @@
         for (const [key, value] of Object.entries(parsed)) {
           if (key === "tags" || key === "tag") {
             if (Array.isArray(value)) {
-              new_tags.push(...value.map(String));
+              new_tags.push(
+                ...value
+                  .filter((v) => v != null && String(v).trim() !== "")
+                  .map(String),
+              );
             } else if (value) {
               new_tags.push(String(value));
             }
@@ -92,7 +99,9 @@
     }
 
     try {
-      const new_yaml = yaml.dump(obj, { quotingType: '"', forceQuotes: false });
+      const new_yaml = yaml
+        .dump(obj, { quotingType: '"', forceQuotes: false })
+        .trimEnd();
       update_node(new_yaml);
     } catch (e: any) {
       parse_error = "Failed to save: " + e.message;

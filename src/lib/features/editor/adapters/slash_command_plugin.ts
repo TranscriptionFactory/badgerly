@@ -260,7 +260,7 @@ function make_frontmatter_insert() {
     const $pos = state.doc.resolve(from);
     const start = $pos.before();
 
-    const fm_node = fm_type.create(null, state.schema.text("tags:\n  - \n"));
+    const fm_node = fm_type.create(null);
     const tr = state.tr.replaceWith(start, $pos.after(), [
       fm_node,
       para.create(),

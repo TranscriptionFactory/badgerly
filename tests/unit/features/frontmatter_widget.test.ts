@@ -18,7 +18,11 @@ function parse_frontmatter(content: string): {
     for (const [key, value] of Object.entries(parsed)) {
       if (key === "tags" || key === "tag") {
         if (Array.isArray(value)) {
-          tags.push(...value.map(String));
+          tags.push(
+            ...value
+              .filter((v) => v != null && String(v).trim() !== "")
+              .map(String),
+          );
         } else if (value) {
           tags.push(String(value));
         }
@@ -126,6 +130,22 @@ describe("frontmatter widget: parse_frontmatter", () => {
     const { tags } = parse_frontmatter(content);
 
     expect(tags).toEqual(["42", "true"]);
+  });
+
+  it("filters out null and empty tags from YAML with empty list items", () => {
+    const content = "tags:\n  - \n";
+
+    const { tags } = parse_frontmatter(content);
+
+    expect(tags).toEqual([]);
+  });
+
+  it("filters null tags but keeps valid ones", () => {
+    const content = "tags:\n  - \n  - svelte\n  - \n  - typescript\n";
+
+    const { tags } = parse_frontmatter(content);
+
+    expect(tags).toEqual(["svelte", "typescript"]);
   });
 });
 
