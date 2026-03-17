@@ -653,9 +653,6 @@ li[data-item-type="task"][data-checked="false"]::before {
 /* ── Code block copy button ── */
 
 .code-block-wrapper .code-block-copy {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
