@@ -21,22 +21,17 @@ export class WatcherService {
 
   suppress_next(path: string): void {
     const key = suppressed_path_key(path);
-    const count = (this.suppressed.get(key) ?? 0) + 1;
-    this.suppressed.set(key, count);
-    setTimeout(() => {
-      const current = this.suppressed.get(key);
-      if (current === undefined) return;
-      if (current <= 1) this.suppressed.delete(key);
-      else this.suppressed.set(key, current - 1);
-    }, SUPPRESS_WINDOW_MS);
+    this.suppressed.set(key, Date.now());
   }
 
   is_suppressed(path: string): boolean {
     const key = suppressed_path_key(path);
-    const count = this.suppressed.get(key);
-    if (!count) return false;
-    if (count === 1) this.suppressed.delete(key);
-    else this.suppressed.set(key, count - 1);
+    const stamp = this.suppressed.get(key);
+    if (stamp === undefined) return false;
+    if (Date.now() - stamp > SUPPRESS_WINDOW_MS) {
+      this.suppressed.delete(key);
+      return false;
+    }
     return true;
   }
 

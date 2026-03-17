@@ -69,13 +69,13 @@ describe("WatcherService", () => {
     await expect(service.stop()).resolves.toBeUndefined();
   });
 
-  it("suppress_next marks path as suppressed and token is consumed on first check", () => {
+  it("suppress_next marks path as suppressed for the full window duration", () => {
     const { service } = setup();
 
     service.suppress_next("notes/test.md");
 
     expect(service.is_suppressed("notes/test.md")).toBe(true);
-    expect(service.is_suppressed("notes/test.md")).toBe(false);
+    expect(service.is_suppressed("notes/test.md")).toBe(true);
   });
 
   it("is_suppressed returns false for unknown path", () => {
@@ -92,18 +92,23 @@ describe("WatcherService", () => {
     expect(service.is_suppressed("notes/test.md")).toBe(true);
   });
 
-  it("multiple suppress_next calls stack and each is_suppressed consumes one token", () => {
+  it("multiple suppress_next calls extend the suppression window", () => {
+    vi.useFakeTimers();
     const { service } = setup();
 
     service.suppress_next("notes/test.md");
+    vi.advanceTimersByTime(5_000);
     service.suppress_next("notes/test.md");
+    vi.advanceTimersByTime(7_000);
 
     expect(service.is_suppressed("notes/test.md")).toBe(true);
-    expect(service.is_suppressed("notes/test.md")).toBe(true);
+
+    vi.advanceTimersByTime(4_000);
     expect(service.is_suppressed("notes/test.md")).toBe(false);
+    vi.useRealTimers();
   });
 
-  it("fallback timeout clears stale tokens after 10s", () => {
+  it("suppression expires after the window elapses", () => {
     vi.useFakeTimers();
     const { service } = setup();
 
@@ -114,16 +119,18 @@ describe("WatcherService", () => {
     vi.useRealTimers();
   });
 
-  it("fallback timeout decrements count when multiple tokens are stacked", () => {
+  it("multiple events within the window are all suppressed", () => {
     vi.useFakeTimers();
     const { service } = setup();
 
     service.suppress_next("notes/test.md");
-    vi.advanceTimersByTime(1_000);
-    service.suppress_next("notes/test.md");
-    vi.advanceTimersByTime(9_001);
-
     expect(service.is_suppressed("notes/test.md")).toBe(true);
+    vi.advanceTimersByTime(100);
+    expect(service.is_suppressed("notes/test.md")).toBe(true);
+    vi.advanceTimersByTime(100);
+    expect(service.is_suppressed("notes/test.md")).toBe(true);
+
+    vi.advanceTimersByTime(10_000);
     expect(service.is_suppressed("notes/test.md")).toBe(false);
     vi.useRealTimers();
   });
