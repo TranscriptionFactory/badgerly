@@ -55,6 +55,58 @@ describe("normalize_markdown_line_breaks", () => {
       "one\\\ntwo",
     );
   });
+
+  it("strips trailing backslash from bullet list item with no content", () => {
+    expect(normalize_markdown_line_breaks("- \\\ntwo")).toBe("- \ntwo");
+  });
+
+  it("strips trailing backslash from task list item with no content", () => {
+    expect(normalize_markdown_line_breaks("- [ ] \\\ntwo")).toBe("- [ ] \ntwo");
+  });
+
+  it("strips trailing backslash from checked task list item with no content", () => {
+    expect(normalize_markdown_line_breaks("* [x] \\\ntwo")).toBe("* [x] \ntwo");
+  });
+
+  it("strips trailing backslash from ordered list item with no content", () => {
+    expect(normalize_markdown_line_breaks("1. \\\ntwo")).toBe("1. \ntwo");
+  });
+
+  it("strips trailing backslash from heading with no content", () => {
+    expect(normalize_markdown_line_breaks("# \\\ntwo")).toBe("# \ntwo");
+  });
+
+  it("strips trailing backslash from h3 with no content", () => {
+    expect(normalize_markdown_line_breaks("### \\\ntwo")).toBe("### \ntwo");
+  });
+
+  it("strips trailing backslash from blockquote with no content", () => {
+    expect(normalize_markdown_line_breaks("> \\\ntwo")).toBe("> \ntwo");
+  });
+
+  it("preserves trailing backslash in heading with text content", () => {
+    expect(normalize_markdown_line_breaks("# hello\\\ntwo")).toBe(
+      "# hello\\\ntwo",
+    );
+  });
+
+  it("preserves trailing backslash in blockquote with text content", () => {
+    expect(normalize_markdown_line_breaks("> hello\\\ntwo")).toBe(
+      "> hello\\\ntwo",
+    );
+  });
+
+  it("preserves trailing backslash in list item with text content", () => {
+    expect(normalize_markdown_line_breaks("- hello\\\ntwo")).toBe(
+      "- hello\\\ntwo",
+    );
+  });
+
+  it("preserves trailing backslash in task list item with text content", () => {
+    expect(normalize_markdown_line_breaks("- [ ] hello\\\ntwo")).toBe(
+      "- [ ] hello\\\ntwo",
+    );
+  });
 });
 
 describe("insert_markdown_hard_break", () => {

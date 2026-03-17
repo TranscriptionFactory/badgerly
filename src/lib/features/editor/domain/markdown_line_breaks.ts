@@ -149,6 +149,14 @@ function normalize_line_break_line(line: string): string {
   if (trimmed.endsWith("\\")) {
     if (!trimmed.endsWith("\\\\")) {
       if (trimmed.trim() === "\\") return "";
+      const without_backslash = trimmed.slice(0, -1);
+      if (
+        /^\s*(?:(?:[-*+]|\d+[.)]) (?:\[[ xX]?\] )?|#{1,6} |> )$/.test(
+          without_backslash,
+        )
+      ) {
+        return without_backslash;
+      }
       return trimmed;
     }
     return line;

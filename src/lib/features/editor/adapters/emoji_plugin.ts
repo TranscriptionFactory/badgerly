@@ -35,6 +35,14 @@ export const emoji_plugin = $prose(
           const $from = state.doc.resolve(from);
 
           if ($from.parent.type.name === "code_block") return false;
+          if (
+            $from
+              .marks()
+              .some(
+                (m) => m.type.name === "code_inline" || m.type.name === "code",
+              )
+          )
+            return false;
 
           const text_before = $from.parent.textBetween(
             0,
