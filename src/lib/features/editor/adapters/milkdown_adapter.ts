@@ -57,7 +57,6 @@ import {
 } from "./dirty_state_plugin";
 import { markdown_link_input_rule_plugin } from "./markdown_link_input_rule";
 import { image_input_rule_plugin } from "./image_input_rule_plugin";
-import { task_list_input_rule } from "./task_list_input_rule";
 import { task_keymap_plugin } from "./task_keymap_plugin";
 import { markdown_paste_plugin } from "./markdown_paste_plugin";
 import { create_image_paste_plugin } from "./image_paste_plugin";
@@ -528,7 +527,6 @@ export function create_milkdown_editor_port(args?: {
         .use(create_link_tooltip_plugin())
         .use(listItemBlockComponent)
         .use(markdown_link_input_rule_plugin)
-        .use(task_list_input_rule)
         .use(task_keymap_plugin)
         .use(image_input_rule_plugin)
 

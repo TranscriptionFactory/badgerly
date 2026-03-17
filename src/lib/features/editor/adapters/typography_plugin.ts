@@ -51,6 +51,14 @@ export const typography_plugin = $prose(
 
           if (parent.type.name === "code_block") return false;
           if (parent.type.name === "math_block") return false;
+          if (
+            $from
+              .marks()
+              .some(
+                (m) => m.type.name === "code_inline" || m.type.name === "code",
+              )
+          )
+            return false;
 
           const text_before = parent.textBetween(
             0,
