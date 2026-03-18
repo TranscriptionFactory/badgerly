@@ -9,7 +9,12 @@ import { Slice } from "prosemirror-model";
 import type { Node as ProseNode } from "prosemirror-model";
 import { history } from "prosemirror-history";
 import { keymap } from "prosemirror-keymap";
-import { baseKeymap } from "prosemirror-commands";
+import { baseKeymap, chainCommands } from "prosemirror-commands";
+import {
+  splitListItem,
+  liftListItem,
+  sinkListItem,
+} from "prosemirror-schema-list";
 import { dropCursor } from "prosemirror-dropcursor";
 import { gapCursor } from "prosemirror-gapcursor";
 import { undo, redo } from "prosemirror-history";
@@ -458,6 +463,19 @@ export function create_prosemirror_editor_port(args?: {
       );
       plugins.push((create_slash_command_prose_plugin as () => Plugin)());
       plugins.push((create_date_suggest_prose_plugin as () => Plugin)());
+      const list_item_type = schema.nodes["list_item"];
+      if (list_item_type) {
+        plugins.push(
+          keymap({
+            Enter: chainCommands(
+              splitListItem(list_item_type),
+              liftListItem(list_item_type),
+            ),
+            Tab: sinkListItem(list_item_type),
+            "Shift-Tab": liftListItem(list_item_type),
+          }),
+        );
+      }
       plugins.push(keymap(baseKeymap));
       plugins.push(history());
       plugins.push(dropCursor());

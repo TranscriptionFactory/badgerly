@@ -244,8 +244,33 @@
 .ProseMirror ol {
   margin-top: 0;
   margin-bottom: var(--editor-list-spacing);
-  padding-left: var(--space-1);
-  list-style: none;
+  padding-left: 1.625rem;
+}
+
+.ProseMirror ul {
+  list-style-type: disc;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal;
+}
+
+.ProseMirror ul ul {
+  list-style-type: circle;
+}
+
+.ProseMirror ul ul ul {
+  list-style-type: square;
+}
+
+.ProseMirror li::marker {
+  color: var(--editor-text-muted);
+}
+
+.ProseMirror ol > li::marker {
+  font-feature-settings: "tnum" 1;
+  font-size: 0.88em;
+  font-weight: 500;
 }
 
 .ProseMirror li {
@@ -266,104 +291,16 @@
 }
 
 /* ============================================
-   MILKDOWN LIST ITEM BLOCK COMPONENT
-   ============================================ */
-
-.milkdown-list-item-block {
-  display: contents;
-}
-
-.milkdown-list-item-block > .list-item {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 0.5rem;
-}
-
-.milkdown-list-item-block > .list-item > .label-wrapper {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 1rem;
-  height: 1.7em;
-  user-select: none;
-  cursor: default;
-}
-
-.milkdown-list-item-block > .list-item > .label-wrapper .label {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.milkdown-list-item-block > .list-item > .label-wrapper .label.bullet::before {
-  content: "";
-  width: var(--editor-bullet-size);
-  height: var(--editor-bullet-size);
-  border-radius: 50%;
-  background-color: var(--editor-text-muted);
-}
-
-.milkdown-list-item-block > .list-item > .label-wrapper .label.ordered {
-  font-size: 0.88em;
-  font-weight: 500;
-  color: var(--editor-text-muted);
-  font-feature-settings: "tnum" 1;
-}
-
-.milkdown-list-item-block > .list-item > .children {
-  flex: 1;
-  min-width: 0;
-}
-
-.milkdown-list-item-block > .list-item > .children > .content-dom > p {
-  margin-bottom: 0;
-}
-
-/* Nested list bullets */
-.ProseMirror
-  ul
-  ul
-  > .milkdown-list-item-block
-  > .list-item
-  > .label-wrapper
-  .label.bullet::before {
-  width: var(--editor-bullet-nested-size);
-  height: var(--editor-bullet-nested-size);
-  background-color: transparent;
-  border: 1.5px solid var(--editor-text-muted);
-}
-
-.ProseMirror
-  ul
-  ul
-  ul
-  > .milkdown-list-item-block
-  > .list-item
-  > .label-wrapper
-  .label.bullet::before {
-  width: var(--editor-bullet-nested-size);
-  height: var(--editor-bullet-nested-size);
-  border-radius: 1px;
-  background-color: var(--editor-text-muted);
-  border: none;
-}
-
-/* ============================================
    TASK LIST / CHECKBOXES
    ============================================ */
 
-li[data-item-type="task"] {
+.ProseMirror li[data-item-type="task"] {
   list-style: none;
   position: relative;
   padding-left: calc(var(--editor-checkbox-size) + 0.5rem);
 }
 
-li[data-item-type="task"]::before {
+.ProseMirror li[data-item-type="task"]::before {
   content: "";
   position: absolute;
   left: 0;
@@ -377,12 +314,12 @@ li[data-item-type="task"]::before {
   cursor: pointer;
 }
 
-li[data-item-type="task"]:hover::before {
+.ProseMirror li[data-item-type="task"]:hover::before {
   border-color: var(--primary);
   background-color: color-mix(in oklch, var(--primary) 10%, transparent);
 }
 
-li[data-item-type="task"][data-checked="true"]::before {
+.ProseMirror li[data-item-type="task"][data-checked="true"]::before {
   background-color: var(--primary);
   border-color: var(--primary);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.5 5l2.5 2.5 4.5-4.5' stroke='white' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -391,8 +328,8 @@ li[data-item-type="task"][data-checked="true"]::before {
   background-size: 70%;
 }
 
-li[data-item-type="task"][data-checked="true"] > p,
-li[data-item-type="task"][data-checked="true"] {
+.ProseMirror li[data-item-type="task"][data-checked="true"] > p,
+.ProseMirror li[data-item-type="task"][data-checked="true"] {
   color: var(--editor-text-muted);
   text-decoration: line-through;
   text-decoration-color: color-mix(
@@ -402,7 +339,7 @@ li[data-item-type="task"][data-checked="true"] {
   );
 }
 
-li[data-item-type="task"][data-checked="false"]::before {
+.ProseMirror li[data-item-type="task"][data-checked="false"]::before {
   background-color: transparent;
   border-color: var(--border-strong);
 }

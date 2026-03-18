@@ -24,22 +24,24 @@ export function create_task_keymap_prose_plugin(): Plugin {
         }
 
         const $pos = selection.$from;
-        const node = $pos.parent;
+        if ($pos.parentOffset !== 0) return false;
 
-        if (node.type.name !== "list_item") return false;
+        const li_depth = $pos.depth >= 2 ? $pos.depth - 1 : -1;
+        if (li_depth < 0) return false;
+        const li_node = $pos.node(li_depth);
+        if (li_node.type.name !== "list_item") return false;
+        if ($pos.index(li_depth) !== 0) return false;
 
-        if ($pos.parentOffset === 0) {
-          if (
-            node.attrs["checked"] !== undefined &&
-            node.attrs["checked"] !== null
-          ) {
-            const tr = state.tr.setNodeMarkup($pos.before(), undefined, {
-              ...node.attrs,
-              checked: null,
-            });
-            dispatch(tr);
-            return true;
-          }
+        if (
+          li_node.attrs["checked"] !== undefined &&
+          li_node.attrs["checked"] !== null
+        ) {
+          const tr = state.tr.setNodeMarkup($pos.before(li_depth), undefined, {
+            ...li_node.attrs,
+            checked: null,
+          });
+          dispatch(tr);
+          return true;
         }
 
         return false;
