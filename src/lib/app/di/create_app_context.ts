@@ -135,6 +135,7 @@ export function create_app_context(input: {
     editor_callbacks,
     search_service,
     stores.outline,
+    input.ports.assets,
   );
 
   const settings_service = new SettingsService(

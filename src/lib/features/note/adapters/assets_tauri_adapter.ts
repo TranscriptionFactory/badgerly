@@ -31,5 +31,12 @@ export function create_assets_tauri_adapter(): AssetsPort {
 
       return as_asset_path(asset_path);
     },
+    async search_assets(vault_id, query, limit) {
+      return tauri_invoke<string[]>("search_vault_assets", {
+        vaultId: vault_id,
+        query,
+        limit,
+      });
+    },
   };
 }

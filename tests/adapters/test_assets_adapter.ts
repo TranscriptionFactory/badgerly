@@ -46,5 +46,8 @@ export function create_test_assets_adapter(): AssetsPort {
       );
       return Promise.resolve(asset_path);
     },
+    search_assets() {
+      return Promise.resolve([]);
+    },
   };
 }

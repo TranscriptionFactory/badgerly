@@ -1221,6 +1221,77 @@ li[data-item-type="task"][data-checked="false"]::before {
 }
 
 /* ============================================
+   IMAGE SUGGEST DROPDOWN
+   ============================================ */
+
+.ImageSuggest {
+  position: absolute;
+  z-index: 50;
+  min-width: 200px;
+  max-width: 360px;
+  max-height: 240px;
+  overflow-y: auto;
+  border-radius: calc(var(--radius) * 0.5);
+  border: 1px solid var(--border);
+  background: var(--popover);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-1) 0;
+}
+
+.ImageSuggest__item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: var(--space-1-5) var(--space-2);
+  text-align: left;
+  font-size: var(--text-sm);
+  color: var(--foreground);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-default);
+}
+
+.ImageSuggest__content {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+}
+
+.ImageSuggest__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ImageSuggest__location {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+
+.ImageSuggest__item:hover {
+  background: var(--muted);
+}
+
+.ImageSuggest__item--selected {
+  background: var(--interactive-bg);
+  color: var(--interactive);
+}
+
+.ImageSuggest__item--selected .ImageSuggest__location {
+  color: inherit;
+  opacity: 0.8;
+}
+
+/* ============================================
    SLASH COMMAND MENU
    ============================================ */
 

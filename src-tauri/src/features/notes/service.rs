@@ -1428,3 +1428,57 @@ pub fn write_vault_file(
     let abs = safe_vault_abs(&root, &relative_path)?;
     io_utils::atomic_write(&abs, content.as_bytes())
 }
+
+const ASSET_IMAGE_EXTENSIONS: &[&str] = &[
+    "png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "ico", "tiff", "avif",
+];
+
+#[tauri::command]
+#[specta::specta]
+pub fn search_vault_assets(
+    app: AppHandle,
+    vault_id: String,
+    query: String,
+    limit: usize,
+) -> Result<Vec<String>, String> {
+    let root = storage::vault_path(&app, &vault_id)?;
+    let ignore_matcher = vault_ignore::load_vault_ignore_matcher(&app, &vault_id, &root)?;
+    let query_lower = query.to_lowercase();
+    let limit = if limit == 0 { 50 } else { limit };
+
+    let mut results = Vec::new();
+    for entry in WalkDir::new(&root)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_string_lossy();
+            !constants::is_excluded_folder(&name)
+                && !ignore_matcher.is_ignored(&root, e.path(), e.file_type().is_dir())
+        })
+        .filter_map(|e| e.ok())
+    {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let ext = entry
+            .path()
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        if !ASSET_IMAGE_EXTENSIONS.contains(&ext.as_str()) {
+            continue;
+        }
+        let rel = match entry.path().strip_prefix(&root) {
+            Ok(r) => storage::normalize_relative_path(r),
+            Err(_) => continue,
+        };
+        if !query_lower.is_empty() && !rel.to_lowercase().contains(&query_lower) {
+            continue;
+        }
+        results.push(rel);
+        if results.len() >= limit {
+            break;
+        }
+    }
+    Ok(results)
+}

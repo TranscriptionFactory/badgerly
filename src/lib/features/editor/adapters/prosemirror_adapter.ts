@@ -42,6 +42,11 @@ import {
   type WikiSuggestPluginConfig,
 } from "./wiki_suggest_plugin";
 import {
+  set_image_suggestions,
+  create_image_suggest_prose_plugin,
+  type ImageSuggestPluginConfig,
+} from "./image_suggest_plugin";
+import {
   create_editor_context_plugin_instance,
   editor_context_plugin_key,
 } from "./editor_context_plugin";
@@ -254,7 +259,53 @@ function create_image_block_view_plugin(input: {
   get_current_note_path: () => string;
 }): Plugin {
   const resolved_url_cache = new Map<string, string>();
-  const pending_resolutions = new Set<string>();
+  const pending_listeners = new Map<string, Set<HTMLImageElement>>();
+
+  function resolve_src(src: string, img: HTMLImageElement): string {
+    if (/^[a-z][a-z0-9+.-]*:/i.test(src)) return src;
+    const cached = resolved_url_cache.get(src);
+    if (cached) return cached;
+    if (!input.resolve_asset_url_for_vault) return src;
+    const vault_id = input.get_current_vault_id();
+    if (!vault_id) return src;
+    const vault_relative = resolve_relative_asset_path(
+      input.get_current_note_path(),
+      decodeURIComponent(src),
+    );
+    const result = input.resolve_asset_url_for_vault(
+      vault_id,
+      as_asset_path(vault_relative),
+    );
+    if (typeof result === "string") {
+      resolved_url_cache.set(src, result);
+      return result;
+    }
+    let listeners = pending_listeners.get(src);
+    if (!listeners) {
+      listeners = new Set();
+      pending_listeners.set(src, listeners);
+      void result
+        .then((resolved_url) => {
+          resolved_url_cache.set(src, resolved_url);
+          const targets = pending_listeners.get(src);
+          pending_listeners.delete(src);
+          if (targets) {
+            for (const t of targets) t.src = resolved_url;
+          }
+        })
+        .catch((error: unknown) => {
+          log.error("Failed to resolve asset URL", { error });
+          resolved_url_cache.set(src, IMAGE_LOAD_ERROR_PLACEHOLDER);
+          const targets = pending_listeners.get(src);
+          pending_listeners.delete(src);
+          if (targets) {
+            for (const t of targets) t.src = IMAGE_LOAD_ERROR_PLACEHOLDER;
+          }
+        });
+    }
+    listeners.add(img);
+    return IMAGE_LOADING_PLACEHOLDER;
+  }
 
   return new Plugin({
     key: new PluginKey("image-block-view"),
@@ -276,44 +327,7 @@ function create_image_block_view_plugin(input: {
             typeof node.attrs["width"] === "string" ? node.attrs["width"] : "";
           if (width) wrapper.style.width = width;
 
-          const resolve_src = (src: string) => {
-            if (/^[a-z][a-z0-9+.-]*:/i.test(src)) return src;
-            const cached = resolved_url_cache.get(src);
-            if (cached) return cached;
-            if (!input.resolve_asset_url_for_vault) return src;
-            const vault_id = input.get_current_vault_id();
-            if (!vault_id) return src;
-            const vault_relative = resolve_relative_asset_path(
-              input.get_current_note_path(),
-              decodeURIComponent(src),
-            );
-            const result = input.resolve_asset_url_for_vault(
-              vault_id,
-              as_asset_path(vault_relative),
-            );
-            if (typeof result === "string") {
-              resolved_url_cache.set(src, result);
-              return result;
-            }
-            if (!pending_resolutions.has(src)) {
-              pending_resolutions.add(src);
-              void result
-                .then((resolved_url) => {
-                  resolved_url_cache.set(src, resolved_url);
-                  pending_resolutions.delete(src);
-                  img.src = resolved_url;
-                })
-                .catch((error: unknown) => {
-                  log.error("Failed to resolve asset URL", { error });
-                  resolved_url_cache.set(src, IMAGE_LOAD_ERROR_PLACEHOLDER);
-                  pending_resolutions.delete(src);
-                  img.src = IMAGE_LOAD_ERROR_PLACEHOLDER;
-                });
-            }
-            return IMAGE_LOADING_PLACEHOLDER;
-          };
-
-          img.src = resolve_src(String(node.attrs["src"] || ""));
+          img.src = resolve_src(String(node.attrs["src"] || ""), img);
 
           const caption_el = document.createElement("figcaption");
           caption_el.className = "image-caption";
@@ -328,7 +342,7 @@ function create_image_block_view_plugin(input: {
             update(updated: ProseNode): boolean {
               if (updated.type.name !== "image-block") return false;
               const new_src = String(updated.attrs["src"] || "");
-              const resolved = resolve_src(new_src);
+              const resolved = resolve_src(new_src, img);
               if (img.src !== resolved) img.src = resolved;
               img.alt = String(
                 updated.attrs["alt"] || updated.attrs["caption"] || "",
@@ -340,7 +354,37 @@ function create_image_block_view_plugin(input: {
               wrapper.style.width = new_width || "";
               return true;
             },
-            destroy() {},
+            destroy() {
+              for (const [, set] of pending_listeners) set.delete(img);
+            },
+            stopEvent() {
+              return false;
+            },
+            ignoreMutation() {
+              return true;
+            },
+          };
+        },
+
+        image: (node, _view, _get_pos) => {
+          const img = document.createElement("img");
+          img.alt = String(node.attrs["alt"] || "");
+          if (node.attrs["title"]) img.title = String(node.attrs["title"]);
+          img.src = resolve_src(String(node.attrs["src"] || ""), img);
+
+          return {
+            dom: img,
+            update(updated: ProseNode): boolean {
+              if (updated.type.name !== "image") return false;
+              const new_src = String(updated.attrs["src"] || "");
+              const resolved = resolve_src(new_src, img);
+              if (img.src !== resolved) img.src = resolved;
+              img.alt = String(updated.attrs["alt"] || "");
+              return true;
+            },
+            destroy() {
+              for (const [, set] of pending_listeners) set.delete(img);
+            },
             stopEvent() {
               return false;
             },
@@ -371,6 +415,7 @@ export function create_prosemirror_editor_port(args?: {
         on_external_link_click,
         on_image_paste_requested,
         on_wiki_suggest_query,
+        on_image_suggest_query,
         on_outline_change,
       } = events;
 
@@ -392,6 +437,7 @@ export function create_prosemirror_editor_port(args?: {
       const buffer_map = new Map<string, BufferEntry>();
 
       let wiki_suggest_config: WikiSuggestPluginConfig | null = null;
+      let image_suggest_config: ImageSuggestPluginConfig | null = null;
 
       function normalize_markdown(raw: string): string {
         return normalize_markdown_line_breaks(raw);
@@ -519,6 +565,17 @@ export function create_prosemirror_editor_port(args?: {
         };
         plugins.push(
           create_wiki_suggest_prose_plugin(wiki_suggest_config) as Plugin,
+        );
+      }
+
+      if (on_image_suggest_query) {
+        image_suggest_config = {
+          on_query: on_image_suggest_query,
+          on_dismiss: () => {},
+          base_note_path: current_note_path,
+        };
+        plugins.push(
+          create_image_suggest_prose_plugin(image_suggest_config) as Plugin,
         );
       }
 
@@ -734,6 +791,9 @@ export function create_prosemirror_editor_port(args?: {
           if (wiki_suggest_config) {
             wiki_suggest_config.base_note_path = current_note_path;
           }
+          if (image_suggest_config) {
+            image_suggest_config.base_note_path = current_note_path;
+          }
 
           const v = view;
 
@@ -825,6 +885,9 @@ export function create_prosemirror_editor_port(args?: {
           if (wiki_suggest_config) {
             wiki_suggest_config.base_note_path = current_note_path;
           }
+          if (image_suggest_config) {
+            image_suggest_config.base_note_path = current_note_path;
+          }
 
           run_view_action((v) => {
             dispatch_editor_context_update(v);
@@ -853,6 +916,10 @@ export function create_prosemirror_editor_port(args?: {
         ) {
           if (!view) return;
           set_wiki_suggestions(view, items);
+        },
+        set_image_suggestions(items: Array<{ path: string; name: string }>) {
+          if (!view) return;
+          set_image_suggestions(view, items);
         },
         update_find_state(query: string, selected_index: number) {
           run_view_action((v) => {

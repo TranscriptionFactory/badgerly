@@ -18,6 +18,7 @@ import type { VaultStore } from "$lib/features/vault";
 import type { OpStore } from "$lib/app";
 import type { SearchService } from "$lib/features/search";
 import type { OutlineStore } from "$lib/features/outline";
+import type { AssetsPort } from "$lib/features/note";
 import { normalize_markdown_line_breaks } from "$lib/features/editor/domain/markdown_line_breaks";
 import { is_draft_note_path } from "$lib/features/note";
 import { error_message } from "$lib/shared/utils/error_message";
@@ -65,6 +66,7 @@ export class EditorService {
     private readonly callbacks: EditorServiceCallbacks,
     private readonly search_service?: SearchService,
     private readonly outline_store?: OutlineStore,
+    private readonly assets_port?: AssetsPort,
   ) {}
 
   is_mounted(): boolean {
@@ -395,6 +397,24 @@ export class EditorService {
     });
   }
 
+  private handle_image_suggest_query(generation: number, query: string): void {
+    if (!this.is_generation_current(generation)) return;
+    const assets_port = this.assets_port;
+    if (!assets_port) return;
+    const vault_id = this.vault_store.active_vault_id;
+    if (!vault_id) return;
+
+    void assets_port.search_assets(vault_id, query, 20).then((paths) => {
+      if (!this.is_generation_current(generation)) return;
+      this.session?.set_image_suggestions?.(
+        paths.map((p) => ({
+          path: p,
+          name: p.split("/").at(-1) ?? p,
+        })),
+      );
+    });
+  }
+
   private create_session_events(generation: number): EditorSessionEvents {
     const events: EditorSessionEvents = {
       on_markdown_change: (markdown: string) => {
@@ -439,6 +459,12 @@ export class EditorService {
     if (this.search_service) {
       events.on_wiki_suggest_query = (query: string) => {
         this.handle_wiki_suggest_query(generation, query);
+      };
+    }
+
+    if (this.assets_port) {
+      events.on_image_suggest_query = (query: string) => {
+        this.handle_image_suggest_query(generation, query);
       };
     }
 

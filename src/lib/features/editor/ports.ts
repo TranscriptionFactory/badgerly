@@ -34,6 +34,9 @@ export type EditorSession = {
       ref_count?: number | undefined;
     }>,
   ) => void;
+  set_image_suggestions?: (
+    items: Array<{ path: string; name: string }>,
+  ) => void;
   open_buffer: (config: BufferConfig) => void;
   rename_buffer: (old_note_path: string, new_note_path: string) => void;
   close_buffer: (note_path: string) => void;
@@ -58,6 +61,7 @@ export type EditorEventHandlers = {
   on_external_link_click?: (url: string) => void;
   on_image_paste_requested?: (payload: PastedImagePayload) => void;
   on_wiki_suggest_query?: (query: string) => void;
+  on_image_suggest_query?: (query: string) => void;
   on_outline_change?: (headings: OutlineHeading[]) => void;
 };
 

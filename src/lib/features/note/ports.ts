@@ -32,6 +32,11 @@ export interface AssetsPort {
     vault_id: VaultId,
     input: WriteImageAssetInput,
   ): Promise<AssetPath>;
+  search_assets(
+    vault_id: VaultId,
+    query: string,
+    limit: number,
+  ): Promise<string[]>;
 }
 
 export interface NotesPort {
