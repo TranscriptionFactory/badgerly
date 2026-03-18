@@ -192,6 +192,24 @@ export function create_mock_notes_port(): NotesPort & {
       mock._calls.write_note.push(entry);
       return Promise.resolve(Date.now());
     },
+    write_and_index_note(
+      vault_id: VaultId,
+      note_id: NoteId,
+      markdown: MarkdownText,
+      expected_mtime_ms?: number,
+    ) {
+      const entry: {
+        vault_id: VaultId;
+        note_id: NoteId;
+        markdown: MarkdownText;
+        expected_mtime_ms?: number;
+      } = { vault_id, note_id, markdown };
+      if (expected_mtime_ms !== undefined) {
+        entry.expected_mtime_ms = expected_mtime_ms;
+      }
+      mock._calls.write_note.push(entry);
+      return Promise.resolve({ new_mtime: Date.now() });
+    },
     create_note(
       vault_id: VaultId,
       note_path: NotePath,

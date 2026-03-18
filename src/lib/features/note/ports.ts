@@ -44,6 +44,12 @@ export interface NotesPort {
     markdown: MarkdownText,
     expected_mtime_ms?: number,
   ): Promise<number>;
+  write_and_index_note(
+    vault_id: VaultId,
+    note_id: NoteId,
+    markdown: MarkdownText,
+    expected_mtime_ms?: number,
+  ): Promise<{ new_mtime: number }>;
   create_note(
     vault_id: VaultId,
     note_path: NotePath,

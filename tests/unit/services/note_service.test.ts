@@ -767,7 +767,9 @@ describe("NoteService", () => {
 
     const disk_mtime = 1_700_000_010_000;
     const notes_port = create_mock_notes_port();
-    notes_port.write_note = vi.fn().mockResolvedValue(disk_mtime);
+    notes_port.write_and_index_note = vi
+      .fn()
+      .mockResolvedValue({ new_mtime: disk_mtime });
     const index_port = create_mock_index_port();
     const assets_port = {
       resolve_asset_url: vi.fn(),
@@ -818,7 +820,7 @@ describe("NoteService", () => {
     });
 
     const notes_port = create_mock_notes_port();
-    notes_port.write_note = vi
+    notes_port.write_and_index_note = vi
       .fn()
       .mockRejectedValue(new Error("conflict:mtime_mismatch"));
     const index_port = create_mock_index_port();
@@ -873,8 +875,10 @@ describe("NoteService", () => {
 
     const notes_port = create_mock_notes_port();
     const disk_mtime = 1_700_000_000_500;
-    const write_note = vi.fn().mockResolvedValue(disk_mtime);
-    notes_port.write_note = write_note;
+    const write_and_index = vi
+      .fn()
+      .mockResolvedValue({ new_mtime: disk_mtime });
+    notes_port.write_and_index_note = write_and_index;
     const index_port = create_mock_index_port();
     const assets_port = {
       resolve_asset_url: vi.fn(),
@@ -906,7 +910,7 @@ describe("NoteService", () => {
       status: "saved",
       saved_path: as_note_path("docs/alpha.md"),
     });
-    expect(write_note).toHaveBeenCalledWith(
+    expect(write_and_index).toHaveBeenCalledWith(
       vault_store.vault?.id,
       as_note_path("docs/alpha.md"),
       as_markdown_text("# Alpha"),
@@ -1208,21 +1212,21 @@ describe("NoteService", () => {
       is_dirty: true,
     });
 
-    const first_write = create_deferred<number>();
+    const first_write = create_deferred<{ new_mtime: number }>();
     const notes_port = create_mock_notes_port();
-    const write_note = vi
+    const write_and_index = vi
       .fn()
       .mockImplementationOnce(async () => {
-        first_write.resolve(200);
+        first_write.resolve({ new_mtime: 200 });
         return await first_write.promise;
       })
       .mockImplementationOnce(
         (_vault_id, _note_id, _markdown, expected_mtime_ms?: number) => {
           expect(expected_mtime_ms).toBe(200);
-          return Promise.resolve(300);
+          return Promise.resolve({ new_mtime: 300 });
         },
       );
-    notes_port.write_note = write_note;
+    notes_port.write_and_index_note = write_and_index;
 
     const index_port = create_mock_index_port();
     const assets_port = {
@@ -1252,14 +1256,14 @@ describe("NoteService", () => {
       service.save_note(null, true),
     ]);
 
-    expect(write_note).toHaveBeenNthCalledWith(
+    expect(write_and_index).toHaveBeenNthCalledWith(
       1,
       vault_store.vault?.id,
       as_note_path("docs/alpha.md"),
       as_markdown_text("# Alpha"),
       100,
     );
-    expect(write_note).toHaveBeenNthCalledWith(
+    expect(write_and_index).toHaveBeenNthCalledWith(
       2,
       vault_store.vault?.id,
       as_note_path("docs/alpha.md"),

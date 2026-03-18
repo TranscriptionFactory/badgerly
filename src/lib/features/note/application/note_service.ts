@@ -745,15 +745,23 @@ export class NoteService {
     open_note: OpenEditorNote,
   ) {
     this.on_file_written?.(open_note.meta.id);
-    const new_mtime = await this.notes_port.write_note(
-      vault_id,
-      open_note.meta.id,
-      open_note.markdown,
-      this.resolve_expected_mtime(open_note),
-    );
-    await this.run_index_update(() =>
-      this.index_port.upsert_note(vault_id, open_note.meta.id),
-    );
+    let new_mtime: number;
+    if (this.vault_store.is_vault_mode) {
+      const result = await this.notes_port.write_and_index_note(
+        vault_id,
+        open_note.meta.id,
+        open_note.markdown,
+        this.resolve_expected_mtime(open_note),
+      );
+      new_mtime = result.new_mtime;
+    } else {
+      new_mtime = await this.notes_port.write_note(
+        vault_id,
+        open_note.meta.id,
+        open_note.markdown,
+        this.resolve_expected_mtime(open_note),
+      );
+    }
     session.editor_store.mark_clean(open_note.meta.id, new_mtime);
     this.sync_split_view_session(session);
   }

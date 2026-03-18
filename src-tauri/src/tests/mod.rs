@@ -27,6 +27,7 @@ mod specta_export {
                 crate::features::notes::service::list_folders,
                 crate::features::notes::service::read_note,
                 crate::features::notes::service::write_note,
+                crate::features::notes::service::write_and_index_note,
                 crate::features::notes::service::create_note,
                 crate::features::notes::service::create_folder,
                 crate::features::notes::service::write_image_asset,

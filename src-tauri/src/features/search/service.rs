@@ -88,6 +88,12 @@ enum DbCommand {
         note_id: String,
         reply: SyncSender<Result<(), String>>,
     },
+    UpsertNoteWithContent {
+        vault_root: PathBuf,
+        note_id: String,
+        markdown: String,
+        reply: SyncSender<Result<(), String>>,
+    },
     RemoveNote {
         note_id: String,
         reply: SyncSender<Result<(), String>>,
@@ -229,6 +235,19 @@ fn dispatch_command(
             let result = handle_upsert(conn, &vault_root, &note_id, notes_cache);
             if let Err(ref e) = result {
                 log::warn!("writer: upsert failed for {note_id}: {e}");
+            }
+            let _ = reply.send(result);
+        }
+        DbCommand::UpsertNoteWithContent {
+            vault_root,
+            note_id,
+            markdown,
+            reply,
+        } => {
+            let result =
+                handle_upsert_with_content(conn, &vault_root, &note_id, &markdown, notes_cache);
+            if let Err(ref e) = result {
+                log::warn!("writer: upsert_with_content failed for {note_id}: {e}");
             }
             let _ = reply.send(result);
         }
@@ -413,6 +432,31 @@ fn handle_upsert(
     search_db::set_outlinks(conn, &meta.path, &resolved.into_iter().collect::<Vec<_>>())
 }
 
+fn handle_upsert_with_content(
+    conn: &Connection,
+    vault_root: &Path,
+    note_id: &str,
+    markdown: &str,
+    notes_cache: &mut BTreeMap<String, IndexNoteMeta>,
+) -> Result<(), String> {
+    let abs = notes_service::safe_vault_abs(vault_root, note_id)?;
+    let mut meta = search_db::extract_file_meta(&abs, vault_root)?;
+    let parsed = crate::shared::markdown_doc::parse_note(markdown, &meta.path);
+    meta.title = parsed.title.clone().unwrap_or_else(|| meta.name.clone());
+
+    search_db::upsert_note_parsed(conn, &meta, markdown, &parsed)?;
+    notes_cache.insert(meta.path.clone(), meta.clone());
+
+    let targets = parsed.links.all_internal_targets();
+    let mut resolved: BTreeSet<String> = BTreeSet::new();
+    for target in targets {
+        if target != meta.path {
+            resolved.insert(target);
+        }
+    }
+    search_db::set_outlinks(conn, &meta.path, &resolved.into_iter().collect::<Vec<_>>())
+}
+
 type IndexFn = fn(
     Option<&AppHandle>,
     &str,
@@ -456,6 +500,7 @@ fn run_index_op(
                         deferred.borrow_mut().push(cmd);
                     }
                     DbCommand::UpsertNote { .. }
+                    | DbCommand::UpsertNoteWithContent { .. }
                     | DbCommand::RemoveNote { .. }
                     | DbCommand::RemoveNotes { .. }
                     | DbCommand::RemoveNotesByPrefix { .. }
@@ -942,6 +987,21 @@ pub fn index_upsert_note(app: AppHandle, vault_id: String, note_id: String) -> R
     send_write_blocking(&app, &vault_id, |reply| DbCommand::UpsertNote {
         vault_root,
         note_id,
+        reply,
+    })
+}
+
+pub fn index_upsert_note_with_content(
+    app: &AppHandle,
+    vault_id: &str,
+    note_id: &str,
+    markdown: String,
+) -> Result<(), String> {
+    let vault_root = storage::vault_path(app, vault_id)?;
+    send_write_blocking(app, vault_id, |reply| DbCommand::UpsertNoteWithContent {
+        vault_root,
+        note_id: note_id.to_string(),
+        markdown,
         reply,
     })
 }

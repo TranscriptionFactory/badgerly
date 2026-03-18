@@ -329,6 +329,24 @@ pub fn upsert_note_parsed(
     raw_markdown: &str,
     parsed: &ParsedNote,
 ) -> Result<(), String> {
+    conn.execute_batch("BEGIN IMMEDIATE")
+        .map_err(|e| e.to_string())?;
+    let result = upsert_note_parsed_inner(conn, meta, raw_markdown, parsed);
+    match result {
+        Ok(()) => conn.execute_batch("COMMIT").map_err(|e| e.to_string()),
+        Err(e) => {
+            let _ = conn.execute_batch("ROLLBACK");
+            Err(e)
+        }
+    }
+}
+
+pub(crate) fn upsert_note_parsed_inner(
+    conn: &Connection,
+    meta: &IndexNoteMeta,
+    raw_markdown: &str,
+    parsed: &ParsedNote,
+) -> Result<(), String> {
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -435,6 +453,11 @@ pub fn upsert_note_parsed(
 pub fn upsert_note(conn: &Connection, meta: &IndexNoteMeta, body: &str) -> Result<(), String> {
     let parsed = markdown_doc::parse_note(body, &meta.path);
     upsert_note_parsed(conn, meta, body, &parsed)
+}
+
+fn upsert_note_inner(conn: &Connection, meta: &IndexNoteMeta, body: &str) -> Result<(), String> {
+    let parsed = markdown_doc::parse_note(body, &meta.path);
+    upsert_note_parsed_inner(conn, meta, body, &parsed)
 }
 
 pub fn remove_note(conn: &Connection, path: &str) -> Result<(), String> {
@@ -738,14 +761,14 @@ fn index_single_file(
 ) -> Result<(), String> {
     if is_canvas_file(abs) {
         let body = extract_indexable_body(abs, raw);
-        upsert_note(conn, meta, &body)?;
+        upsert_note_inner(conn, meta, &body)?;
         let targets = crate::features::canvas::canvas_link_extractor::extract_all_link_targets(raw)
             .unwrap_or_default();
         pending_links.push((meta.path.clone(), targets));
     } else {
         let parsed = markdown_doc::parse_note(raw, &meta.path);
         meta.title = parsed.title.clone().unwrap_or_else(|| meta.name.clone());
-        upsert_note_parsed(conn, meta, raw, &parsed)?;
+        upsert_note_parsed_inner(conn, meta, raw, &parsed)?;
         let targets = parsed.links.all_internal_targets();
         pending_links.push((meta.path.clone(), targets));
     }

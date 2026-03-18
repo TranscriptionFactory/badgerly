@@ -169,6 +169,7 @@ pub fn run() {
             features::notes::service::list_folders,
             features::notes::service::read_note,
             features::notes::service::write_note,
+            features::notes::service::write_and_index_note,
             features::notes::service::create_note,
             features::notes::service::create_folder,
             features::notes::service::write_image_asset,

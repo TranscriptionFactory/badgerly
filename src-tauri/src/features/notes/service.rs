@@ -366,6 +366,65 @@ pub fn write_note(
     Ok(new_mtime)
 }
 
+#[derive(Serialize, Deserialize, Type)]
+pub struct WriteAndIndexResult {
+    pub new_mtime: i64,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn write_and_index_note(
+    args: NoteWriteArgs,
+    app: AppHandle,
+    buffer_manager: State<'_, BufferManager>,
+) -> Result<WriteAndIndexResult, String> {
+    log::debug!(
+        "Write+index note vault_id={} note_id={}",
+        args.vault_id,
+        args.note_id
+    );
+    let root = storage::vault_path(&app, &args.vault_id)?;
+    let abs = safe_vault_abs_for_write(&root, &args.note_id)?;
+
+    if let Some(expected) = args.expected_mtime_ms {
+        match file_meta(&abs) {
+            Ok((disk_mtime, _)) if disk_mtime != expected => {
+                return Err("conflict:mtime_mismatch".to_string());
+            }
+            Err(_) => {
+                return Err("conflict:file_missing".to_string());
+            }
+            _ => {}
+        }
+    }
+
+    let buffer_id = format!("note_{}", args.note_id);
+    buffer_manager
+        .update_buffer(buffer_id.clone(), &args.markdown)
+        .or_else(|_| {
+            buffer_manager.open_buffer(
+                &app,
+                buffer_id.clone(),
+                args.vault_id.clone(),
+                args.note_id.clone(),
+            )?;
+            buffer_manager.update_buffer(buffer_id.clone(), &args.markdown)
+        })?;
+
+    buffer_manager.save_buffer(buffer_id)?;
+
+    let (new_mtime, _) = file_meta(&abs)?;
+
+    crate::features::search::service::index_upsert_note_with_content(
+        &app,
+        &args.vault_id,
+        &args.note_id,
+        args.markdown,
+    )?;
+
+    Ok(WriteAndIndexResult { new_mtime })
+}
+
 #[derive(Debug, Deserialize, Type)]
 pub struct NoteCreateArgs {
     pub vault_id: String,
