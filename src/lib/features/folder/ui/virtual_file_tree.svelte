@@ -4,6 +4,7 @@
   import type { FlatTreeNode, MoveItem } from "$lib/shared/types/filetree";
   import type { NoteMeta } from "$lib/shared/types/note";
   import FileTreeRow from "$lib/features/folder/ui/file_tree_row.svelte";
+  import { fuzzy_score } from "$lib/shared/utils/fuzzy_score";
 
   type Props = {
     nodes: FlatTreeNode[];
@@ -121,9 +122,9 @@
     const v = $virtualizer;
     if (!v) return;
 
-    const next_count = nodes.length;
+    const next_count = filtered_nodes.length;
     const count_changed = next_count !== previous_nodes_count;
-    const has_loading_load_more = nodes.some(
+    const has_loading_load_more = filtered_nodes.some(
       (node) => node.is_load_more && node.is_loading,
     );
 
@@ -150,7 +151,7 @@
   });
 
   const virtual_items = $derived.by(() => {
-    const current_nodes = nodes;
+    const current_nodes = filtered_nodes;
     void current_nodes;
 
     const v = $virtualizer;
@@ -159,11 +160,11 @@
   });
 
   const total_size = $derived.by(() => {
-    const current_nodes = nodes;
+    const current_nodes = filtered_nodes;
     void current_nodes;
 
     const v = $virtualizer;
-    if (!v) return nodes.length * ROW_HEIGHT;
+    if (!v) return filtered_nodes.length * ROW_HEIGHT;
     return v.getTotalSize();
   });
 
@@ -194,7 +195,7 @@
 
     const items = v.getVirtualItems();
     for (const item of items) {
-      const node = nodes[item.index];
+      const node = filtered_nodes[item.index];
       if (!node?.is_load_more || node.is_loading || node.has_error) {
         continue;
       }
@@ -362,14 +363,66 @@
     }
     handle_drop_target("", event);
   }
+
+  let filter_query = $state("");
+  let filter_input_el: HTMLInputElement | null = $state(null);
+
+  const filtered_nodes = $derived.by(() => {
+    const q = filter_query.trim();
+    if (!q) return nodes;
+    return nodes.filter((node) => {
+      if (node.is_load_more) return false;
+      if (node.is_folder) return true;
+      return fuzzy_score(q, node.name) !== null;
+    });
+  });
+
+  function handle_tree_keydown(event: KeyboardEvent) {
+    if (event.key === "Escape" && filter_query) {
+      event.preventDefault();
+      filter_query = "";
+      return;
+    }
+    if (
+      event.key.length === 1 &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey
+    ) {
+      filter_query += event.key;
+      requestAnimationFrame(() => filter_input_el?.focus());
+    }
+  }
+
+  function handle_filter_keydown(event: KeyboardEvent) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      filter_query = "";
+      scroll_container?.focus();
+    }
+  }
 </script>
 
+{#if filter_query}
+  <div class="FileTreeFilter">
+    <input
+      bind:this={filter_input_el}
+      bind:value={filter_query}
+      class="FileTreeFilter__input"
+      type="text"
+      placeholder="Filter files…"
+      onkeydown={handle_filter_keydown}
+    />
+    <span class="FileTreeFilter__count">{filtered_nodes.length}</span>
+  </div>
+{/if}
 <div
   bind:this={scroll_container}
   class="virtual-file-tree h-full w-full overflow-auto"
   role="tree"
   tabindex="0"
   aria-label="File tree"
+  onkeydown={handle_tree_keydown}
   ondragover={handle_container_drag_over}
   ondrop={handle_container_drop}
   ondragleave={() => {
@@ -381,7 +434,7 @@
 >
   <div class="relative w-full" style="height: {total_size}px">
     {#each virtual_items as virtual_row (virtual_row.key)}
-      {@const node = nodes[virtual_row.index]}
+      {@const node = filtered_nodes[virtual_row.index]}
       {#if node}
         <div
           class="absolute left-0 top-0 w-full"
@@ -439,6 +492,31 @@
 </div>
 
 <style>
+  .FileTreeFilter {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border-bottom: 1px solid var(--sidebar-border);
+    background-color: var(--sidebar-background);
+  }
+
+  .FileTreeFilter__input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--sidebar-foreground);
+    font-size: var(--text-xs);
+    font-family: inherit;
+  }
+
+  .FileTreeFilter__count {
+    font-size: var(--text-xs);
+    color: var(--sidebar-foreground);
+    opacity: 0.5;
+  }
+
   .DragGhost {
     position: fixed;
     top: -1000px;

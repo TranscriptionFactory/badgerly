@@ -639,7 +639,7 @@ export function create_slash_command_prose_plugin(): Plugin {
           return true;
         }
 
-        if (event.key === "Enter") {
+        if (event.key === "Enter" || event.key === "Tab") {
           event.preventDefault();
           const cmd = slash_state.filtered[slash_state.selected_index];
           if (cmd) accept_fn?.(cmd);

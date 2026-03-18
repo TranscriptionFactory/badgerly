@@ -411,7 +411,7 @@ export function create_image_suggest_prose_plugin(
           return true;
         }
 
-        if (event.key === "Enter") {
+        if (event.key === "Enter" || event.key === "Tab") {
           event.preventDefault();
           event.stopPropagation();
           accept(view, state.selected_index);

@@ -349,7 +349,7 @@ export function create_date_suggest_prose_plugin(): Plugin {
           return true;
         }
 
-        if (event.key === "Enter") {
+        if (event.key === "Enter" || event.key === "Tab") {
           event.preventDefault();
           const item = suggest_state.items[suggest_state.selected_index];
           if (item) accept_fn?.(item);
