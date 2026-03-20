@@ -50,6 +50,7 @@ onMount (app_shell.svelte:77)
 The `notes` table in the search DB already stores parsed note data. Title is extracted during indexing but not exposed to `list_folder_contents`.
 
 **Steps:**
+
 1. Ensure the `notes` table has a `title` column (check if it already exists from parsing)
 2. Add a Rust function `get_cached_titles(conn, paths: &[String]) -> HashMap<String, String>` in `search/db.rs` that bulk-fetches titles from the index DB
 3. Modify `build_note_meta` in `notes/service.rs` to accept an optional pre-fetched title map
@@ -61,6 +62,7 @@ The `notes` table in the search DB already stores parsed note data. Title is ext
 6. Net result: first open after a fresh index rebuild may still read files; every subsequent open reads zero files for title display
 
 **Key files:**
+
 - `src-tauri/src/features/search/db.rs` — add `get_cached_titles`
 - `src-tauri/src/features/notes/service.rs` — modify `build_note_meta`, `list_folder_contents`
 
@@ -72,12 +74,14 @@ The `notes` table in the search DB already stores parsed note data. Title is ext
 `vault.initialize` fetches root contents via `list_folder_contents`, stores it in `root_contents`. Then `mount_ready_vault_state` calls `reconcile_workspace({ refresh_tree: true })` which calls `folder_refresh_tree` → `load_folder("")`, fetching root contents again and discarding the first result.
 
 **Steps:**
+
 1. In `mount_ready_vault_state` (app_actions.ts:116), pass a flag or check if root contents are already populated
 2. Option A: Skip `folder_refresh_tree` when vault was just opened (preferred — simpler)
 3. Option B: Have `folder_refresh_tree` check if root contents are fresh (< 1s old) and skip re-fetch
 4. Ensure the folder tree store is populated from `load_open_vault_snapshot`'s result instead of being cleared and re-fetched
 
 **Key files:**
+
 - `src/lib/app/orchestration/app_actions.ts` — `mount_ready_vault_state`
 - `src/lib/features/folder/application/folder_actions.ts` — `folder_refresh_tree`
 - `src/lib/features/vault/application/vault_service.ts` — `load_open_vault_snapshot`
@@ -88,11 +92,13 @@ The `notes` table in the search DB already stores parsed note data. Title is ext
 **Effort:** Medium
 
 Three independent WalkDir traversals run near-simultaneously:
+
 - `list_indexable_files` in `sync_index` (search/db.rs:961)
 - `get_folder_stats` (notes/service.rs:1351)
 - `load_note_count` in `refresh_note_count` (vault/service.rs:60)
 
 **Steps:**
+
 1. Create a shared `VaultScanResult` struct:
    ```rust
    pub struct VaultScanResult {
@@ -108,6 +114,7 @@ Three independent WalkDir traversals run near-simultaneously:
 5. Have the frontend listen for a `VaultStatsEvent` emitted by `sync_index` to update dashboard stats and note count
 
 **Key files:**
+
 - `src-tauri/src/features/search/db.rs` — `sync_index`, `list_indexable_files`
 - `src-tauri/src/features/notes/service.rs` — `get_folder_stats`
 - `src-tauri/src/features/vault/service.rs` — `load_note_count`
@@ -121,12 +128,14 @@ Three independent WalkDir traversals run near-simultaneously:
 `load_vault_ignore_matcher` reads `.gitignore`, `.vaultignore`, and vault settings JSON from disk on every call — at least 3 times during startup.
 
 **Steps:**
+
 1. Add a `once_cell::sync::Lazy` or `Mutex<Option<(Instant, IgnoreMatcher)>>` cache keyed by vault root path
 2. Return cached matcher if it's < 5s old (covers the startup burst)
 3. Invalidate on vault close or when the file watcher detects changes to ignore files
 4. Alternatively, pass the matcher as a parameter through the startup call chain instead of re-creating it
 
 **Key files:**
+
 - `src-tauri/src/shared/vault_ignore.rs` — `load_vault_ignore_matcher`
 
 ### Phase 2: Architectural Improvements (after Phase 1)
@@ -139,6 +148,7 @@ Three independent WalkDir traversals run near-simultaneously:
 **Concept:** On vault close, snapshot the folder tree + note metadata to a lightweight cache (JSON or SQLite). On next open, render from cache immediately, then refresh in background.
 
 **Steps:**
+
 1. On vault close (or periodically), serialize the current folder tree state to `<vault>/.badgerly/tree_cache.json`
 2. On vault open, if cache exists and is < 24h old:
    - Load and render the cached tree immediately (no IPC needed)
@@ -148,6 +158,7 @@ Three independent WalkDir traversals run near-simultaneously:
 3. If cache is missing or stale, fall back to current behavior (but now faster due to Phase 1 fixes)
 
 **Key files:**
+
 - `src-tauri/src/features/notes/service.rs` — add cache read/write
 - `src/lib/features/vault/application/vault_service.ts` — cache-first loading path
 - `src/lib/features/folder/application/folder_actions.ts` — incremental tree updates
@@ -158,6 +169,7 @@ Three independent WalkDir traversals run near-simultaneously:
 **Effort:** Medium
 
 **Steps:**
+
 1. `list_folder_contents` already paginates — ensure `build_note_meta` only runs for the current page slice (verify this is already the case)
 2. For folder tree rendering (which doesn't need titles), return entries without title extraction
 3. Extract titles on-demand when a note is visible in the sidebar or editor
@@ -169,6 +181,7 @@ Three independent WalkDir traversals run near-simultaneously:
 **Effort:** Large
 
 **Steps:**
+
 1. On vault close, record `last_sync_timestamp` in the index DB
 2. On next open, use platform filesystem APIs to find files modified since that timestamp:
    - macOS: `FSEvents` or simply compare mtime > last_sync
@@ -182,6 +195,7 @@ Three independent WalkDir traversals run near-simultaneously:
 **Effort:** Medium
 
 **Steps:**
+
 1. In `workspace_index_tauri_adapter.ts`, change `sync_index` to not await the `Completed` event
 2. Emit incremental `NoteIndexed` events from the backend as each note is processed
 3. Frontend updates search results progressively as notes are indexed
