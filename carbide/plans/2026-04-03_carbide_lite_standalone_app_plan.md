@@ -351,7 +351,10 @@ Current repo state on 2026-04-03:
 
 - shared folder/filetree and editor composition now treat linked-source/reference state as full-only optional wiring, so lite no longer carries reference-store assumptions through core folder refresh/load paths
 
+- lite `AppStores` type is now split into `CoreAppStores` (19 always-present stores) and `FullOnlyAppStores` (13 full-only stores, optional via `Partial`). All `undefined as unknown as` type-assertion hacks removed from `create_app_stores`. `graph`, `bases`, `task` stores are no longer instantiated for lite.
+- `ActionRegistrationInput` now treats `graph`, `bases`, `task` stores as optional. Full-only services (`bases`, `task`, `plugin`, `plugin_settings`, `reference`) are conditionally spread into `app_services` instead of using `as` casts.
+- Full-only Svelte components use `!` non-null assertions at store/service assignment points, semantically correct since they only render in full mode.
+
 Still remaining before the product definition is satisfied:
 
-- prune more lite action/service wiring for removed subsystems until the lite composition root only constructs retained capabilities
 - verify retained workflows end to end and add focused lite boot/layout tests

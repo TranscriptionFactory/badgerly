@@ -354,6 +354,10 @@ Begin Lite pruning:
 
 Prune lite action registration and reactors.
 
+### Step 6
+
+Prune lite full-only typing assumptions. Split `AppStores` into `CoreAppStores` + `Partial<FullOnlyAppStores>`, remove all `undefined as unknown as` hacks, stop instantiating `graph`/`bases`/`task` for lite, and make `ActionRegistrationInput` full-only fields optional. **Done.**
+
 ## Risks
 
 ### Risk 1 — accidental duplication
