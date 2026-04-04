@@ -332,6 +332,8 @@ Implement Carbide Lite as a **second application target sharing the existing fea
 
 Current repo state on 2026-04-03:
 
+- lite `create_app_context` now avoids constructing plugin/runtime, AI, graph, task, tags, bases, query, reference, code-LSP, and toolchain services, so the retained lite shell no longer carries those hidden service graphs
+- git autocommit/auto-fetch reactors now stay on the full app path instead of starting from the shared lite/core reactor mount
 - lite can boot as a distinct app target via `app_target=lite`
 - lite now has explicit shell/layout components instead of direct full-shell proxies
 - lite activity bar excludes dashboard/graph/tasks/tags/plugin-injected views

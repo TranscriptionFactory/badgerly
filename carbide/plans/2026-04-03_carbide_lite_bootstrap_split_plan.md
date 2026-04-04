@@ -395,6 +395,8 @@ That is the cleanest possible starting point for implementing Carbide Lite.
 
 Completed on 2026-04-03:
 
+- lite composition root now constructs full-only services only on the full app path; lite skips plugin runtime services, AI/graph/tasks/tags/bases/query/reference services, code LSP, and toolchain setup instead of just hiding their UI
+- git autocommit/auto-fetch reactors now live on the full-product reactor path instead of the shared lite/core reactor set
 - explicit full/lite boot selection in `src/routes/+page.svelte`
 - explicit full/lite composition root selection in `create_app_context.ts`
 - explicit full/lite action registration entrypoints
