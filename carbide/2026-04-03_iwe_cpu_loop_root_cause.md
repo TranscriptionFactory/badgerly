@@ -45,12 +45,12 @@ The rapid-fire `resourceID` increments (178802→178807 within 2ms) are each a `
 
 ## Fix Plan
 
-| #   | Priority  | Fix                                                                                                                | Location                                   | Status |
-| --- | --------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ | ------ |
-| 1   | Critical  | Handle server→client requests with string IDs in LSP transport; respond to `workspace/inlayHint/refresh` with null | `transport.rs`, `service.rs`               | DONE |
-| 2   | Important | Guard `apply_hints` — only dispatch if decoration set actually changed, prevent self-re-trigger                    | `lsp_inlay_hints_plugin.ts`                | DONE |
+| #   | Priority  | Fix                                                                                                                | Location                                   | Status           |
+| --- | --------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ | ---------------- |
+| 1   | Critical  | Handle server→client requests with string IDs in LSP transport; respond to `workspace/inlayHint/refresh` with null | `transport.rs`, `service.rs`               | DONE             |
+| 2   | Important | Guard `apply_hints` — only dispatch if decoration set actually changed, prevent self-re-trigger                    | `lsp_inlay_hints_plugin.ts`                | DONE             |
 | 3   | Cleanup   | Bound `delay_send` in IWE — replace thread-per-call with single background worker                                  | `vendor/iwe` (router.rs)                   | SKIPPED (vendor) |
-| 4   | Defensive | Debounce `iwe.refresh_transforms` effect during startup                                                            | `markdown_lsp_lifecycle.reactor.svelte.ts` | DONE |
+| 4   | Defensive | Debounce `iwe.refresh_transforms` effect during startup                                                            | `markdown_lsp_lifecycle.reactor.svelte.ts` | DONE             |
 
 ## Implementation Log
 
@@ -59,6 +59,7 @@ The rapid-fire `resourceID` increments (178802→178807 within 2ms) are each a `
 **File:** `src-tauri/src/shared/lsp_client/transport.rs`
 
 Modified `dispatch_message` to detect messages with both `id` and `method` fields (server→client requests per LSP spec). When detected:
+
 - Sends a null JSON-RPC response back to IWE via stdin, acknowledging the request
 - Forwards the method as a `ServerNotification` so the frontend can react if needed
 - Passed `stdin` Arc into the reader task and `dispatch_message` signature
