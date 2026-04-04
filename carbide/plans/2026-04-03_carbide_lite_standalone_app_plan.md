@@ -349,6 +349,8 @@ Current repo state on 2026-04-03:
 
 - shared omnibar/search state now respects product boundaries: lite no longer carries plugin-command/AI-command assumptions in command search, and the `?` structured-query shortcut is only enabled on the full query surface
 
+- shared folder/filetree and editor composition now treat linked-source/reference state as full-only optional wiring, so lite no longer carries reference-store assumptions through core folder refresh/load paths
+
 Still remaining before the product definition is satisfied:
 
 - prune more lite action/service wiring for removed subsystems until the lite composition root only constructs retained capabilities

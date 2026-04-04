@@ -414,6 +414,8 @@ Completed on 2026-04-03:
 
 - shared omnibar/search command context is now product-aware: lite no longer threads plugin command state or AI CLI state into command search, and the `?` structured-query shortcut only activates when the full query command surface exists
 
+- shared folder/filetree and editor wiring now treat linked-source/reference state as optional, so lite no longer threads reference store state through core folder actions or editor composition when linked-source surfaces are absent
+
 Remaining in this plan slice:
 
 - prune more lite-only action registration beyond git and shared UI seams once the remaining app bootstrap dependencies are split cleanly
