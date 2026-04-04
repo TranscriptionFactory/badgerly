@@ -345,6 +345,7 @@ Current repo state on 2026-04-03:
 - lite bootstrap now skips code-LSP startup, plugin RPC initialization, and built-in plugin sidebar registrations for full-only panels
 - lite command search now comes from an explicit lite command registry instead of filtering the full command catalog after composition
 - lite no longer wires the full-only LSP results / IWE action path, keeping markdown diagnostics while dropping removed editor-adjacent full-product surfaces
+- lite now uses an explicit lite UI surface config for sidebar/context-rail/bottom-panel state, and its shared UI action registration no longer includes vault-dashboard, quick-capture, or task-panel actions
 
 Still remaining before the product definition is satisfied:
 

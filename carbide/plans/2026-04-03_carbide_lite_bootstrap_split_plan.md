@@ -409,8 +409,10 @@ Completed on 2026-04-03:
 - lite composition no longer starts the code LSP service, initializes plugin RPC, or registers built-in plugin sidebar surfaces for full-only views
 - lite now uses explicit full-vs-lite command registries instead of a lite-only disabled-command denylist in `create_app_context.ts`
 - lite no longer registers full-only LSP-results and IWE action seams, so removed query/LSP-adjacent editor surfaces are pruned at the app boundary instead of being merely hidden
+- lite UI surface state is now explicit per product via `app_surface.ts`, so lite stores default/clamp sidebar/context-rail/bottom-panel state to retained surfaces instead of relying on layout-time repair effects
+- lite no longer registers full-only shared UI actions for vault dashboard, quick capture, or task-rail toggles from the core action path
 
 Remaining in this plan slice:
 
-- prune more lite-only action registration beyond git once the remaining app bootstrap dependencies are split cleanly
+- prune more lite-only action registration beyond git and shared UI seams once the remaining app bootstrap dependencies are split cleanly
 - trim remaining lite-only service construction so removed full-product subsystems are not even instantiated when Lite boots
