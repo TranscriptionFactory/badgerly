@@ -401,9 +401,11 @@ Completed on 2026-04-03:
 - explicit full/lite reactor mounting entrypoints
 - explicit lite shell/layout components that no longer proxy directly to full shell/layout
 - first lite UI pruning pass: activity bar limited to explorer/starred/help/settings, context rail limited to links/outline, bottom panel limited to terminal/problems
+- lite now suppresses full-only dialogs in the shared dialog host and stops registering git actions in the lite action entrypoint
+- lite omnibar command availability now hides removed product commands such as git, graph, tasks, bases, query, canvas, AI, and plugin surfaces
 
 Remaining in this plan slice:
 
-- prune lite-only action registration once the reduced lite shell no longer references full-only actions
+- prune more lite-only action registration beyond git once the remaining app bootstrap dependencies are split cleanly
 - prune lite-only reactor mounting once removed surfaces are fully disconnected
-- trim remaining lite shell reuse such as full dialog wiring where needed
+- trim remaining lite-only service/reactor wiring that still initializes removed subsystems behind the scenes

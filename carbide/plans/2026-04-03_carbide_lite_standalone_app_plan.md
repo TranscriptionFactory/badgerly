@@ -337,9 +337,10 @@ Current repo state on 2026-04-03:
 - lite activity bar excludes dashboard/graph/tasks/tags/plugin-injected views
 - lite context rail excludes AI and metadata
 - lite bottom panel excludes query and LSP results
+- lite dialog hosting now suppresses full-only surfaces such as git history/checkpoints, canvas creation, quick capture, vault dashboard, and linked-source dialogs
+- lite no longer registers git actions in its app-layer action entrypoint, and lite omnibar command availability now hides removed full-product commands
 
 Still remaining before the product definition is satisfied:
 
-- remove full-only dialogs and shell affordances from the lite app shell where they still leak through shared dialog wiring
-- prune lite action/reactor/service wiring for removed subsystems
+- prune more lite action/reactor/service wiring for removed subsystems
 - verify retained workflows end to end and add focused lite boot/layout tests
