@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05
 **Companion to:** `2026-04-05_unified_implementation_roadmap.md`
-**Progress:** 7 / 46 units complete
+**Progress:** 8 / 46 units complete
 
 ---
 
@@ -108,9 +108,10 @@ Review between batches — check the branch, run the app, read commits. Each bat
   - Pure function + exhaustive unit tests (dates, booleans, numbers, arrays, tags, edge cases). Update SQLite `property_type` semantics.
   - _Completed 2026-04-05 `f3203b48`. Created `infer_property_type.ts` with 6-type system (string/number/boolean/date/array/tags). Uses ISO date regex, boolean string detection, Number.isFinite for numeric strings, short-string heuristic for tags vs array. Added `PropertyType` union type narrowing `NoteProperty.type`. Updated `extract_metadata.ts` to call inference. 38 new tests covering all types + edge cases (NaN, Infinity, null, objects, nested arrays). Updated 4 existing test files for new type expectations. Pre-existing lint (build_command_context.ts layering) and test (document_service eviction) failures unchanged. SQLite `property_type` column semantics now receive inferred types from frontend — backend schema unchanged (still string column)._
 
-- [ ] **3.2** Frontmatter writer — **TypeScript session**
+- [x] **3.2** Frontmatter writer — **TypeScript session**
   - Files: `frontmatter_writer.ts` (new), test file
   - `update/add/remove_frontmatter_property()`, `ensure_frontmatter()`. Heavy on edge-case tests (comments, indentation, quoting, array formatting, empty frontmatter). Trickiest unit in Step 3.
+  - _Completed 2026-04-05 `b8db31b7`. Created `frontmatter_writer.ts` in `metadata/domain/` with 4 exported functions operating on raw markdown strings. Format-preserving: finds YAML block boundaries via regex, modifies only within delimiters. Quoting heuristic for special YAML chars (`:`, `#`, `{}`, `[]`, booleans, null). Arrays inline for ≤3 items, multi-line with `- ` prefix otherwise. Multi-line array values consumed correctly during update/remove. 53 tests covering: add/update/remove for all types, empty frontmatter, no frontmatter, sequential operations, round-trips, special chars, partial key matching, escaping. Exported via metadata feature index.ts. Pre-existing lint (build_command_context.ts layering) and test (document_service eviction) failures unchanged._
 
 - [ ] **3.3** Property enumeration with types + unique values — **Rust + TS session**
   - Files: `db.rs` (extend `list_all_properties`), `model.rs` (update `PropertyInfo`), frontend type updates
