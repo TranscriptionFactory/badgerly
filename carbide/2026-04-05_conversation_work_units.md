@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05
 **Companion to:** `2026-04-05_unified_implementation_roadmap.md`
-**Progress:** 0 / 46 units complete
+**Progress:** 1 / 46 units complete
 
 ---
 
@@ -26,16 +26,16 @@ Run repeatedly. Each invocation completes one unit, updates checkboxes, and the 
 
 Review between batches — check the branch, run the app, read commits. Each batch is a natural ship point.
 
-| Batch | Steps | Units | Runs | Review gate |
-|-------|-------|-------|------|-------------|
-| **A** | 1–2 | 1.1–1.5, 2.1 | 6 | MCP stdio works in Claude Desktop; headings command callable |
-| **B** | 3–4 | 3.1–3.3, 4.1–4.2 | 5 | Type inference in bases; frontmatter edits round-trip; `ctime_ms` + `note_links` populated |
-| **C** | 5–6 | 5.1–5.3, 6.1–6.2 | 5 | Suggested Links panel shows metadata + semantic rules with provenance |
-| **D** | 7–8 | 7.1–7.6, 8.1–8.2 | 8 | `carbide read/search` works from terminal; Claude Desktop + Code auto-configured |
-| **E** | 9–10 | 9.1, 10.1–10.3 | 4 | `getFileCache` composite endpoint; plugins lazy-load with timeouts |
-| **F** | 11–12 | 11.1–11.2, 12.1–12.5 | 7 | Block-level suggestions; full MCP + CLI surface |
-| **G** | 13–15 | 13.1–13.2, 14.1–14.2, 15.1–15.2 | 6 | Drag blocks; live metadata events; graph shows smart link edges |
-| **H** | 16 | 16.1–16.5 | 5 | Bulk property ops; nested props; plugin SDK; CLI TUI |
+| Batch | Steps | Units                           | Runs | Review gate                                                                                |
+| ----- | ----- | ------------------------------- | ---- | ------------------------------------------------------------------------------------------ |
+| **A** | 1–2   | 1.1–1.5, 2.1                    | 6    | MCP stdio works in Claude Desktop; headings command callable                               |
+| **B** | 3–4   | 3.1–3.3, 4.1–4.2                | 5    | Type inference in bases; frontmatter edits round-trip; `ctime_ms` + `note_links` populated |
+| **C** | 5–6   | 5.1–5.3, 6.1–6.2                | 5    | Suggested Links panel shows metadata + semantic rules with provenance                      |
+| **D** | 7–8   | 7.1–7.6, 8.1–8.2                | 8    | `carbide read/search` works from terminal; Claude Desktop + Code auto-configured           |
+| **E** | 9–10  | 9.1, 10.1–10.3                  | 4    | `getFileCache` composite endpoint; plugins lazy-load with timeouts                         |
+| **F** | 11–12 | 11.1–11.2, 12.1–12.5            | 7    | Block-level suggestions; full MCP + CLI surface                                            |
+| **G** | 13–15 | 13.1–13.2, 14.1–14.2, 15.1–15.2 | 6    | Drag blocks; live metadata events; graph shows smart link edges                            |
+| **H** | 16    | 16.1–16.5                       | 5    | Bulk property ops; nested props; plugin SDK; CLI TUI                                       |
 
 ---
 
@@ -57,9 +57,10 @@ Review between batches — check the branch, run the app, read commits. Each bat
 **Design ref:** `carbide/mcp_native_gaps_plan.md` → "Phase 1: Core MCP Server"
 **Depends on:** nothing
 
-- [ ] **1.1** Module scaffold + MCP types + JSON-RPC 2.0 message parsing
+- [x] **1.1** Module scaffold + MCP types + JSON-RPC 2.0 message parsing
   - Files: `src-tauri/src/features/mcp/mod.rs`, `types.rs`, `router.rs` + tests
   - Define `McpRequest`, `McpResponse`, `ToolDefinition`, `McpError`. JSON-RPC 2.0 parse/serialize. No transport yet — pure types + router dispatch skeleton.
+  - _Completed 2026-04-05 `fc6decde`. Built full JSON-RPC 2.0 types (request/response/error with serde), MCP protocol types (InitializeResult, ToolDefinition, ToolCallParams, ToolResult with ContentBlock tagged enum, ResourceDefinition), and McpRouter with dispatch for initialize/ping/tools-list/tools-call/resources-list/resources-read. 25 tests. Tool definitions and dispatch are empty stubs — unit 1.3 populates them. Pre-existing lint failures in `build_command_context.ts` and 1 pre-existing test failure in document store — not related to MCP._
 
 - [ ] **1.2** Stdio transport + server lifecycle
   - Files: `mcp/server.rs`, `mcp/transport.rs`, Tauri command wiring
@@ -337,22 +338,22 @@ Review between batches — check the branch, run the app, read commits. Each bat
 
 ## Summary
 
-| Step | Units | Sessions |
-|------|-------|----------|
-| 1. MCP Stdio | 5 | 5 |
-| 2. Headings Cmd | 1 | 1 |
-| 3. Metadata Foundations | 3 | 3 |
-| 4. Backend Enrichment | 2 | 2 |
-| 5. Smart Linking P1 | 3 | 3 |
-| 6. Smart Linking P2 | 2 | 2 |
-| 7. HTTP + CLI | 6 | 5-6 |
-| 8. Auto-Setup | 2 | 2 |
-| 9. getFileCache | 1 | 1 |
-| 10. Plugin Hardening | 3 | 2-3 |
-| 11. Block Embeddings | 2 | 2 |
-| 12. Extended Tools | 5 | 4-5 |
-| 13. Editor Drag | 2 | 2 |
-| 14. Metadata Events | 2 | 2 |
-| 15. Graph Viz | 2 | 2 |
-| 16. Power Features | 5 | 5 |
-| **Total** | **46** | **~43-46** |
+| Step                    | Units  | Sessions   |
+| ----------------------- | ------ | ---------- |
+| 1. MCP Stdio            | 5      | 5          |
+| 2. Headings Cmd         | 1      | 1          |
+| 3. Metadata Foundations | 3      | 3          |
+| 4. Backend Enrichment   | 2      | 2          |
+| 5. Smart Linking P1     | 3      | 3          |
+| 6. Smart Linking P2     | 2      | 2          |
+| 7. HTTP + CLI           | 6      | 5-6        |
+| 8. Auto-Setup           | 2      | 2          |
+| 9. getFileCache         | 1      | 1          |
+| 10. Plugin Hardening    | 3      | 2-3        |
+| 11. Block Embeddings    | 2      | 2          |
+| 12. Extended Tools      | 5      | 4-5        |
+| 13. Editor Drag         | 2      | 2          |
+| 14. Metadata Events     | 2      | 2          |
+| 15. Graph Viz           | 2      | 2          |
+| 16. Power Features      | 5      | 5          |
+| **Total**               | **46** | **~43-46** |
