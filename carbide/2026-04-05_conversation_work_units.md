@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05
 **Companion to:** `2026-04-05_unified_implementation_roadmap.md`
-**Progress:** 2 / 46 units complete
+**Progress:** 3 / 46 units complete
 
 ---
 
@@ -67,9 +67,10 @@ Review between batches — check the branch, run the app, read commits. Each bat
   - Stdin/stdout line-delimited JSON-RPC. `mcp_start`/`mcp_stop`/`mcp_status` Tauri commands. `McpState` managed state.
   - _Completed 2026-04-05 `b3926bcc`. Built generic async JSON-RPC stream transport over AsyncBufRead/AsyncWrite with tokio::select shutdown. McpState manages lifecycle (start_stdio/stop/get_status/shutdown). Three Tauri commands with specta annotations wired into app builder + shutdown hook. Added tokio `io-std` and `io-util` features. 10 transport tests. Pre-existing lint (build_command_context.ts layering) and test (document_service) failures unchanged. MCP types use snake_case serde — will need `rename_all = "camelCase"` before real MCP client integration (noted for future unit)._
 
-- [ ] **1.3** Tier 1 tools — notes CRUD
+- [x] **1.3** Tier 1 tools — notes CRUD
   - Files: `mcp/tools/mod.rs`, `mcp/tools/notes.rs`
   - `list_notes`, `read_note`, `create_note`, `update_note`, `delete_note`. Each calls existing service functions.
+  - _Completed 2026-04-05 `0d3d8717`. Five MCP tool definitions with camelCase JSON schemas + dispatch handlers. Router uses `Option<AppHandle>` — `with_app()` for production, `new()` for tests. read_note/update_note bypass BufferManager for direct disk IO (MCP doesn't need editor buffer state). Made `build_note_meta` pub(crate). Added `#[serde(rename_all = "camelCase")]` on ToolDefinition for MCP protocol compliance. 8 new tool-specific tests + updated 2 existing tests. Pre-existing lint/test failures unchanged._
 
 - [ ] **1.4** Tier 1 tools — search + metadata + vault
   - Files: `mcp/tools/search.rs`, `mcp/tools/metadata.rs`, `mcp/tools/vault.rs`
