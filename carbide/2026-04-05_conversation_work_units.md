@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05
 **Companion to:** `2026-04-05_unified_implementation_roadmap.md`
-**Progress:** 6 / 46 units complete
+**Progress:** 7 / 46 units complete
 
 ---
 
@@ -103,9 +103,10 @@ Review between batches — check the branch, run the app, read commits. Each bat
 **Design ref:** `carbide/mcp_native_gaps_plan.md` → "Gap 3: Metadata System" (3a, 3b, 3c)
 **Depends on:** nothing (benefits Step 1 but not blocked)
 
-- [ ] **3.1** Property type inference — **TypeScript session**
+- [x] **3.1** Property type inference — **TypeScript session**
   - Files: `infer_property_type.ts` (new), test file, update `extract_metadata.ts` call site
   - Pure function + exhaustive unit tests (dates, booleans, numbers, arrays, tags, edge cases). Update SQLite `property_type` semantics.
+  - _Completed 2026-04-05 `f3203b48`. Created `infer_property_type.ts` with 6-type system (string/number/boolean/date/array/tags). Uses ISO date regex, boolean string detection, Number.isFinite for numeric strings, short-string heuristic for tags vs array. Added `PropertyType` union type narrowing `NoteProperty.type`. Updated `extract_metadata.ts` to call inference. 38 new tests covering all types + edge cases (NaN, Infinity, null, objects, nested arrays). Updated 4 existing test files for new type expectations. Pre-existing lint (build_command_context.ts layering) and test (document_service eviction) failures unchanged. SQLite `property_type` column semantics now receive inferred types from frontend — backend schema unchanged (still string column)._
 
 - [ ] **3.2** Frontmatter writer — **TypeScript session**
   - Files: `frontmatter_writer.ts` (new), test file
