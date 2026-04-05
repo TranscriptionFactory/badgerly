@@ -7,6 +7,7 @@
 ## Problem
 
 carbide-lite lives on a diverging branch (30 commits ahead, 6 behind main). The runtime `app_target` check works but:
+
 - Rust binary ships everything (candle ML, PDF extraction, plugin host) even for lite
 - No TS tree-shaking — full-only code is bundled but dead
 - Branch maintenance is unsustainable as main evolves
@@ -64,17 +65,17 @@ feat-toolchain = ["dep:flate2", "dep:tar"]
 
 ### Module-to-Feature Mapping
 
-| Module | Feature | Key Dependencies |
-|---|---|---|
-| vault, notes, watcher, settings, git, search (core), lint, markdown_lsp, code_lsp | Always (lite) | rusqlite, git2, comrak |
-| ai, pipeline | feat-ai | std::process |
-| search/embeddings, search/vector_db, search/hybrid | feat-semantic-search | candle-*, hf_hub, tokenizers |
-| plugin | feat-plugins | serde_yml |
-| reference | feat-references | pdf-extract, lopdf, reqwest |
-| canvas | feat-canvas | serde_json |
-| tasks | feat-tasks | search::db |
-| bases | feat-bases | search::db |
-| toolchain | feat-toolchain | flate2, tar, reqwest |
+| Module                                                                            | Feature              | Key Dependencies              |
+| --------------------------------------------------------------------------------- | -------------------- | ----------------------------- |
+| vault, notes, watcher, settings, git, search (core), lint, markdown_lsp, code_lsp | Always (lite)        | rusqlite, git2, comrak        |
+| ai, pipeline                                                                      | feat-ai              | std::process                  |
+| search/embeddings, search/vector_db, search/hybrid                                | feat-semantic-search | candle-\*, hf_hub, tokenizers |
+| plugin                                                                            | feat-plugins         | serde_yml                     |
+| reference                                                                         | feat-references      | pdf-extract, lopdf, reqwest   |
+| canvas                                                                            | feat-canvas          | serde_json                    |
+| tasks                                                                             | feat-tasks           | search::db                    |
+| bases                                                                             | feat-bases           | search::db                    |
+| toolchain                                                                         | feat-toolchain       | flate2, tar, reqwest          |
 
 ### Command Registration Strategy
 
@@ -86,7 +87,7 @@ The `generate_handler![]` macro in `app/mod.rs` takes a flat list of 126 command
 
 ### Expected Binary Size Reduction (lite)
 
-- candle-* ML stack: ~50-100 MB
+- candle-\* ML stack: ~50-100 MB
 - pdf-extract + lopdf: ~20 MB
 - tokenizers (onig): ~10 MB
 - Total: ~70-150 MB reduction (uncompressed)
@@ -97,7 +98,9 @@ The `generate_handler![]` macro in `app/mod.rs` takes a flat list of 126 command
 
 ```typescript
 const variant = process.env.CARBIDE_VARIANT ?? "full";
-define: { __CARBIDE_LITE__: JSON.stringify(variant === "lite") }
+define: {
+  __CARBIDE_LITE__: JSON.stringify(variant === "lite");
+}
 ```
 
 ### TS Refactoring Pattern
@@ -132,15 +135,15 @@ const ai = __CARBIDE_LITE__ ? undefined : new AiStore();
 
 ## Implementation Steps
 
-| Step | What | Risk | Status |
-|---|---|---|---|
-| 1 | Add `[features]` to Cargo.toml, make heavy deps optional | Low | TODO |
-| 2 | Gate Rust modules with `#[cfg(feature)]` | Medium | TODO |
-| 3 | Gate command registration and state in `app/mod.rs` | Medium | TODO |
-| 4 | Spike: verify `generate_handler!` works with cfg-gated fns | High | TODO |
-| 5 | Add `__CARBIDE_LITE__` Vite define | Low | TODO |
-| 6 | Replace runtime `app_target` checks with compile-time | Medium | TODO |
-| 7 | Update build scripts | Low | TODO |
-| 8 | Validate: `cargo check --features lite` compiles | — | TODO |
-| 9 | Validate: `pnpm dev:lite` boots correctly | — | TODO |
-| 10 | Merge to main, delete branch | Medium | TODO |
+| Step | What                                                       | Risk   | Status |
+| ---- | ---------------------------------------------------------- | ------ | ------ |
+| 1    | Add `[features]` to Cargo.toml, make heavy deps optional   | Low    | TODO   |
+| 2    | Gate Rust modules with `#[cfg(feature)]`                   | Medium | TODO   |
+| 3    | Gate command registration and state in `app/mod.rs`        | Medium | TODO   |
+| 4    | Spike: verify `generate_handler!` works with cfg-gated fns | High   | TODO   |
+| 5    | Add `__CARBIDE_LITE__` Vite define                         | Low    | TODO   |
+| 6    | Replace runtime `app_target` checks with compile-time      | Medium | TODO   |
+| 7    | Update build scripts                                       | Low    | TODO   |
+| 8    | Validate: `cargo check --features lite` compiles           | —      | TODO   |
+| 9    | Validate: `pnpm dev:lite` boots correctly                  | —      | TODO   |
+| 10   | Merge to main, delete branch                               | Medium | TODO   |
