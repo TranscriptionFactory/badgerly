@@ -1,7 +1,7 @@
 # Smart Linking & Block-Level Notes Design
 
 **Date:** 2026-04-02
-**Updated:** 2026-04-05 (infrastructure review — corrected current state, revised scope)
+**Updated:** 2026-04-05 (infrastructure review — corrected current state, revised scope, feasibility revisions)
 **Status:** Proposal (Revised)
 **Related Features:** `links`, `search`, `metadata`, `editor`, `bases`, `markdown_lsp`
 
@@ -15,7 +15,7 @@ A review of the existing codebase revealed that several subsystems assumed to be
 
 | Subsystem                       | Status                                                                                 | Key Files                                                     |
 | ------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| `note_sections` table           | **Populated** — `extract_markdown_structure()` runs on every `upsert_note_simple()`    | `src-tauri/src/features/search/db.rs:360`                     |
+| `note_sections` table           | **Populated** — `extract_markdown_structure()` runs on every `upsert_note_simple()`    | `src-tauri/src/features/search/db.rs:311`                     |
 | `note_headings` table           | **Populated** — headings with slugs, levels, line numbers                              | `src-tauri/src/features/search/db.rs:423`                     |
 | `note_code_blocks` table        | **Populated** — language, line, length                                                 | `src-tauri/src/features/search/db.rs:436`                     |
 | Note-level embeddings           | **Fully functional** — Snowflake Arctic Embed XS (384-dim), batch indexing, KNN search | `src-tauri/src/features/search/embeddings.rs`, `vector_db.rs` |
@@ -42,6 +42,14 @@ The LSP infrastructure is architecturally solid but was recently stabilized afte
 
 The restartable client (3-retry exponential backoff, IWES→Marksman fallback) works correctly now. These fixes are days old — a soak period is advisable before building new features that depend heavily on LSP reliability.
 
+### Known Limitations
+
+1. **KNN search is brute-force O(n).** `knn_search` in `vector_db.rs` loads all embeddings into memory and computes dot product linearly. This is acceptable for note-level embeddings (hundreds to low thousands), but block embeddings will produce 5-20x more rows. For MVP, brute-force is fine up to ~10k sections. Beyond that, consider sqlite-vec or pre-filtering by vault/folder. Don't over-engineer upfront, but acknowledge the ceiling.
+
+2. **Hybrid search silently drops vector-only hits.** `hybrid.rs` uses a `filter_map` that discards vector-only results lacking FTS metadata. Smart link rules must call `knn_search` / `find_similar_notes()` directly, never hybrid search.
+
+3. **Links feature has no Rust backend or dedicated port.** The `links/` feature is entirely frontend TypeScript. `LinksService` reuses `SearchPort` and `MarkdownLspPort` — there is no `LinksPort`. Smart link rule execution should be exposed through `SearchPort` (new methods), not a separate port, following the existing pattern.
+
 ### Impact on Design
 
 1. **`block_index.rs` and `note_blocks` table are unnecessary.** `note_sections` + `note_headings` + `note_code_blocks` already cover the block model. A thin query layer over the existing tables replaces the proposed unified table.
@@ -56,7 +64,7 @@ The restartable client (3-retry exponential backoff, IWES→Marksman fallback) w
 
 This document covers two related features:
 
-1. **Smart Linking** — implicit note discovery through metadata rules, semantic similarity, and hierarchical linking signals
+1. **Smart Linking** — implicit note discovery through metadata rules and semantic similarity
 2. **Block-Level Notes** — AST-aware block granularity for link precision and draggable content units
 
 Both features build on existing infrastructure: the SQLite-backed search index, embedding pipeline, mdast parsing, the bases query system, and the markdown LSP (IWES/Marksman).
@@ -71,11 +79,11 @@ Currently, linking is entirely explicit — users must manually create `[[wiki-l
 
 ### Solution
 
-A configurable rule-based system that surfaces implicit connections between notes. Rules are toggleable and composable, similar to how bases queries are constructed. Links discovered by smart-linking are surfaced as "suggested links" (same UX as current `SuggestedLink` type) but with provenance indicating which rule(s) triggered the suggestion.
+A configurable rule-based system that surfaces implicit connections between notes. Rules are toggleable, similar to how bases queries are constructed. Links discovered by smart-linking are surfaced as "suggested links" (same UX as current `SuggestedLink` type) but with provenance indicating which rule(s) triggered the suggestion. Implicit composition emerges naturally from weighted score aggregation — notes that match multiple independent rules rank higher without requiring an explicit AND engine.
 
 ### Rule Taxonomy
 
-Rules are organized into three tiers of increasing specificity:
+Rules are organized into two tiers:
 
 #### Tier 1: Metadata Co-occurrence
 
@@ -99,16 +107,11 @@ Content-based rules that use the existing embedding pipeline:
 | `title_overlap`       | Significant term overlap in titles | Tokenize + Jaccard similarity on `title` column | Query only                                                             |
 | `shared_outlinks`     | Both notes link to the same target | Query `outlinks` table for shared `target_path` | **Partially** — `outlinks` table populated; shared-target query is new |
 
-#### Tier 3: Hierarchical / Composite
+#### ~~Tier 3: Hierarchical / Composite~~ — Deferred
 
-Rules that combine signals for higher precision:
+Explicit composite rules (AND of Tier 1 + Tier 2) are **deferred**. Weighted score aggregation across independent rules already provides implicit composition — notes matching `same_day` AND `semantic_similarity` will naturally score highest when both rules are enabled. Build explicit AND-composition only if real usage shows the implicit approach is insufficient.
 
-| Rule                      | Signal                                            | Implementation                           |
-| ------------------------- | ------------------------------------------------- | ---------------------------------------- |
-| `same_day_and_semantic`   | Same day AND semantic similarity > threshold      | AND of Tier 1 + Tier 2                   |
-| `shared_tag_and_semantic` | Shared tag AND semantic similarity > threshold    | AND of Tier 1 + Tier 2                   |
-| `citation_and_semantic`   | Shared citation AND semantic similarity           | AND of Tier 1 + Tier 2                   |
-| `block_level_semantic`    | Section-level semantic match (requires Feature 2) | Block embeddings (see Block-Level Notes) |
+The one exception is `block_level_semantic` which depends on block embeddings (Feature 2) and is tracked in Feature 2's phases.
 
 ### Architecture
 
@@ -124,7 +127,7 @@ type SmartLinkRule = {
 };
 
 type SmartLinkRuleGroup = {
-  id: string; // e.g., "metadata", "semantic", "hierarchical"
+  id: string; // e.g., "metadata", "semantic"
   name: string;
   rules: SmartLinkRule[];
   enabled: boolean; // Master toggle for group
@@ -140,7 +143,7 @@ type SmartLinkSuggestion = {
 
 #### Storage
 
-- Rules persisted as JSON in `.carbide/smart-links/rules.json` per vault (same pattern as bases views)
+- Rules read/written by Rust via Tauri commands (`smart_links_load_rules` / `smart_links_save_rules`), persisted as JSON in `.carbide/smart-links/rules.json` per vault (same pattern as bases views). Default rules created on first access. TS service calls port methods, never touches filesystem.
 - Suggestions are computed on-demand, not persisted (ephemeral like current link suggestions)
 - For block-level rules (Feature 2), block embeddings stored in new `block_embeddings` table
 
@@ -153,27 +156,41 @@ type SmartLinkSuggestion = {
 │  1. Load enabled rules from vault config         │
 │  2. For each enabled rule group (parallel):      │
 │     ├─ Metadata rules → SQL queries              │
-│     ├─ Semantic rules → KNN vector search        │
-│     └─ Composite rules → AND of sub-rules        │
+│     └─ Semantic rules → KNN vector search        │
 │  3. Merge results, deduplicate by target         │
 │  4. Score: sum(rule.weight * raw_score)          │
 │  5. Sort, truncate, return SmartLinkSuggestion[] │
 └─────────────────────────────────────────────────┘
 ```
 
+**Important:** Smart link rules must call `knn_search` / `find_similar_notes()` directly for semantic rules. Do not route through hybrid search — it silently drops vector-only hits that lack FTS metadata.
+
 #### Integration Points
 
-- **Links feature**: Extend `LinksService` to call `SmartLinkService` and merge results into `SuggestedLink[]`. Existing `load_suggested_links()` becomes a union of explicit wiki-link suggestions + smart-link suggestions.
+- **Links feature**: Extend `LinksService` to call smart link Tauri commands via `SearchPort` and merge results into `SuggestedLink[]`. Existing `load_suggested_links()` becomes a union of explicit wiki-link suggestions + smart-link suggestions.
 - **Search feature**: Reuse `find_similar_notes()` for the `semantic_similarity` rule. No new embedding infrastructure needed for note-level rules.
 - **Bases feature**: Rule configuration UI reuses bases query patterns (filter builder, property picker).
-- **Graph feature**: Smart links can be toggled as a visual layer (dashed edges with rule provenance on hover).
 - **LSP feature**: LSP `references` can validate/enrich backlink-based rules. LSP `workspace/symbol` can power heading-aware suggestions.
 
 #### Rust/TS Split
 
-- **Rust** (`src-tauri/src/features/smart_links/`): Rule execution engine, SQL queries, KNN search orchestration
+- **Rust** (`src-tauri/src/features/smart_links/`): Rule execution engine, SQL queries, KNN search orchestration, config persistence (`smart_links_load_rules`, `smart_links_save_rules`, `smart_links_compute_suggestions`)
 - **TypeScript** (`src/lib/features/smart_links/`): Store, service, actions, UI for rule configuration
-- **Port interface**: `SmartLinksPort` with `compute_suggestions(vault_id, note_path, rules) → SmartLinkSuggestion[]`
+- **Port interface**: Extend `SearchPort` with `compute_smart_link_suggestions(vault_id, note_path) → SmartLinkSuggestion[]`, `load_smart_link_rules(vault_id) → SmartLinkRuleGroup[]`, `save_smart_link_rules(vault_id, rules) → void`. This follows the existing pattern where `LinksService` delegates to `SearchPort` rather than having a dedicated `LinksPort`.
+
+#### SuggestedLink Type Extension
+
+Extend the existing `SuggestedLink` type to carry provenance:
+
+```typescript
+export type SuggestedLink = {
+  note: NoteMeta;
+  similarity: number;
+  rules?: { rule_id: string; raw_score: number }[]; // Provenance (optional for backward compat)
+};
+```
+
+Existing semantic-only suggestions get `rules: [{ rule_id: "semantic_similarity", raw_score: similarity }]`. UI shows provenance chips when `rules` is present.
 
 #### Configuration UI
 
@@ -186,35 +203,28 @@ Smart Linking
 │   ├── [ ] Same folder
 │   ├── [x] Shared properties
 │   └── [x] Shared tags
-├── Semantic Rules
-│   ├── [x] Semantic similarity (threshold: 0.75)
-│   ├── [ ] Title overlap
-│   └── [ ] Shared outlinks
-└── Composite Rules
-    ├── [x] Same day + semantic (threshold: 0.70)
-    └── [ ] Shared tag + semantic (threshold: 0.70)
+└── Semantic Rules
+    ├── [x] Semantic similarity (threshold: 0.75)
+    ├── [ ] Title overlap
+    └── [ ] Shared outlinks
 ```
 
 ### Implementation Phases (Revised)
 
 **Phase 1: Metadata Rules** — low effort, high value
 
-- Rule infrastructure (types, store, config persistence)
+- Rule infrastructure (types, store, config persistence via Rust Tauri commands)
 - Implement `same_day`, `shared_tag`, `shared_property` as SQL queries against existing tables
+- Extend `SearchPort` with smart link methods
 - Integrate with `LinksService.load_suggested_links()`
+- Extend `SuggestedLink` type with optional provenance
 - No new indexing or tables needed
 
 **Phase 2: Semantic Rules** — mostly wiring
 
-- Wire `semantic_similarity` rule to existing `find_similar_notes()`
+- Wire `semantic_similarity` rule to existing `find_similar_notes()` (call directly, not through hybrid search)
 - Add `title_overlap` and `shared_outlinks` queries
-- Scoring/merging logic to combine with Tier 1 results
-
-**Phase 3: Composite Rules**
-
-- Rule composition engine (AND logic)
-- Hierarchical rule definitions
-- Graph visualization layer
+- Scoring/merging logic to combine with Tier 1 results via weighted aggregation
 
 ---
 
@@ -228,7 +238,7 @@ Links currently resolve to entire notes. When a user links to `[[meeting-notes#a
 
 **What already exists and is populated:**
 
-- `note_sections` table: `(path, heading_id, level, title, start_line, end_line, word_count)` — **populated on every note index** via `extract_markdown_structure()` in `db.rs:360`
+- `note_sections` table: `(path, heading_id, level, title, start_line, end_line, word_count)` — **populated on every note index** via `extract_markdown_structure()` in `db.rs:311`
 - `note_headings` table: `(note_path, level, text, line)` — **populated**, with slug generation and occurrence deduplication (`db.rs:423`)
 - `note_code_blocks` table: `(path, line, language, length)` — **populated** (`db.rs:436`)
 - `note_sections` sync: `sync_sections()` — **populated**, spans between headings with word counts (`db.rs:449`)
@@ -303,7 +313,7 @@ type NoteBlock = {
 
 #### ~~New module: `block_index.rs`~~ → Not needed
 
-`extract_markdown_structure()` in `db.rs:360` already handles:
+`extract_markdown_structure()` in `db.rs:311` already handles:
 
 - Heading extraction with slug generation
 - Section span computation (start_line to next heading)
@@ -324,15 +334,19 @@ CREATE TABLE block_embeddings (
 
 #### Embedding Pipeline Extension
 
-- For sections above a minimum word count (20 words / 100 characters), generate embeddings
+- For sections above a configurable minimum size (default: 20 words OR >10 lines), generate embeddings. Use `word_count` from `note_sections` (already computed) and section span (`end_line - start_line`). The OR-gate captures short-text sections with long code blocks underneath that have low word count but high semantic content.
 - Key by `(path, heading_id)` from `note_sections` table
 - Store in `block_embeddings` table
 - Reuse existing Snowflake Arctic Embed XS model — no new model needed
 - Add `block_knn_search()` to `vector_db.rs` alongside existing `knn_search()`
 
+#### Scaling Note
+
+`block_knn_search()` will use the same brute-force linear scan as `knn_search()`. Block embeddings produce 5-20x more rows than note embeddings. For MVP this is fine up to ~10k sections. If vaults grow beyond that, consider sqlite-vec or pre-filtering by vault/folder before scanning. Do not over-engineer upfront.
+
 ### Block-Level Smart Linking
 
-With block-level embeddings, composite smart-linking rules gain precision:
+With block-level embeddings, smart-linking gains section-level precision:
 
 ```typescript
 type BlockLevelSmartLinkRule = {
@@ -346,7 +360,6 @@ This enables:
 
 - "This section in Note A is related to that heading in Note B"
 - Link suggestions at the section level, not just note level
-- Graph edges between specific sections, not just notes
 
 ### Editor Integration
 
@@ -369,34 +382,35 @@ The LSP already handles `[[note#heading]]` completion via the `[` trigger charac
 
 ### Implementation Phases (Revised)
 
-**Phase 1: Block Embeddings** — the genuine new capability
+**Phase 3: Block Embeddings** — the genuine new capability
 
 - Add `block_embeddings` table to schema
-- Extend embedding pipeline to iterate `note_sections` and embed sections above word threshold
+- Extend embedding pipeline to iterate `note_sections` and embed sections above size threshold (20 words OR >10 lines, configurable)
 - Add `block_knn_search()` API to `vector_db.rs`
 - Backfill runs during normal vault indexing
 
-**Phase 2: Editor Block Features**
+**Phase 4: Editor Block Features**
 
 - ProseMirror block detection plugin
 - Drag handle UI and drag-and-drop
 - (Link autocomplete already works via LSP — enhance with section preview if needed)
 
-**Phase 3: Block-Level Smart Links**
+**Phase 5: Graph Visualization** — separate workstream
 
-- Composite rules that use block embeddings
-- Block-level link suggestions in the sidebar
-- Graph visualization with section-level edges
+- Smart links as a visual layer (dashed edges with rule provenance on hover)
+- Requires changes to Rust graph builder, TS graph types (`VaultGraphSnapshot`, `GraphNeighborhoodSnapshot`), and D3/rendering layer
+- Block-level (section) edges in graph visualization
+- This is non-trivial and touches the `graph` feature's internals — scoped as its own phase
 
 ---
 
 ## Cross-Feature Dependencies
 
 ```
-smart_links ──depends_on──> search (embeddings, KNN)
+smart_links ──depends_on──> search (embeddings, KNN — call directly, not through hybrid search)
 smart_links ──depends_on──> metadata (properties, tags)
-smart_links ──depends_on──> links (suggestion integration)
-smart_links ──depends_on──> bases (query patterns, config UI)
+smart_links ──depends_on──> links (suggestion integration via LinksService)
+smart_links ──exposes_via─> search (SearchPort extension — no dedicated SmartLinksPort)
 smart_links ──can_use────> markdown_lsp (references, workspace symbols)
 
 block_notes ──depends_on──> editor (ProseMirror, mdast)
@@ -404,6 +418,10 @@ block_notes ──depends_on──> search (embeddings — block_embeddings tabl
 block_notes ──enables─────> smart_links (block-level rules)
 block_notes ──already_has─> search (note_sections, note_headings, note_code_blocks)
 block_notes ──already_has─> markdown_lsp (heading resolution, link validation)
+
+graph_viz   ──depends_on──> smart_links (edge data)
+graph_viz   ──depends_on──> graph (rendering, types, builder)
+graph_viz   ──depends_on──> block_notes (section-level edges)
 ```
 
 ---
@@ -412,7 +430,7 @@ block_notes ──already_has─> markdown_lsp (heading resolution, link validat
 
 1. ~~**mdast parsing in Rust**: Do we implement a lightweight Rust mdast parser, or call the TypeScript parser via IPC?~~ → **Resolved.** `extract_markdown_structure()` already parses markdown headings and code blocks in Rust. No new parser needed.
 
-2. **Block embedding granularity**: What's the minimum section size for embedding? Very short sections (single words) produce noisy embeddings. Proposed threshold: 20 words or 100 characters.
+2. ~~**Block embedding granularity**: What's the minimum section size for embedding? Very short sections (single words) produce noisy embeddings. Proposed threshold: 20 words or 100 characters.~~ → **Resolved.** Use `word_count` from `note_sections` (already computed) and section span. Threshold: 20 words OR >10 lines (configurable). The OR-gate captures code-heavy sections with low word counts.
 
 3. **Smart link freshness**: Should suggestions be cached or computed on every note open? Proposed: compute on note open, cache for the session, invalidate on note save.
 
@@ -421,6 +439,18 @@ block_notes ──already_has─> markdown_lsp (heading resolution, link validat
 5. ~~**LSP integration**: The markdown LSPs (Marksman) may already provide some block/heading awareness. Investigate whether Marksman's document symbols API can replace custom block extraction for headings.~~ → **Resolved.** IWES/Marksman `documentSymbol` and `workspace/symbol` provide heading hierarchy at runtime. LSP `completion` handles `[[note#heading]]` autocomplete. LSP `references` provides backlinks. LSP diagnostics detect broken links. No custom extraction needed for these use cases.
 
 6. **LSP stability**: Recent fixes (CPU loop, retry storm, zombie processes) are days old as of 2026-04-05. Allow a soak period before building features that depend heavily on LSP reliability for smart-linking workflows.
+
+---
+
+## Implementation Summary
+
+| Phase | Scope | Effort |
+|-------|-------|--------|
+| **1** | Metadata rules (SQL queries) + rule config persistence + `LinksService` integration + `SuggestedLink` provenance | ~3 days |
+| **2** | Wire `semantic_similarity` to existing `find_similar_notes()` + scoring/merge | ~2 days |
+| **3** | `block_embeddings` table + embedding pipeline extension + `block_knn_search()` | ~5 days |
+| **4** | Editor drag handles (ProseMirror plugin) | ~4 days |
+| **5** | Graph visualization layer (new edge type, rendering — separate workstream) | ~4 days |
 
 ---
 
@@ -435,7 +465,8 @@ block_notes ──already_has─> markdown_lsp (heading resolution, link validat
 ## Testing Strategy
 
 - ~~**Block extraction**: Deterministic tests on markdown fixtures~~ → Already covered by existing indexing tests (sections/headings/code blocks are populated)
-- **Block embeddings**: Verify embedding generation for sections above word threshold, verify `block_knn_search()` returns correct neighbors
+- **Block embeddings**: Verify embedding generation for sections above size threshold (both word count and line count gates), verify `block_knn_search()` returns correct neighbors
 - **Smart link rules**: Unit tests per rule with controlled note metadata (SQL query tests)
-- **Composite rules**: Integration tests verifying AND logic and scoring
+- **Score aggregation**: Integration tests verifying weighted merge across rules, deduplication by target, ranking correctness
+- **SuggestedLink provenance**: Verify provenance data flows through to UI, backward compat with provenance-less suggestions
 - **Drag-and-drop**: E2E tests for block reordering and content preservation

@@ -1,21 +1,22 @@
-# Carbide Native Gaps: MCP, Plugin & Metadata Parity Plan
+# Carbide Native Gaps: MCP, CLI, Plugin & Metadata Parity Plan
 
-> **Date:** 2026-03-31
+> **Date:** 2026-03-31 (updated 2026-04-05)
 > **Status:** Draft
-> **Context:** Gap analysis against Lokus MCP implementation, plugin system, and metadata surface.
+> **Context:** Gap analysis against Lokus MCP implementation, plugin system, and metadata surface. Now includes CLI design (modeled after Obsidian CLI).
 > **Prerequisite phases:** 0–9 (complete), reference library auto-load (in flight)
 
 ---
 
 ## Executive Summary
 
-Three categories of gaps identified against Lokus:
+Four categories of gaps identified:
 
 1. **MCP Server** (critical) — Carbide has zero MCP support. Lokus ships 40+ tools with dual-transport, auto-setup, and graceful degradation.
-2. **Plugin System Hardening** (high value) — Carbide's plugin system works but lacks activation events (lazy loading), editor contribution points (slash commands), lifecycle hooks, resource quotas, and developer tooling.
-3. **Metadata System** (medium value) — Carbide's metadata extraction is string-only with no type inference, no format-preserving write-back, and no bulk property operations. Lokus has rich type detection, smart write-back, and multi-dimensional property indexing.
+2. **CLI** (critical, ships with MCP) — No way to control Carbide from the terminal. Obsidian ships a full CLI (1.12+). The CLI shares the same HTTP server and auth as MCP — they're two frontends to one backend.
+3. **Plugin System Hardening** (high value) — Carbide's plugin system works but lacks activation events (lazy loading), editor contribution points (slash commands), lifecycle hooks, resource quotas, and developer tooling.
+4. **Metadata System** (medium value) — Carbide's metadata extraction is string-only with no type inference, no format-preserving write-back, and no bulk property operations. Lokus has rich type detection, smart write-back, and multi-dimensional property indexing.
 
-This plan covers all three, ordered by implementation priority.
+This plan covers all four, ordered by implementation priority. MCP and CLI are co-developed — they share the HTTP transport, auth layer, and service functions.
 
 ---
 
@@ -35,6 +36,231 @@ MCP is the standard protocol for AI assistants to interact with local tools. Wit
 | **Tool routing**  | Reuse existing Tauri command logic directly (no shelling out)                                          | Carbide commands are already well-structured Rust functions. MCP tools call the same service functions that Tauri commands call — zero duplication |
 | **Vault context** | Active vault from `VaultRegistry` state                                                                | Unlike Lokus's workspace detection chain, Carbide has a managed vault lifecycle. MCP server reads from same state                                  |
 | **Auth (HTTP)**   | Bearer token at `~/.carbide/mcp-token` (mode 0o600)                                                    | Matches Lokus pattern. Constant-time comparison. Required for HTTP transport only                                                                  |
+
+---
+
+## Gap 1b: CLI (Critical — co-developed with MCP)
+
+### Why it matters
+
+A CLI lets humans and AI agents control Carbide from the terminal — scripting, automation, piping into other tools. Obsidian 1.12 ships this. Without it, Carbide requires the GUI for every interaction. The CLI is also the natural human-facing counterpart to MCP: MCP serves AI clients via JSON-RPC, CLI serves humans via `carbide search "foo"`.
+
+### Architecture: CLI as HTTP Client
+
+```
+                          ┌──────────────────────┐
+  carbide help            │   carbide CLI binary  │  (Rust, ~2MB)
+  carbide read            │   - clap arg parser   │
+  carbide search "foo"    │   - reqwest HTTP      │
+                          │   - output formatter  │
+                          └──────────┬───────────┘
+                                     │ HTTP POST localhost:3457
+                                     ▼
+                          ┌──────────────────────┐
+                          │  Carbide App (Tauri)  │
+                          │  ┌────────────────┐   │
+                          │  │ axum HTTP Server│   │
+                          │  │ /mcp  (JSON-RPC)│  │  ← MCP clients (Claude, Cursor)
+                          │  │ /cli/* (REST)   │   │  ← CLI binary
+                          │  │ /health         │   │  ← both
+                          │  └───────┬────────┘   │
+                          │          │             │
+                          │  ┌───────▼────────┐   │
+                          │  │ Shared Service  │   │  (existing Rust functions)
+                          │  │    Functions    │   │
+                          │  └────────────────┘   │
+                          └──────────────────────┘
+```
+
+The CLI is a **separate Rust binary** (`src-tauri/crates/carbide-cli/`) that ships alongside the app. It's just an HTTP client with nice argument parsing and output formatting. Every CLI command maps 1:1 to an existing Tauri command / service function — zero logic duplication.
+
+### Design Decisions (CLI-specific)
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| **Argument style** | `carbide <command> [key=value] [flags]` | Matches Obsidian CLI. Familiar syntax. No dashes for params |
+| **Output format** | Plain text default, `--json` for structured | Humans get readable output; scripts/agents get JSON |
+| **Vault targeting** | CWD detection → `vault=<name\|id>` param → last-opened vault | Same as Obsidian. Uses existing `VaultRegistry` + `resolve_file_to_vault` |
+| **File targeting** | `file=<name>` (wiki-link resolution) + `path=<exact>` | Same as Obsidian. Carbide's search index handles name resolution |
+| **Auth** | Same bearer token as MCP (`~/.carbide/mcp-token`) | Single auth mechanism for both interfaces |
+| **App must be running** | Yes. First command launches app if needed | CLI checks `/health`; if down, launches `Carbide.app` and polls up to 10s |
+| **TUI** | Deferred (Phase 7+) | Single-command interface covers 90% of use cases. AI agents don't need a TUI |
+| **Binary** | Standalone Rust crate in workspace | `clap` + `reqwest` + `serde_json` + `colored` + `tabled`. ~2MB |
+
+### CLI Command Surface
+
+The CLI exposes Carbide's full feature set. Commands grouped by area:
+
+**Core (notes + search):**
+
+| Command | Description | Maps to |
+|---------|-------------|---------|
+| `read` | Read note (default: active file). `file=` or `path=` | `read_note` |
+| `create` | Create note. `name=`, `path=`, `content=`, `overwrite`, `open` | `create_note` |
+| `write` | Update note content. `path=`, `content=` | `write_and_index_note` |
+| `append` | Append to note. `content=` (required), `file=`, `path=`, `inline` | New thin wrapper |
+| `prepend` | Prepend after frontmatter. `content=` (required), `file=`, `path=` | New thin wrapper |
+| `rename` | Rename note. `file=`/`path=`, `name=` (required) | `rename_note` |
+| `move` | Move note. `file=`/`path=`, `to=` (required) | `rename_note` (path change) |
+| `delete` | Delete note. `file=`/`path=`, `permanent` | `delete_note` |
+| `open` | Open file in Carbide. `file=`/`path=`, `newtab` | Frontend action via event |
+| `search` | Full-text search. `query=` (required), `limit=` | `index_search` |
+| `search:context` | Search with line context (grep-style) | `index_search` + context |
+
+**Vault + files:**
+
+| Command | Description | Maps to |
+|---------|-------------|---------|
+| `vault` | Show active vault info. `info=name\|path\|files\|size` | `VaultRegistry` state |
+| `vaults` | List known vaults. `verbose`, `total` | `list_vaults` |
+| `vault:open` | Switch vault. `name=`/`id=` | `open_vault_by_id` |
+| `files` | List files. `folder=`, `ext=`, `total` | `list_notes` / `list_vault_files_by_extension` |
+| `folders` | List folders. `folder=`, `total` | `list_folders` |
+| `folder` | Folder info. `path=`, `info=files\|size` | `get_folder_stats` |
+| `folder:create` | Create folder. `path=` | `create_folder` |
+
+**Tags + metadata:**
+
+| Command | Description | Maps to |
+|---------|-------------|---------|
+| `tags` | List tags. `counts`, `sort=count`, `file=`, `total`, `format=` | `tags_list_all` |
+| `tag` | Tag info. `name=` (required), `verbose`, `total` | `tags_get_notes_for_tag` |
+| `properties` | List properties. `file=`, `counts`, `sort=count`, `format=` | `bases_list_properties` |
+| `property:read` | Read property. `name=` (required), `file=`/`path=` | Metadata extraction |
+| `property:set` | Set property. `name=`, `value=`, `type=`, `file=`/`path=` | Frontmatter writer (Gap 3b) |
+| `property:remove` | Remove property. `name=`, `file=`/`path=` | Frontmatter writer (Gap 3b) |
+| `outline` | Show headings. `file=`/`path=`, `format=tree\|md\|json`, `total` | `markdown_lsp_document_symbols` |
+| `backlinks` | Backlinks to file. `file=`/`path=`, `counts`, `total` | `markdown_lsp_references` |
+| `links` | Outgoing links. `file=`/`path=`, `total` | Markdown AST scan |
+
+**Git (Carbide-unique — Obsidian CLI has no git):**
+
+| Command | Description | Maps to |
+|---------|-------------|---------|
+| `git:status` | Working tree status | `git_status` |
+| `git:commit` | Stage all + commit. `message=` (required) | `git_stage_and_commit` |
+| `git:log` | Commit history. `limit=` | `git_log` |
+| `git:diff` | Uncommitted changes. `path=` | `git_diff` |
+| `git:push` | Push to remote | `git_push` |
+| `git:pull` | Pull from remote. `strategy=rebase\|merge` | `git_pull` |
+| `git:restore` | Restore file. `path=`, `commit=` | `git_restore_file` |
+| `git:init` | Initialize git in vault | `git_init_repo` |
+
+**References (Carbide-unique):**
+
+| Command | Description | Maps to |
+|---------|-------------|---------|
+| `references` | List citations. `total`, `--json` | `reference_load_library` |
+| `reference:add` | Add by DOI. `doi=` | `reference_doi_lookup` + `reference_add_item` |
+| `reference:search` | Search library. `query=` | Library search |
+| `reference:bbt` | Zotero BBT ops. `search=`/`collections`/`bibliography` | `reference_bbt_*` commands |
+
+**Bases (Carbide-unique):**
+
+| Command | Description | Maps to |
+|---------|-------------|---------|
+| `bases:query` | Structured query. `filter=`, `sort=`, `format=` | `bases_query` |
+| `bases:properties` | List queryable properties with types | `bases_list_properties` |
+| `bases:views` | List saved views | `bases_list_views` |
+
+**Tasks:**
+
+| Command | Description | Maps to |
+|---------|-------------|---------|
+| `tasks` | List tasks. `todo`/`done`, `file=`, `verbose`, `total` | Task extraction from notes |
+| `task` | Show/toggle task. `file=`, `line=`, `toggle`/`done`/`todo` | File line manipulation |
+
+**Plugins:**
+
+| Command | Description | Maps to |
+|---------|-------------|---------|
+| `plugins` | List plugins. `enabled` | Plugin store |
+| `plugin:enable` | Enable. `id=` | Plugin service |
+| `plugin:disable` | Disable. `id=` | Plugin service |
+| `plugin:reload` | Reload (dev). `id=` | Plugin service |
+
+**Developer:**
+
+| Command | Description | Maps to |
+|---------|-------------|---------|
+| `eval` | Run JS in app. `code=` | Frontend eval bridge |
+| `dev:screenshot` | Screenshot. `path=` | Window capture |
+| `dev:lint` | Lint vault. `path=`, `fix` | `lint_check_vault` / `lint_fix_all` |
+| `dev:format` | Format markdown. `path=` | `lint_format_vault` |
+| `dev:index` | Index ops. `build`/`rebuild`/`status` | `index_build` / `index_rebuild` |
+
+**General:**
+
+| Command | Description |
+|---------|-------------|
+| `help` / `help <command>` | Show help |
+| `version` | Show version |
+| `status` | App status: running vault, active file, MCP/CLI server status |
+
+**Global flags (work with any command):**
+
+| Flag | Description |
+|------|-------------|
+| `--json` | Output as JSON |
+| `--copy` | Copy output to clipboard |
+| `--quiet` | Suppress non-essential output |
+| `vault=<name\|id>` | Target a specific vault (first param, before command) |
+
+### Vault Resolution Chain
+
+```
+1. Explicit vault=<name|id> parameter? → Resolve via VaultRegistry
+2. CWD inside a known vault path?      → Use that vault
+3. Neither?                             → Use last-opened vault (VaultRegistry.last_vault_id)
+4. No vaults registered?               → Error: "No vaults found. Open Carbide first."
+```
+
+### CLI Binary Structure
+
+New crate: `src-tauri/crates/carbide-cli/`
+
+```
+carbide-cli/
+├── Cargo.toml
+├── src/
+│   ├── main.rs          # Entry point, app launch detection, arg dispatch
+│   ├── client.rs        # HTTP client (reqwest blocking)
+│   ├── auth.rs          # Token reader from ~/.carbide/mcp-token
+│   ├── launch.rs        # Detect + launch Carbide.app if not running
+│   ├── vault.rs         # CWD → vault resolution
+│   ├── commands/
+│   │   ├── mod.rs
+│   │   ├── notes.rs     # read, create, write, append, prepend, rename, move, delete
+│   │   ├── search.rs    # search, search:context
+│   │   ├── vault.rs     # vault, vaults, vault:open
+│   │   ├── git.rs       # git:status, git:commit, git:log, etc.
+│   │   ├── tags.rs      # tags, tag
+│   │   ├── metadata.rs  # properties, property:read/set/remove
+│   │   ├── tasks.rs     # tasks, task
+│   │   ├── references.rs # references, reference:add/search/bbt
+│   │   ├── bases.rs     # bases:query, bases:properties, bases:views
+│   │   ├── plugins.rs   # plugins, plugin:enable/disable/reload
+│   │   ├── dev.rs       # eval, dev:screenshot, dev:lint, dev:index
+│   │   └── general.rs   # help, version, status
+│   └── format.rs        # Output formatting (table, tree, plain text, JSON)
+```
+
+### Differences from Obsidian CLI
+
+| Aspect | Obsidian CLI | Carbide CLI |
+|--------|-------------|-------------|
+| **Git** | Not available | First-class (`git:*` commands) |
+| **References** | Not available | Citations, DOI lookup, Zotero |
+| **Bases/queries** | Not available | Structured queries with filters |
+| **Linked sources** | Not available | PDF/document management |
+| **Transport** | Custom IPC (Electron ↔ CLI) | HTTP (standard, debuggable with curl) |
+| **MCP** | Separate concern | Same server serves both CLI and MCP |
+| **Binary** | Ships with Electron | Standalone Rust (~2MB) |
+| **Sync** | Obsidian Sync commands | Git push/pull (no proprietary sync) |
+| **Publish** | Obsidian Publish | Not applicable |
+| **Daily notes** | Dedicated `daily` commands | Use `read`/`append` with path convention |
+| **Bookmarks** | Built-in | Not implemented (use tags/properties) |
+| **TUI** | Ships with interactive mode | Deferred |
 
 ### Phase 1: Core MCP Server (Rust)
 
@@ -174,18 +400,70 @@ On first launch (or when user enables MCP):
 - Show registered tools (read-only, from server)
 - Auto-setup button for Claude Desktop/Code
 
-### Phase 3: HTTP/SSE Transport
+### Phase 3: HTTP Server + CLI Binary
 
-**Goal:** HTTP transport for Claude Code and other MCP clients.
+**Goal:** HTTP transport serving both MCP clients and the CLI binary. Single axum server, two interfaces.
 
 - Axum-based HTTP server (Carbide already uses `reqwest`; `axum` is tokio-native)
 - Port: `3457` (avoid Lokus's `3456` conflict)
 - Endpoints:
   - `POST /mcp` — JSON-RPC 2.0 (tools/list, tools/call, resources/list, resources/read)
   - `GET /mcp/sse` — Server-Sent Events for streaming (future)
-  - `GET /health` — Health check
+  - `POST /cli/<command>` — CLI command dispatch (accepts JSON body, returns JSON)
+  - `GET /health` — Health check (used by CLI to detect running app)
 - Bearer token auth from `~/.carbide/mcp-token`
 - CORS restricted to localhost origins
+
+#### 3a. Shared Service Layer
+
+Extract core logic from Tauri command handlers into service functions callable from both Tauri IPC and HTTP routes:
+
+```rust
+// src-tauri/src/features/notes/service.rs — already exists
+// These functions are called by both:
+//   1. #[tauri::command] handlers (GUI)
+//   2. /mcp JSON-RPC tool handlers (AI clients)
+//   3. /cli/* HTTP route handlers (CLI binary)
+```
+
+Most Tauri commands already call internal service functions — the HTTP routes just need access to the same `AppState`. The axum server receives the Tauri `AppHandle` at startup and uses it to access managed state.
+
+#### 3b. CLI Route Handlers
+
+Each CLI route is a thin adapter (~5-10 lines):
+
+```rust
+async fn cli_read_note(
+    State(state): State<AppState>,
+    Json(params): Json<ReadNoteParams>,
+) -> Result<Json<NoteContent>, ApiError> {
+    let content = notes_service::read_note(&state, &params.vault_id, &params.path).await?;
+    Ok(Json(content))
+}
+```
+
+#### 3c. CLI Binary (carbide-cli crate)
+
+Build the standalone binary as described in Gap 1b. Ships alongside the app:
+
+| Platform | Binary location | Symlink / PATH |
+|----------|----------------|----------------|
+| macOS | `Carbide.app/Contents/MacOS/carbide-cli` | `/usr/local/bin/carbide` or `~/.zprofile` PATH export |
+| Linux | Next to AppImage | `/usr/local/bin/carbide` symlink |
+| Windows | Next to `Carbide.exe` | Added to PATH during install |
+
+#### 3d. App Launch Detection
+
+CLI binary startup sequence:
+
+```
+1. Read token from ~/.carbide/mcp-token
+2. GET http://localhost:3457/health
+3. If healthy → proceed with command
+4. If unhealthy → launch Carbide.app (platform-specific)
+5. Poll /health every 500ms for up to 10s
+6. If still unhealthy → error: "Could not connect to Carbide"
+```
 
 ### Phase 4: Plugin Bridge
 
@@ -613,51 +891,70 @@ Phase 1: MCP Core Server (Rust)                      ← START HERE
   ├── 1c. Tier 1 tools (notes, search, metadata, vault)
   └── 1d. Tauri commands for lifecycle
 
-Phase 2: Metadata Foundations                         ← Unlocks better MCP + bases
+Phase 2: Metadata Foundations                         ← Unlocks better MCP + CLI + bases
   ├── 2a. Property type inference (Gap 3a)
   ├── 2b. Format-preserving frontmatter write-back (Gap 3b)
   └── 2c. Vault-wide property enumeration with types (Gap 3c)
 
-Phase 3: MCP Auto-Setup
-  ├── 3a. Claude Desktop config generation
-  ├── 3b. Claude Code .mcp.json generation
-  └── 3c. Settings UI panel
+Phase 3: HTTP Server + CLI Binary                    ← MCP HTTP + CLI ship together
+  ├── 3a. Axum HTTP server + bearer auth + /health
+  ├── 3b. /mcp JSON-RPC route (MCP over HTTP)
+  ├── 3c. /cli/* REST routes (notes, search, vault, tags, metadata)
+  ├── 3d. carbide-cli crate scaffold (clap + reqwest + formatter)
+  ├── 3e. CLI core commands: read, search, files, tags, properties, outline
+  ├── 3f. CLI write commands: create, write, append, prepend, rename, move, delete
+  ├── 3g. CLI vault commands: vault, vaults, vault:open, status
+  └── 3h. App launch detection (CLI → launch Carbide.app if not running)
 
-Phase 4: Plugin Hardening                             ← Makes plugins useful
-  ├── 4a. Activation events / lazy loading (Gap 2a)
-  ├── 4b. Lifecycle hooks (Gap 2b)
-  ├── 4c. RPC timeouts + rate limiting (Gap 2d)
-  └── 4d. Richer settings schema (Gap 2e)
+Phase 4: Auto-Setup + Shell Integration              ← Configure MCP + CLI paths
+  ├── 4a. Claude Desktop config generation (stdio)
+  ├── 4b. Claude Code .mcp.json generation (HTTP)
+  ├── 4c. CLI PATH registration (symlink / PATH export per platform)
+  ├── 4d. Shell completions (bash, zsh, fish — clap generates for free)
+  ├── 4e. Settings UI panel (MCP + CLI status, token management)
+  └── 4f. `carbide --install-cli` self-registration command
 
-Phase 5: MCP HTTP Transport
-  ├── 5a. Axum HTTP server + bearer auth
-  ├── 5b. Tier 2 tools (references, graph, properties)
-  └── 5c. MCP metadata tools using type-aware queries from Phase 2
+Phase 5: Plugin Hardening                             ← Makes plugins useful
+  ├── 5a. Activation events / lazy loading (Gap 2a)
+  ├── 5b. Lifecycle hooks (Gap 2b)
+  ├── 5c. RPC timeouts + rate limiting (Gap 2d)
+  └── 5d. Richer settings schema (Gap 2e)
 
-Phase 6: Editor + Plugin Integration
-  ├── 6a. Slash command contribution point (Gap 2c)
-  ├── 6b. MCP RPC namespace for plugins (Gap 1 Phase 4)
-  ├── 6c. Plugin-contributed MCP tools
-  └── 6d. Tier 3 MCP tools (git)
+Phase 6: Extended Tools + Integration                ← Tier 2/3 for both MCP and CLI
+  ├── 6a. Tier 2 MCP tools (references, graph, properties)
+  ├── 6b. CLI git commands (git:status, git:commit, git:log, git:diff, git:push, git:pull)
+  ├── 6c. CLI reference commands (references, reference:add, reference:search, reference:bbt)
+  ├── 6d. CLI bases commands (bases:query, bases:properties, bases:views)
+  ├── 6e. CLI task commands (tasks, task toggle/done/todo)
+  ├── 6f. CLI plugin commands (plugins, plugin:enable/disable/reload)
+  ├── 6g. CLI dev commands (eval, dev:screenshot, dev:lint, dev:format, dev:index)
+  ├── 6h. Tier 3 MCP tools (git_status, git_log, rename_note)
+  ├── 6i. Slash command contribution point (Gap 2c)
+  └── 6j. MCP RPC namespace for plugins (Gap 1 Phase 4)
 
-Phase 7: Metadata Power Features                     ← After core stabilizes
+Phase 7: Power Features                              ← After core stabilizes
   ├── 7a. Bulk property operations (Gap 3d)
   ├── 7b. Nested property flattening (Gap 3e)
-  └── 7c. Plugin SDK / scaffolding (Gap 2f)
+  ├── 7c. Plugin SDK / scaffolding (Gap 2f)
+  ├── 7d. Plugin-contributed MCP tools
+  └── 7e. CLI TUI mode (interactive, autocomplete, history — ratatui/rustyline)
 ```
 
 **Rationale for ordering:**
 
-- Phase 1 (MCP) ships the highest-value feature independently
-- Phase 2 (metadata) is pulled forward because it makes MCP tools and bases views meaningfully better — type-aware queries are the difference between "search by string match" and "find notes where due_date > today"
-- Phases 4–6 (plugin + HTTP) can be interleaved based on demand
-- Phase 7 (bulk ops, nesting, SDK) deferred until foundations prove stable
+- Phase 1 (MCP stdio) ships the highest-value feature independently — Claude Desktop works immediately
+- Phase 2 (metadata) is pulled forward because it makes MCP tools, CLI property commands, and bases views meaningfully better
+- Phase 3 (HTTP + CLI) ships the HTTP server for both MCP and CLI simultaneously — one axum instance, two interfaces. CLI core commands (read, search, tags) ship here because they're read-only and immediately useful
+- Phase 4 (auto-setup) configures both MCP clients and CLI shell integration in one pass
+- Phase 5 (plugins) is independent and can be interleaved
+- Phase 6 (extended tools) adds the full breadth — git, references, bases, tasks for CLI; tier 2/3 for MCP. These are lower-priority commands that build on the core from Phase 3
+- Phase 7 (power features + TUI) deferred until foundations prove stable. TUI is last because single-command CLI covers 90% of use cases
 
 ---
 
 ## Dependency Considerations
 
-### Rust Crates
+### Rust Crates (Tauri app)
 
 | Crate   | Purpose                              | Notes                                                    |
 | ------- | ------------------------------------ | -------------------------------------------------------- |
@@ -665,6 +962,16 @@ Phase 7: Metadata Power Features                     ← After core stabilizes
 | `axum`  | HTTP server for Phase 3              | Tokio-native, minimal footprint                          |
 | `tower` | Middleware (auth, CORS) for axum     | Already in tokio ecosystem                               |
 | `rand`  | Token generation                     | Already available via other deps                         |
+
+### Rust Crates (CLI binary — `src-tauri/crates/carbide-cli/`)
+
+| Crate        | Purpose                        | Notes                                       |
+| ------------ | ------------------------------ | ------------------------------------------- |
+| `clap`       | Argument parsing + completions | Derive API. Generates shell completions free |
+| `reqwest`    | HTTP client (blocking)         | Blocking client for CLI simplicity           |
+| `serde_json` | JSON serialization             | Already in workspace                         |
+| `colored`    | Terminal colors                | Lightweight, no deps                         |
+| `tabled`     | Table formatting               | For `files`, `tags`, `properties` output     |
 
 ### Frontend
 
@@ -684,6 +991,8 @@ Phase 7: Metadata Power Features                     ← After core stabilizes
 | Reactors for auto-triggers         | `mcp_autostart.reactor.svelte.ts` starts server on vault open |
 | specta for type generation         | All Tauri commands annotated with `#[specta::specta]`         |
 | Layering enforced                  | `pnpm lint:layering` validates all imports                    |
+| CLI is a separate binary           | `carbide-cli` crate has no dependency on Tauri; only HTTP     |
+| No logic duplication               | CLI routes and MCP tools both call shared service functions    |
 
 ---
 
@@ -703,14 +1012,27 @@ Phase 7: Metadata Power Features                     ← After core stabilizes
 
 ## Success Criteria
 
-### MCP (Phases 1, 3, 5)
+### MCP (Phases 1, 3, 6)
 
 - [ ] `claude mcp list` shows `carbide` as available server
 - [ ] Claude Desktop can `list_notes`, `read_note`, `search_notes` for active vault
 - [ ] Claude Code can interact via HTTP transport with bearer auth
 - [ ] MCP server auto-starts when Carbide launches (configurable)
-- [ ] Settings panel shows MCP status and allows token regeneration
+- [ ] Settings panel shows MCP + CLI status and allows token regeneration
 - [ ] All MCP tools have input validation and clean error responses
+
+### CLI (Phases 3, 4, 6)
+
+- [ ] `carbide version` returns version when app is running
+- [ ] `carbide read file=<name>` returns note content in <100ms
+- [ ] `carbide search query="..."` returns results formatted as clean text
+- [ ] `carbide --json` flag works on all commands for script consumption
+- [ ] `carbide git:status` shows working tree status without opening the app UI
+- [ ] `curl localhost:3457/cli/read -H "Authorization: Bearer <token>" -d '{"path":"test.md"}'` works (HTTP is standard, debuggable)
+- [ ] Shell completions work for bash, zsh, and fish
+- [ ] First command auto-launches Carbide if not running
+- [ ] CWD-based vault detection works (run `carbide files` inside a vault directory)
+- [ ] `carbide` with no args shows help
 
 ### Metadata (Phases 2, 7)
 
@@ -734,4 +1056,6 @@ Phase 7: Metadata Power Features                     ← After core stabilizes
 ### Cross-Cutting
 
 - [ ] Zero new frontend dependencies
+- [ ] CLI binary adds no dependencies to the Tauri app (separate crate)
 - [ ] `pnpm check`, `pnpm lint`, `pnpm test`, `cargo check` all pass
+- [ ] CLI and MCP share the same HTTP server, auth token, and service functions — zero logic duplication
