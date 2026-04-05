@@ -145,6 +145,7 @@ Fixes A and B are independent of the four fixes in the main analysis and can be 
 **Commit:** `fix/lsp-retry-watcher-noise` branch
 
 **Changes in `src/lib/features/lint/application/lint_service.ts`:**
+
 - Added `private failed_config_key: string | null = null` to `LintService`
 - `start()` computes `config_key` from `vault_id:vault_path:user_overrides:browse_mode` and early-returns if it matches a previously failed config
 - On `port.start()` success: clears `failed_config_key`

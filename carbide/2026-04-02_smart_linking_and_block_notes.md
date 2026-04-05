@@ -13,23 +13,23 @@ A review of the existing codebase revealed that several subsystems assumed to be
 
 ### What Already Works
 
-| Subsystem | Status | Key Files |
-|-----------|--------|-----------|
-| `note_sections` table | **Populated** — `extract_markdown_structure()` runs on every `upsert_note_simple()` | `src-tauri/src/features/search/db.rs:360` |
-| `note_headings` table | **Populated** — headings with slugs, levels, line numbers | `src-tauri/src/features/search/db.rs:423` |
-| `note_code_blocks` table | **Populated** — language, line, length | `src-tauri/src/features/search/db.rs:436` |
-| Note-level embeddings | **Fully functional** — Snowflake Arctic Embed XS (384-dim), batch indexing, KNN search | `src-tauri/src/features/search/embeddings.rs`, `vector_db.rs` |
-| Semantic similarity suggestions | **Fully functional** — `find_similar_notes()` powers the Suggested Links panel | `src-tauri/src/features/search/service.rs:1576` |
-| Hybrid search (FTS + vector) | **Fully functional** — RRF merging, title-match bonus | `src-tauri/src/features/search/hybrid.rs` |
-| Wiki-link autocomplete | **Fully functional** — FTS + fuzzy fallback + planned link suggestions | `src/lib/features/search/application/search_service.ts:318` |
-| Outlinks / backlinks tables | **Populated** — `get_outlinks()`, `get_backlinks()`, outlink counts | `src-tauri/src/features/search/db.rs:2373,3605` |
-| LSP `documentSymbol` | **Working** — hierarchical heading outline from IWES/Marksman | `src-tauri/src/features/markdown_lsp/service.rs:999` |
-| LSP `workspace/symbol` | **Working** — cross-vault heading/symbol search | `src-tauri/src/features/markdown_lsp/service.rs:722` |
-| LSP `references` | **Working** — find all notes linking to a target (backlinks) | `src-tauri/src/features/markdown_lsp/service.rs:612` |
-| LSP `completion` (wiki-links) | **Working** — `[[` trigger, heading anchors via `[[note#heading]]` | `src-tauri/src/features/markdown_lsp/service.rs` |
-| LSP `rename` | **Working** — rename note/heading, updates all references | `src-tauri/src/features/markdown_lsp/service.rs:754` |
-| LSP diagnostics | **Working** — broken link detection | via IWES/Marksman |
-| IWES code actions | **Working** — extract section, inline, sort, create link | `src-tauri/resources/iwe-default-config.toml` |
+| Subsystem                       | Status                                                                                 | Key Files                                                     |
+| ------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `note_sections` table           | **Populated** — `extract_markdown_structure()` runs on every `upsert_note_simple()`    | `src-tauri/src/features/search/db.rs:360`                     |
+| `note_headings` table           | **Populated** — headings with slugs, levels, line numbers                              | `src-tauri/src/features/search/db.rs:423`                     |
+| `note_code_blocks` table        | **Populated** — language, line, length                                                 | `src-tauri/src/features/search/db.rs:436`                     |
+| Note-level embeddings           | **Fully functional** — Snowflake Arctic Embed XS (384-dim), batch indexing, KNN search | `src-tauri/src/features/search/embeddings.rs`, `vector_db.rs` |
+| Semantic similarity suggestions | **Fully functional** — `find_similar_notes()` powers the Suggested Links panel         | `src-tauri/src/features/search/service.rs:1576`               |
+| Hybrid search (FTS + vector)    | **Fully functional** — RRF merging, title-match bonus                                  | `src-tauri/src/features/search/hybrid.rs`                     |
+| Wiki-link autocomplete          | **Fully functional** — FTS + fuzzy fallback + planned link suggestions                 | `src/lib/features/search/application/search_service.ts:318`   |
+| Outlinks / backlinks tables     | **Populated** — `get_outlinks()`, `get_backlinks()`, outlink counts                    | `src-tauri/src/features/search/db.rs:2373,3605`               |
+| LSP `documentSymbol`            | **Working** — hierarchical heading outline from IWES/Marksman                          | `src-tauri/src/features/markdown_lsp/service.rs:999`          |
+| LSP `workspace/symbol`          | **Working** — cross-vault heading/symbol search                                        | `src-tauri/src/features/markdown_lsp/service.rs:722`          |
+| LSP `references`                | **Working** — find all notes linking to a target (backlinks)                           | `src-tauri/src/features/markdown_lsp/service.rs:612`          |
+| LSP `completion` (wiki-links)   | **Working** — `[[` trigger, heading anchors via `[[note#heading]]`                     | `src-tauri/src/features/markdown_lsp/service.rs`              |
+| LSP `rename`                    | **Working** — rename note/heading, updates all references                              | `src-tauri/src/features/markdown_lsp/service.rs:754`          |
+| LSP diagnostics                 | **Working** — broken link detection                                                    | via IWES/Marksman                                             |
+| IWES code actions               | **Working** — extract section, inline, sort, create link                               | `src-tauri/resources/iwe-default-config.toml`                 |
 
 ### LSP Health (2026-04-05)
 
@@ -81,8 +81,8 @@ Rules are organized into three tiers of increasing specificity:
 
 Single-signal rules that are cheap to compute and have broad recall. **All backing tables are already populated during indexing — these are straightforward SQL queries.**
 
-| Rule               | Signal                                                  | Implementation                                        | Exists? |
-| ------------------ | ------------------------------------------------------- | ----------------------------------------------------- | ------- |
+| Rule               | Signal                                                  | Implementation                                        | Exists?    |
+| ------------------ | ------------------------------------------------------- | ----------------------------------------------------- | ---------- |
 | `same_day`         | Both notes created/modified on the same calendar day    | Query `notes` table by `date(mtime_ms)`               | Query only |
 | `same_folder`      | Notes in the same directory                             | Query `notes` table by `path` prefix                  | Query only |
 | `shared_property`  | Same property key-value pair (e.g., `project: carbide`) | Query `note_properties` table                         | Query only |
@@ -93,10 +93,10 @@ Single-signal rules that are cheap to compute and have broad recall. **All backi
 
 Content-based rules that use the existing embedding pipeline:
 
-| Rule                  | Signal                             | Implementation                                  | Exists? |
-| --------------------- | ---------------------------------- | ----------------------------------------------- | ------- |
-| `semantic_similarity` | Cosine similarity above threshold  | `knn_search` on `note_embeddings` table         | **Yes** — `find_similar_notes()` already powers Suggested Links |
-| `title_overlap`       | Significant term overlap in titles | Tokenize + Jaccard similarity on `title` column | Query only |
+| Rule                  | Signal                             | Implementation                                  | Exists?                                                                |
+| --------------------- | ---------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
+| `semantic_similarity` | Cosine similarity above threshold  | `knn_search` on `note_embeddings` table         | **Yes** — `find_similar_notes()` already powers Suggested Links        |
+| `title_overlap`       | Significant term overlap in titles | Tokenize + Jaccard similarity on `title` column | Query only                                                             |
 | `shared_outlinks`     | Both notes link to the same target | Query `outlinks` table for shared `target_path` | **Partially** — `outlinks` table populated; shared-target query is new |
 
 #### Tier 3: Hierarchical / Composite
@@ -304,6 +304,7 @@ type NoteBlock = {
 #### ~~New module: `block_index.rs`~~ → Not needed
 
 `extract_markdown_structure()` in `db.rs:360` already handles:
+
 - Heading extraction with slug generation
 - Section span computation (start_line to next heading)
 - Code block extraction with language detection
