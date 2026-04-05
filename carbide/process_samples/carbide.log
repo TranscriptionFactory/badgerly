@@ -1,0 +1,137 @@
+[2026-04-05][13:25:07][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:25:07][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 2000ms (attempt 2)
+[2026-04-05][13:25:09][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:25:09][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:25:09][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:25:09][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 4000ms (attempt 3)
+[2026-04-05][13:25:13][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:25:13][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:25:13][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:25:13][webview:h@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:324][ERROR] [lint_service] Failed to start lint tauri invoke failed: lint_start: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:25:13][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:25:13][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:25:13][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:25:13][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 1000ms (attempt 1)
+[2026-04-05][13:25:14][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:25:14][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:25:14][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:25:14][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 2000ms (attempt 2)
+[2026-04-05][13:25:16][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:25:16][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:25:16][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:25:16][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 4000ms (attempt 3)
+[2026-04-05][13:25:20][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:25:20][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:25:20][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:25:20][webview:h@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:324][ERROR] [lint_service] Failed to start lint tauri invoke failed: lint_start: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:25:30][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:25:30][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:25:30][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:25:30][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 1000ms (attempt 1)
+[2026-04-05][13:25:31][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:25:31][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:25:31][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:25:31][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 2000ms (attempt 2)
+[2026-04-05][13:25:33][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:25:33][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:25:33][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:25:33][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 4000ms (attempt 3)
+[2026-04-05][13:25:37][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:25:37][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:25:37][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:25:37][webview:h@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:324][ERROR] [lint_service] Failed to start lint tauri invoke failed: lint_start: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:25:53][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:25:53][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:25:53][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:25:53][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 1000ms (attempt 1)
+[2026-04-05][13:25:54][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:25:54][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:25:54][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:25:54][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 2000ms (attempt 2)
+[2026-04-05][13:25:56][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:25:56][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:25:56][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:25:56][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 4000ms (attempt 3)
+[2026-04-05][13:26:00][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:26:00][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:26:00][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:26:00][webview:h@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:324][ERROR] [lint_service] Failed to start lint tauri invoke failed: lint_start: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:27:03][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:27:03][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:27:03][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:27:03][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 1000ms (attempt 1)
+[2026-04-05][13:27:04][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:27:04][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:27:04][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:27:04][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 2000ms (attempt 2)
+[2026-04-05][13:27:06][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:27:06][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:27:06][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:27:06][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 4000ms (attempt 3)
+[2026-04-05][13:27:10][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:27:10][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:27:10][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:27:10][webview:h@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:324][ERROR] [lint_service] Failed to start lint tauri invoke failed: lint_start: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:27:19][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:27:19][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:27:19][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:27:19][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 1000ms (attempt 1)
+[2026-04-05][13:27:20][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:27:20][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:27:20][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:27:20][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 2000ms (attempt 2)
+[2026-04-05][13:27:22][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:27:22][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:27:22][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:27:22][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 4000ms (attempt 3)
+[2026-04-05][13:27:26][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:27:26][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:27:26][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:27:26][webview:h@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:324][ERROR] [lint_service] Failed to start lint tauri invoke failed: lint_start: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:29:46][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=assets/excalidraw/example.excalidraw.tmp.76092.1775395786042
+[2026-04-05][13:29:46][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=assets/excalidraw/example.excalidraw
+[2026-04-05][13:29:49][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=assets/excalidraw/example.excalidraw
+[2026-04-05][13:29:49][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=
+[2026-04-05][13:29:49][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=assets
+[2026-04-05][13:29:49][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=assets/excalidraw
+[2026-04-05][13:30:58][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:30:58][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:30:58][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:30:58][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 1000ms (attempt 1)
+[2026-04-05][13:30:59][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:30:59][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:30:59][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:30:59][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 2000ms (attempt 2)
+[2026-04-05][13:31:01][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:31:01][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:31:01][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:31:01][carbide_lib::shared::lsp_client::restartable][INFO] RestartableLspClient: retrying in 4000ms (attempt 3)
+[2026-04-05][13:31:05][carbide_lib::shared::lsp_client::transport][WARN] [lsp stderr] /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: /Users/abir/Library/Application Support/com.carbide.desktop/toolchain/rumdl/0.1.59/rumdl: cannot execute binary file
+[2026-04-05][13:31:05][carbide_lib::shared::lsp_client::transport][ERROR] LSP initialization failed: LSP closed during init
+[2026-04-05][13:31:05][carbide_lib::shared::lsp_client::restartable][ERROR] RestartableLspClient: spawn failed: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:31:05][webview:h@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:324][ERROR] [lint_service] Failed to start lint tauri invoke failed: lint_start: LSP process spawn failed: LSP closed during init
+[2026-04-05][13:31:54][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=0_TODO/todo.md.tmp
+[2026-04-05][13:31:54][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Suppressed self-triggered event path=0_TODO/todo.md
+[2026-04-05][13:31:56][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=2_GUIDES/cheatsheets/helix.md.tmp
+[2026-04-05][13:31:56][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Suppressed self-triggered event path=2_GUIDES/cheatsheets/helix.md
+[2026-04-05][13:31:58][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=
+[2026-04-05][13:31:58][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=0_TODO
+[2026-04-05][13:31:58][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Suppressed self-triggered event path=0_TODO/todo.md
+[2026-04-05][13:32:00][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=2_GUIDES/cheatsheets
+[2026-04-05][13:32:00][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Suppressed self-triggered event path=2_GUIDES/cheatsheets/helix.md
+[2026-04-05][13:32:00][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=
+[2026-04-05][13:32:00][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=2_GUIDES
+[2026-04-05][13:32:16][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=
+[2026-04-05][13:32:22][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=
+[2026-04-05][13:48:12][hf_hub][INFO] Using token file found "/Users/abir/.cache/huggingface/token"
+[2026-04-05][13:48:49][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=
+[2026-04-05][13:48:53][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=
+[2026-04-05][13:50:13][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=9999_ARCHIVE/2024/20241217_tracy_scleroderma.pdf
+[2026-04-05][13:50:17][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=9999_ARCHIVE/2023/20230704_Torok_timeline.pdf
+[2026-04-05][13:50:17][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=9999_ARCHIVE/2023/20230410_vaccine.pdf
+[2026-04-05][13:50:21][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=9999_ARCHIVE/2025/20250807_LS_SSc.pdf
+[2026-04-05][13:50:21][webview:E@tauri://localhost/_app/immutable/chunks/Dr37OIr2.js:3:409][INFO] [watcher_reactor] Asset changed externally path=9999_ARCHIVE/2024/20241217_MeetingNotes_SkinLSandSSC copy.pdf
+[2026-04-05][13:50:22][carbide_lib::app][INFO] Carbide exiting — cleaning up child processes
+[2026-04-05][13:50:22][carbide_lib::features::markdown_lsp::service][INFO] Stopping markdown LSP for vault 1bc76abd82efd4217aa8436591db3c3f6f7b821c89b813b91e6d0c27bf2c3274
+[2026-04-05][13:50:22][carbide_lib::features::watcher::service][INFO] Stopping file watcher
+[2026-04-05][13:50:22][carbide_lib::app][INFO] Process cleanup complete

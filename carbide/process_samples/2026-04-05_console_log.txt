@@ -1,0 +1,147 @@
+default	09:49:33.948240-0400	carbide	-[TUINSCursorUIController hideTextInputMenuHUD:] {
+}
+default	09:49:34.422444-0400	carbide	-[TUINSCursorUIController hideTextInputMenuHUD:] {
+}
+default	09:49:35.601286-0400	carbide	-[TUINSCursorUIController hideTextInputMenuHUD:] {
+}
+default	09:49:39.189349-0400	carbide	WebContent[75619] Current memory footprint: 832 MB
+default	09:49:39.208121-0400	carbide	-[TUINSCursorUIController hideTextInputMenuHUD:] {
+}
+default	09:49:59.183885-0400	carbide	0x106ae4018 - WebProcessPool::handleMemoryPressureWarning:
+default	09:49:59.186247-0400	carbide	WebBackForwardCache::clear
+default	09:49:59.186285-0400	carbide	Memory pressure relief: Total: res = 4363468800/4364861440/1392640, res+swap = 29782956232/29782989000/32768
+default	09:49:59.186294-0400	carbide	Received memory pressure event: 2, system vm pressure critical: 0
+default	09:50:05.757364-0400	carbide	-[TUINSCursorUIController hideTextInputMenuHUD:] {
+}
+default	09:50:06.658828-0400	carbide	0x11e0d00e0 - [PID=0] WebProcessCache::setApplicationIsActive: (isActive=1)
+default	09:50:06.667427-0400	carbide	<<<< Alt >>>> fpSupport_GetVideoRangeForCoreDisplayWithPreference: displayID 3 reported potentialHeadRoom=1 wideColorSupported=NO marz=NO almd=NO deviceAllowsHDR=YES isBuiltinPanel=NO externalPanel=YES prefersHDR10=NO
+default	09:50:06.667640-0400	carbide	<<<< Alt >>>> fpSupport_GetVideoRangeForCoreDisplayWithPreference: displayID 1 reported potentialHeadRoom=16 wideColorSupported=YES marz=NO almd=NO deviceAllowsHDR=YES isBuiltinPanel=YES externalPanel=YES prefersHDR10=NO
+default	09:50:06.669426-0400	carbide	[0xa5fa29f40] invalidated because the current process cancelled the connection by calling xpc_connection_cancel()
+default	09:50:06.674966-0400	carbide	PageClientImpl 0x11e000200 isViewVisible(): viewWindow 0xa60ad2300, window visible 1, view hidden 0, window occluded 0
+default	09:50:06.674995-0400	carbide	PageClientImpl 0x11e000200 isViewVisible(): viewWindow 0xa60ad2300, window visible 1, view hidden 0, window occluded 0
+default	09:50:06.681909-0400	carbide	[0xa5fa29f40] activating connection: mach=false listener=false peer=false name=(anonymous)
+default	09:50:06.683377-0400	carbide	WebContent[75619]: PerformanceMonitor::measureCPUUsageInActivityState: Process is using 0.1% CPU in state: <private>
+default	09:50:06.685746-0400	carbide	_TIPropertyValueIsValid called with 16 on nil context!
+default	09:50:06.685798-0400	carbide	imkxpc_getApplicationProperty:reply: called with incorrect property value 16, bailing.
+default	09:50:06.685894-0400	carbide	Text input context does not respond to _valueForTIProperty:
+default	09:50:09.187792-0400	carbide	WebContent[75619] Current memory footprint: 858 MB
+default	09:50:10.841274-0400	carbide	All generators are complete, dispatching to `completionBlockJustOnce`
+default	09:50:10.841345-0400	carbide	Could not match any valid candidates of any source. `containerToPush` will be nil. <private>
+default	09:50:10.841351-0400	carbide	Preparing to push (null) to candidate receiver, for request token: <private>
+error	09:50:10.841357-0400	carbide	containerToPush is nil, will not push anything to candidate receiver for request token: <private>
+default	09:50:10.841367-0400	carbide	Performing delayed generation for token=<private>
+default	09:50:10.862036-0400	carbide	[0xa5fa2a1c0] activating connection: mach=false listener=false peer=false name=com.apple.TextInputUI.xpc.CursorUIViewService
+default	09:50:10.862335-0400	carbide	[0xa5fa2a1c0] invalidated after the last release of the connection object
+default	09:50:10.865888-0400	carbide	[0xa5fa2a300] activating connection: mach=false listener=false peer=false name=(anonymous)
+default	09:50:10.865997-0400	carbide	[0xa5fa2a1c0] activating connection: mach=false listener=false peer=false name=(anonymous)
+default	09:50:10.878024-0400	carbide	-[TUINSCursorUIController hideTextInputMenuHUD:] {
+}
+default	09:50:11.029196-0400	carbide	-[TUINSCursorUIController activate:]_block_invoke: Create CursorUIViewService: TUINSRemoteViewController
+default	09:50:11.029474-0400	carbide	[0xa5fa29680] invalidated because the current process cancelled the connection by calling xpc_connection_cancel()
+default	09:50:11.029483-0400	carbide	[0xa5fa29540] invalidated because the current process cancelled the connection by calling xpc_connection_cancel()
+default	09:50:12.657320-0400	carbide	All generators are complete, dispatching to `completionBlockJustOnce`
+default	09:50:12.657375-0400	carbide	Could not match any valid candidates of any source. `containerToPush` will be nil. <private>
+default	09:50:12.657392-0400	carbide	Preparing to push (null) to candidate receiver, for request token: <private>
+error	09:50:12.657398-0400	carbide	containerToPush is nil, will not push anything to candidate receiver for request token: <private>
+default	09:50:13.569147-0400	carbide	0x11e1200c0 - [PID=75619, throttler=0x11e0ec710] ProcessThrottler::Activity::Activity: Starting foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+default	09:50:13.722821-0400	carbide	WebContent[75619] 0x100f50d68 - [webPageID=11] WebPage::runJavaScriptInFrameInScriptWorld: frameID=0
+default	09:50:13.725719-0400	carbide	WebContent[75619]: [pageID=11, frameID=4294967297, resourceID=499349] ResourceLoader::willSendRequestInternal: calling completion handler
+default	09:50:13.725734-0400	carbide	WebContent[75619]: [pageID=11, frameID=4294967297, resourceID=499349 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+default	09:50:13.725754-0400	carbide	WebContent[75619] 0x10a0680e0 - [resourceLoader=0x14d7dc730, frameLoader=0x10a120e00, frame=0x10a0c0220, webPageID=11, frameID=4294967297, resourceID=499349] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+default	09:50:13.725758-0400	carbide	WebContent[75619] [schemeHandler=3, webPageID=11, frameID=4294967297, taskID=499349] WebURLSchemeTaskProxy::startLoading
+default	09:50:13.726854-0400	carbide	WebContent[75619]: [pageID=11, frameID=4294967297, resourceID=499350] ResourceLoader::willSendRequestInternal: calling completion handler
+default	09:50:13.726861-0400	carbide	WebContent[75619]: [pageID=11, frameID=4294967297, resourceID=499350 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+default	09:50:13.726882-0400	carbide	WebContent[75619] 0x10a0680e0 - [resourceLoader=0x14d7dd3d0, frameLoader=0x10a120e00, frame=0x10a0c0220, webPageID=11, frameID=4294967297, resourceID=499350] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+default	09:50:13.726886-0400	carbide	WebContent[75619] [schemeHandler=3, webPageID=11, frameID=4294967297, taskID=499350] WebURLSchemeTaskProxy::startLoading
+default	09:50:13.726908-0400	carbide	WebContent[75619] 0x100f50d68 - [webPageID=11] WebPage::runJavaScriptInFrameInScriptWorld: Request to run JavaScript succeeded
+default	09:50:13.727767-0400	carbide	WebContent[75619] [schemeHandler=3, webPageID=11, frameID=4294967297, taskID=499349] WebURLSchemeTaskProxy::didComplete
+default	09:50:13.727782-0400	carbide	WebContent[75619]: [pageID=11, frameID=4294967297, resourceID=499349 SubResourceLoader::didFinishLoading
+default	09:50:13.728353-0400	carbide	0x11e1200c0 - [PID=75619, throttler=0x11e0ec710] ProcessThrottler::Activity::invalidate: Ending foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+default	09:50:13.730948-0400	carbide	0x11e120180 - [PID=75619, throttler=0x11e0ec710] ProcessThrottler::Activity::Activity: Starting foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+default	09:50:13.730974-0400	carbide	PageClientImpl 0x11e000200 isViewVisible(): viewWindow 0xa60ad2300, window visible 1, view hidden 0, window occluded 0
+default	09:50:13.731621-0400	carbide	WebContent[75619] [schemeHandler=3, webPageID=11, frameID=4294967297, taskID=499350] WebURLSchemeTaskProxy::didComplete
+default	09:50:13.731627-0400	carbide	WebContent[75619]: [pageID=11, frameID=4294967297, resourceID=499350 SubResourceLoader::didFinishLoading
+default	09:50:13.731635-0400	carbide	WebContent[75619] 0x100f50d68 - [webPageID=11] WebPage::runJavaScriptInFrameInScriptWorld: frameID=0
+default	09:50:13.736156-0400	carbide	WebContent[75619] 0x100f50d68 - [webPageID=11] WebPage::runJavaScriptInFrameInScriptWorld: Request to run JavaScript succeeded
+default	09:50:13.745414-0400	carbide	0x11e120180 - [PID=75619, throttler=0x11e0ec710] ProcessThrottler::Activity::invalidate: Ending foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+default	09:50:13.768192-0400	carbide	All generators are complete, dispatching to `completionBlockJustOnce`
+default	09:50:13.768469-0400	carbide	Could not match any valid candidates of any source. `containerToPush` will be nil. <private>
+default	09:50:13.768526-0400	carbide	Preparing to push (null) to candidate receiver, for request token: <private>
+error	09:50:13.768623-0400	carbide	containerToPush is nil, will not push anything to candidate receiver for request token: <private>
+default	09:50:14.231375-0400	carbide	Performing delayed generation for token=<private>
+default	09:50:14.733614-0400	carbide	WebContent[75619]: [pageID=0 frameID=21474836488 isMainFrame=1] FrameLoader::setPolicyDocumentLoader: Setting policy document loader to 5387702272 (was 0)
+default	09:50:14.733635-0400	carbide	WebContent[75619]: [pageID=0, frameID=21474836488, isMainFrame=1] DocumentLoader::attachToFrame
+default	09:50:14.733643-0400	carbide	WebContent[75619]: [pageID=0 frameID=21474836488 isMainFrame=1] FrameLoader::setProvisionalDocumentLoader: Setting provisional document loader to 5387702272 (was 0)
+default	09:50:14.733648-0400	carbide	WebContent[75619]: [pageID=0 frameID=21474836488 isMainFrame=1] FrameLoader::setDocumentLoader: Setting document loader to 5387702272 (was 0)
+default	09:50:14.733650-0400	carbide	WebContent[75619]: [pageID=0 frameID=21474836488 isMainFrame=1] FrameLoader::transitionToCommitted: Clearing provisional document loader (m_provisionalDocumentLoader=5387702272)
+default	09:50:14.733654-0400	carbide	WebContent[75619]: [pageID=0 frameID=21474836488 isMainFrame=1] FrameLoader::setProvisionalDocumentLoader: Setting provisional document loader to 0 (was 5387702272)
+default	09:50:14.735460-0400	carbide	WebContent[75619]: [pageID=0, frameID=21474836488, isMainFrame=1] DocumentLoader::startLoadingMainResource: Returning empty document
+default	09:50:14.735466-0400	carbide	WebContent[75619]: [pageID=0 frameID=21474836488 isMainFrame=1] FrameLoader::setPolicyDocumentLoader: Setting policy document loader to 0 (was 5387702272)
+default	09:50:14.735470-0400	carbide	WebContent[75619]: [pageID=0 frameID=21474836488 isMainFrame=1] FrameLoader::setState: main frame load completed
+default	09:50:14.737149-0400	carbide	WebContent[75619] 0x14121d000 - [pageID=0, frameID=21474836488, isMainFrame=1] DocumentLoader::DocumentLoader::frameDestroyed: m_frame=0x15e2b4220
+default	09:50:14.747005-0400	carbide	All generators are complete, dispatching to `completionBlockJustOnce`
+default	09:50:14.747036-0400	carbide	Could not match any valid candidates of any source. `containerToPush` will be nil. <private>
+default	09:50:14.747050-0400	carbide	Preparing to push (null) to candidate receiver, for request token: <private>
+error	09:50:14.747067-0400	carbide	containerToPush is nil, will not push anything to candidate receiver for request token: <private>
+default	09:50:14.751238-0400	carbide	All generators are complete, dispatching to `completionBlockJustOnce`
+default	09:50:14.751265-0400	carbide	Could not match any valid candidates of any source. `containerToPush` will be nil. <private>
+default	09:50:14.751274-0400	carbide	Preparing to push (null) to candidate receiver, for request token: <private>
+error	09:50:14.751279-0400	carbide	containerToPush is nil, will not push anything to candidate receiver for request token: <private>
+default	09:50:15.101929-0400	carbide	_TIPropertyValueIsValid called with 16 on nil context!
+default	09:50:15.101946-0400	carbide	imkxpc_getApplicationProperty:reply: called with incorrect property value 16, bailing.
+default	09:50:15.101964-0400	carbide	Text input context does not respond to _valueForTIProperty:
+default	09:50:15.335825-0400	carbide	Performing delayed generation for token=<private>
+default	09:50:16.313004-0400	carbide	Performing delayed generation for token=<private>
+default	09:50:16.313113-0400	carbide	Performing delayed generation for token=<private>
+default	09:50:17.692986-0400	carbide	0x11e1200c0 - [PID=75619, throttler=0x11e0ec710] ProcessThrottler::Activity::Activity: Starting foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+default	09:50:17.693013-0400	carbide	0x11e120150 - [PID=75619, throttler=0x11e0ec710] ProcessThrottler::Activity::Activity: Starting foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+default	09:50:17.693095-0400	carbide	WebContent[75619] 0x100f50d68 - [webPageID=11] WebPage::runJavaScriptInFrameInScriptWorld: frameID=0
+default	09:50:17.698065-0400	carbide	WebContent[75619]: [pageID=11, frameID=4294967297, resourceID=499582] ResourceLoader::willSendRequestInternal: calling completion handler
+default	09:50:17.698074-0400	carbide	WebContent[75619]: [pageID=11, frameID=4294967297, resourceID=499582 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+default	09:50:17.698076-0400	carbide	WebContent[75619] 0x10a0680e0 - [resourceLoader=0x14a634730, frameLoader=0x10a120e00, frame=0x10a0c0220, webPageID=11, frameID=4294967297, resourceID=499582] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+default	09:50:17.698093-0400	carbide	WebContent[75619] [schemeHandler=3, webPageID=11, frameID=4294967297, taskID=499582] WebURLSchemeTaskProxy::startLoading
+default	09:50:17.698234-0400	carbide	WebContent[75619]: [pageID=11, frameID=4294967297, resourceID=499583] ResourceLoader::willSendRequestInternal: calling completion handler
+default	09:50:17.698237-0400	carbide	WebContent[75619]: [pageID=11, frameID=4294967297, resourceID=499583 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+default	09:50:17.698241-0400	carbide	WebContent[75619] 0x10a0680e0 - [resourceLoader=0x14a634d80, frameLoader=0x10a120e00, frame=0x10a0c0220, webPageID=11, frameID=4294967297, resourceID=499583] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+default	09:50:17.698251-0400	carbide	WebContent[75619] [schemeHandler=3, webPageID=11, frameID=4294967297, taskID=499583] WebURLSchemeTaskProxy::startLoading
+default	09:50:17.698277-0400	carbide	WebContent[75619] 0x100f50d68 - [webPageID=11] WebPage::runJavaScriptInFrameInScriptWorld: Request to run JavaScript succeeded
+default	09:50:17.698283-0400	carbide	WebContent[75619] 0x100f50d68 - [webPageID=11] WebPage::runJavaScriptInFrameInScriptWorld: frameID=0
+default	09:50:17.698518-0400	carbide	0x11e1200c0 - [PID=75619, throttler=0x11e0ec710] ProcessThrottler::Activity::invalidate: Ending foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+default	09:50:17.698532-0400	carbide	0x11e1201e0 - [PID=75619, throttler=0x11e0ec710] ProcessThrottler::Activity::Activity: Starting foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+default	09:50:17.702369-0400	carbide	WebContent[75619]: [pageID=11, frameID=4294967297, resourceID=499584] ResourceLoader::willSendRequestInternal: calling completion handler
+default	09:50:17.702377-0400	carbide	WebContent[75619]: [pageID=11, frameID=4294967297, resourceID=499584 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+default	09:50:17.702380-0400	carbide	WebContent[75619] 0x10a0680e0 - [resourceLoader=0x14a635a20, frameLoader=0x10a120e00, frame=0x10a0c0220, webPageID=11, frameID=4294967297, resourceID=499584] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+default	09:50:17.702383-0400	carbide	WebContent[75619] [schemeHandler=3, webPageID=11, frameID=4294967297, taskID=499584] WebURLSchemeTaskProxy::startLoading
+default	09:50:17.702493-0400	carbide	WebContent[75619]: [pageID=11, frameID=4294967297, resourceID=499585] ResourceLoader::willSendRequestInternal: calling completion handler
+default	09:50:17.702500-0400	carbide	WebContent[75619]: [pageID=11, frameID=4294967297, resourceID=499585 SubResourceLoader::willSendRequestInternal: resource load finished; calling completion handler
+default	09:50:17.702502-0400	carbide	WebContent[75619] 0x10a0680e0 - [resourceLoader=0x14ad54730, frameLoader=0x10a120e00, frame=0x10a0c0220, webPageID=11, frameID=4294967297, resourceID=499585] WebLoaderStrategy::tryLoadingUsingURLSchemeHandler: URL will be handled by a UIProcess URL scheme handler
+default	09:50:17.702512-0400	carbide	WebContent[75619] [schemeHandler=3, webPageID=11, frameID=4294967297, taskID=499585] WebURLSchemeTaskProxy::startLoading
+default	09:50:17.706849-0400	carbide	0x11e120240 - [PID=75619, throttler=0x11e0ec710] ProcessThrottler::Activity::Activity: Starting foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+default	09:50:17.706873-0400	carbide	WebContent[75619] 0x100f50d68 - [webPageID=11] WebPage::runJavaScriptInFrameInScriptWorld: Request to run JavaScript succeeded
+default	09:50:17.706898-0400	carbide	0x11e120150 - [PID=75619, throttler=0x11e0ec710] ProcessThrottler::Activity::invalidate: Ending foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+default	09:50:17.706938-0400	carbide	WebContent[75619] [schemeHandler=3, webPageID=11, frameID=4294967297, taskID=499582] WebURLSchemeTaskProxy::didComplete
+default	09:50:17.706943-0400	carbide	WebContent[75619]: [pageID=11, frameID=4294967297, resourceID=499582 SubResourceLoader::didFinishLoading
+default	09:50:17.706959-0400	carbide	WebContent[75619] [schemeHandler=3, webPageID=11, frameID=4294967297, taskID=499583] WebURLSchemeTaskProxy::didComplete
+default	09:50:17.706964-0400	carbide	WebContent[75619]: [pageID=11, frameID=4294967297, resourceID=499583 SubResourceLoader::didFinishLoading
+default	09:50:17.706968-0400	carbide	WebContent[75619] 0x100f50d68 - [webPageID=11] WebPage::runJavaScriptInFrameInScriptWorld: frameID=0
+default	09:50:17.720451-0400	carbide	WebContent[75619] 0x100f50d68 - [webPageID=11] WebPage::runJavaScriptInFrameInScriptWorld: Request to run JavaScript succeeded
+default	09:50:17.720465-0400	carbide	0x11e1201e0 - [PID=75619, throttler=0x11e0ec710] ProcessThrottler::Activity::invalidate: Ending foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+default	09:50:17.720473-0400	carbide	WebContent[75619] [schemeHandler=3, webPageID=11, frameID=4294967297, taskID=499584] WebURLSchemeTaskProxy::didComplete
+default	09:50:17.720478-0400	carbide	WebContent[75619]: [pageID=11, frameID=4294967297, resourceID=499584 SubResourceLoader::didFinishLoading
+default	09:50:17.720482-0400	carbide	WebContent[75619] [schemeHandler=3, webPageID=11, frameID=4294967297, taskID=499585] WebURLSchemeTaskProxy::didComplete
+default	09:50:17.720484-0400	carbide	WebContent[75619]: [pageID=11, frameID=4294967297, resourceID=499585 SubResourceLoader::didFinishLoading
+default	09:50:17.720917-0400	carbide	WebContent[75619] 0x100f50d68 - [webPageID=11] WebPage::runJavaScriptInFrameInScriptWorld: frameID=0
+default	09:50:17.721775-0400	carbide	WebContent[75619] 0x100f50d68 - [webPageID=11] WebPage::runJavaScriptInFrameInScriptWorld: Request to run JavaScript succeeded
+default	09:50:17.721788-0400	carbide	0x11e120240 - [PID=75619, throttler=0x11e0ec710] ProcessThrottler::Activity::invalidate: Ending foreground activity / 'WebPageProxy::runJavaScriptInFrameInScriptWorld'
+default	09:50:18.579315-0400	carbide	0x11e0d00e0 - [PID=0] WebProcessCache::setApplicationIsActive: (isActive=0)
+default	09:50:18.579513-0400	carbide	<<<< Alt >>>> fpSupport_GetVideoRangeForCoreDisplayWithPreference: displayID 3 reported potentialHeadRoom=1 wideColorSupported=NO marz=NO almd=NO deviceAllowsHDR=YES isBuiltinPanel=NO externalPanel=YES prefersHDR10=NO
+default	09:50:18.579655-0400	carbide	<<<< Alt >>>> fpSupport_GetVideoRangeForCoreDisplayWithPreference: displayID 1 reported potentialHeadRoom=16 wideColorSupported=YES marz=NO almd=NO deviceAllowsHDR=YES isBuiltinPanel=YES externalPanel=YES prefersHDR10=NO
+default	09:50:18.582187-0400	carbide	PageClientImpl 0x11e000200 isViewVisible(): viewWindow 0xa60ad2300, window visible 1, view hidden 0, window occluded 0
+default	09:50:18.582192-0400	carbide	PageClientImpl 0x11e000200 isViewVisible(): viewWindow 0xa60ad2300, window visible 1, view hidden 0, window occluded 0
+default	09:50:18.583689-0400	carbide	WebContent[75619]: PerformanceMonitor::measureCPUUsageInActivityState: Process is using 4.0% CPU in state: <private>
+default	09:50:18.654751-0400	carbide	-[TUINSCursorUIController hideTextInputMenuHUD:] {
+}
+default	09:50:18.682739-0400	carbide	-[NSPersistentUIManager flushAllChanges]
+default	09:50:18.682878-0400	carbide	-[NSPersistentUIManager flushAllChanges] finishing enqueued operations
+default	09:50:18.685750-0400	carbide	-[NSPersistentUIManager flushAllChanges]_block_invoke asyncing to main queue
+default	09:50:18.685794-0400	carbide	-[NSPersistentUIManager flushAllChanges]_block_invoke writing records
