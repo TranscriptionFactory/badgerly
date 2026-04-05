@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05
 **Companion to:** `2026-04-05_unified_implementation_roadmap.md`
-**Progress:** 12 / 46 units complete
+**Progress:** 13 / 46 units complete
 
 ---
 
@@ -149,9 +149,10 @@ Review between batches — check the branch, run the app, read commits. Each bat
   - Tauri commands: `smart_links_load_rules`, `smart_links_save_rules`, `smart_links_compute_suggestions`. SQL queries for `same_day`, `shared_tag`, `shared_property`. Config as JSON in `.carbide/smart-links/rules.json`.
   - _Completed 2026-04-05 `e7d91629`. New `smart_links` feature module with 3 files: `mod.rs` (types + Tauri commands), `config.rs` (JSON persistence with default-on-first-access), `rules.rs` (SQL execution engine). Types: SmartLinkRule, SmartLinkRuleGroup, SmartLinkRuleMatch, SmartLinkSuggestion — all with camelCase serde + specta. Rule config uses `HashMap<String, String>` (not serde_json::Value) for specta compatibility. Three SQL rules: `same_day` (mtime date match via SQLite date()), `shared_tag` (Jaccard overlap against note_inline_tags), `shared_property` (key-value pair match against note_properties). Weighted score aggregation with dedup by target path. Default rules: same_day(0.3), shared_tag(0.5), shared_property(0.4). 11 tests (8 rule + 3 config). Pre-existing lint (build_command_context.ts layering) and test (document_service eviction) failures unchanged._
 
-- [ ] **5.2** TypeScript frontend — store + service + port extension + LinksService integration — **TypeScript session**
+- [x] **5.2** TypeScript frontend — store + service + port extension + LinksService integration — **TypeScript session**
   - Files: `src/lib/features/smart_links/` (new), extend `SearchPort`, update `LinksService`
   - `SmartLinksStore`, `SmartLinksService`, extend `SuggestedLink` type with provenance. Wire `load_suggested_links()` to union explicit + smart suggestions.
+  - _Completed 2026-04-05 `53e2c8fe`. New `smart_links` feature module with SmartLinksStore (rule groups state + mutations), SmartLinksService (load/save/toggle rules via SearchPort), 4 TS types matching Rust types (SmartLinkRule, SmartLinkRuleGroup, SmartLinkRuleMatch, SmartLinkSuggestion). Extended SearchPort with 3 methods (load_smart_link_rules, save_smart_link_rules, compute_smart_link_suggestions) + Tauri adapter implementation. Extended SuggestedLink with optional `rules` provenance array. LinksService.load_suggested_links now fires semantic + smart link queries in parallel via Promise.allSettled, merges by target path (dedup with combined provenance, max score), sorts by score. Graceful degradation: either source can fail independently. DI wired in create_app_stores + create_app_context. 28 new tests (8 store, 6 service, 14 links_service including merge/dedup/partial-failure). Pre-existing lint (build_command_context.ts layering) and test (document_service eviction) failures unchanged._
 
 - [ ] **5.3** UI — rule configuration + provenance display — **Svelte/UI session**
   - Files: Settings UI for rule toggles/weights, provenance chips in Suggested Links panel
