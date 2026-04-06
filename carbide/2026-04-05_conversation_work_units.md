@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05
 **Companion to:** `2026-04-05_unified_implementation_roadmap.md`
-**Progress:** 13 / 46 units complete
+**Progress:** 14 / 46 units complete
 
 ---
 
@@ -154,9 +154,10 @@ Review between batches — check the branch, run the app, read commits. Each bat
   - `SmartLinksStore`, `SmartLinksService`, extend `SuggestedLink` type with provenance. Wire `load_suggested_links()` to union explicit + smart suggestions.
   - _Completed 2026-04-05 `53e2c8fe`. New `smart_links` feature module with SmartLinksStore (rule groups state + mutations), SmartLinksService (load/save/toggle rules via SearchPort), 4 TS types matching Rust types (SmartLinkRule, SmartLinkRuleGroup, SmartLinkRuleMatch, SmartLinkSuggestion). Extended SearchPort with 3 methods (load_smart_link_rules, save_smart_link_rules, compute_smart_link_suggestions) + Tauri adapter implementation. Extended SuggestedLink with optional `rules` provenance array. LinksService.load_suggested_links now fires semantic + smart link queries in parallel via Promise.allSettled, merges by target path (dedup with combined provenance, max score), sorts by score. Graceful degradation: either source can fail independently. DI wired in create_app_stores + create_app_context. 28 new tests (8 store, 6 service, 14 links_service including merge/dedup/partial-failure). Pre-existing lint (build_command_context.ts layering) and test (document_service eviction) failures unchanged._
 
-- [ ] **5.3** UI — rule configuration + provenance display — **Svelte/UI session**
+- [x] **5.3** UI — rule configuration + provenance display — **Svelte/UI session**
   - Files: Settings UI for rule toggles/weights, provenance chips in Suggested Links panel
   - Reuse shadcn toggle/slider components. Show which rules triggered each suggestion.
+  - _Completed 2026-04-05 `6a917bbe`. Added SmartLinksSettings component embedded in Semantic settings section with per-group toggles and per-rule enabled/weight controls (Switch + Slider). Rules auto-load on first settings visit. Provenance chips in SuggestedLinksSection show abbreviated rule labels (day/tag/prop/semantic/title/links) with hover tooltip showing raw score. Extracted format_rule.ts domain module with rule_chip_label, format_rule_name, rule_chip_title. 8 new tests. Component accesses services through context (matching citation_picker/task_list_item pattern). Pre-existing lint (build_command_context.ts layering) and test (document_service eviction) failures unchanged._
 
 ---
 
