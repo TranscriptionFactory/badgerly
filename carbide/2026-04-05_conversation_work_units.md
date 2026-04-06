@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05
 **Companion to:** `2026-04-05_unified_implementation_roadmap.md`
-**Progress:** 0 / 46 units complete
+**Progress:** 1 / 46 units complete
 
 ---
 
@@ -26,16 +26,16 @@ Run repeatedly. Each invocation completes one unit, updates checkboxes, and the 
 
 Review between batches — check the branch, run the app, read commits. Each batch is a natural ship point.
 
-| Batch | Steps | Units | Runs | Review gate |
-|-------|-------|-------|------|-------------|
-| **A** | 1–2 | 1.1–1.5, 2.1 | 6 | MCP stdio works in Claude Desktop; headings command callable |
-| **B** | 3–4 | 3.1–3.3, 4.1–4.2 | 5 | Type inference in bases; frontmatter edits round-trip; `ctime_ms` + `note_links` populated |
-| **C** | 5–6 | 5.1–5.3, 6.1–6.2 | 5 | Suggested Links panel shows metadata + semantic rules with provenance |
-| **D** | 7–8 | 7.1–7.6, 8.1–8.2 | 8 | `carbide read/search` works from terminal; Claude Desktop + Code auto-configured |
-| **E** | 9–10 | 9.1, 10.1–10.3 | 4 | `getFileCache` composite endpoint; plugins lazy-load with timeouts |
-| **F** | 11–12 | 11.1–11.2, 12.1–12.5 | 7 | Block-level suggestions; full MCP + CLI surface |
-| **G** | 13–15 | 13.1–13.2, 14.1–14.2, 15.1–15.2 | 6 | Drag blocks; live metadata events; graph shows smart link edges |
-| **H** | 16 | 16.1–16.5 | 5 | Bulk property ops; nested props; plugin SDK; CLI TUI |
+| Batch | Steps | Units                           | Runs | Review gate                                                                                |
+| ----- | ----- | ------------------------------- | ---- | ------------------------------------------------------------------------------------------ |
+| **A** | 1–2   | 1.1–1.5, 2.1                    | 6    | MCP stdio works in Claude Desktop; headings command callable                               |
+| **B** | 3–4   | 3.1–3.3, 4.1–4.2                | 5    | Type inference in bases; frontmatter edits round-trip; `ctime_ms` + `note_links` populated |
+| **C** | 5–6   | 5.1–5.3, 6.1–6.2                | 5    | Suggested Links panel shows metadata + semantic rules with provenance                      |
+| **D** | 7–8   | 7.1–7.6, 8.1–8.2                | 8    | `carbide read/search` works from terminal; Claude Desktop + Code auto-configured           |
+| **E** | 9–10  | 9.1, 10.1–10.3                  | 4    | `getFileCache` composite endpoint; plugins lazy-load with timeouts                         |
+| **F** | 11–12 | 11.1–11.2, 12.1–12.5            | 7    | Block-level suggestions; full MCP + CLI surface                                            |
+| **G** | 13–15 | 13.1–13.2, 14.1–14.2, 15.1–15.2 | 6    | Drag blocks; live metadata events; graph shows smart link edges                            |
+| **H** | 16    | 16.1–16.5                       | 5    | Bulk property ops; nested props; plugin SDK; CLI TUI                                       |
 
 ---
 
@@ -276,8 +276,9 @@ Review between batches — check the branch, run the app, read commits. Each bat
 **Design ref:** `carbide/2026-04-02_smart_linking_and_block_notes.md` → Phase 4
 **Depends on:** nothing
 
-- [ ] **13.1** Block detection ProseMirror plugin + drag handle UI — **TypeScript/ProseMirror session**
+- [x] **13.1** Block detection ProseMirror plugin + drag handle UI — **TypeScript/ProseMirror session**
   - Detect block boundaries, render grip icon on hover for eligible blocks.
+  - _Completed 2026-04-06 `b94e52cf`. Domain module detect_draggable_blocks.ts identifies 13 eligible top-level block types (heading, paragraph, code_block, blockquote, bullet_list, ordered_list, hr, table, details_block, image-block, math_block, file_embed, excalidraw_embed). ProseMirror view plugin tracks mouse position, resolves top-level block via doc.resolve, renders floating drag handle (6-dot radial-gradient grip) positioned absolutely in left gutter. Drag initiates NodeSelection + sets view.dragging for ProseMirror native drop handling (via existing dropCursor plugin). Schema uses "hr" not "horizontal_rule" as node type name. CSS: handle hidden by default, shown on hover with grab cursor, dragging state with reduced opacity. Extension wired into assemble_extensions. 10 domain tests + 2 plugin tests. Pre-existing lint (build_command_context.ts layering) and test (document_service eviction) failures unchanged._
 
 - [ ] **13.2** Drag-and-drop + markdown round-trip — **TypeScript/ProseMirror session**
   - Drop handler, content reordering, re-indexing trigger. Verify AST round-trip.
@@ -337,22 +338,22 @@ Review between batches — check the branch, run the app, read commits. Each bat
 
 ## Summary
 
-| Step | Units | Sessions |
-|------|-------|----------|
-| 1. MCP Stdio | 5 | 5 |
-| 2. Headings Cmd | 1 | 1 |
-| 3. Metadata Foundations | 3 | 3 |
-| 4. Backend Enrichment | 2 | 2 |
-| 5. Smart Linking P1 | 3 | 3 |
-| 6. Smart Linking P2 | 2 | 2 |
-| 7. HTTP + CLI | 6 | 5-6 |
-| 8. Auto-Setup | 2 | 2 |
-| 9. getFileCache | 1 | 1 |
-| 10. Plugin Hardening | 3 | 2-3 |
-| 11. Block Embeddings | 2 | 2 |
-| 12. Extended Tools | 5 | 4-5 |
-| 13. Editor Drag | 2 | 2 |
-| 14. Metadata Events | 2 | 2 |
-| 15. Graph Viz | 2 | 2 |
-| 16. Power Features | 5 | 5 |
-| **Total** | **46** | **~43-46** |
+| Step                    | Units  | Sessions   |
+| ----------------------- | ------ | ---------- |
+| 1. MCP Stdio            | 5      | 5          |
+| 2. Headings Cmd         | 1      | 1          |
+| 3. Metadata Foundations | 3      | 3          |
+| 4. Backend Enrichment   | 2      | 2          |
+| 5. Smart Linking P1     | 3      | 3          |
+| 6. Smart Linking P2     | 2      | 2          |
+| 7. HTTP + CLI           | 6      | 5-6        |
+| 8. Auto-Setup           | 2      | 2          |
+| 9. getFileCache         | 1      | 1          |
+| 10. Plugin Hardening    | 3      | 2-3        |
+| 11. Block Embeddings    | 2      | 2          |
+| 12. Extended Tools      | 5      | 4-5        |
+| 13. Editor Drag         | 2      | 2          |
+| 14. Metadata Events     | 2      | 2          |
+| 15. Graph Viz           | 2      | 2          |
+| 16. Power Features      | 5      | 5          |
+| **Total**               | **46** | **~43-46** |
