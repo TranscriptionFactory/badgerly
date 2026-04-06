@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05
 **Companion to:** `2026-04-05_unified_implementation_roadmap.md`
-**Progress:** 27 / 46 units complete
+**Progress:** 28 / 46 units complete
 
 ---
 
@@ -252,10 +252,11 @@ Review between batches — check the branch, run the app, read commits. Each bat
 
 - [x] **10.2** Lifecycle hooks + RPC timeouts + rate limiting — **TypeScript session**
   - `plugin_host_adapter.ts`, plugin store. `activate`/`deactivate` protocol. `Promise.race` timeout. Sliding window rate limiter. Error budget (10 → auto-disable).
-  - _Completed 2026-04-06 `0b4817a3`. Lifecycle hooks: activate/deactivate/on_settings_change sent via postMessage with structured {type, hook, context} format. Iframe host sends activate with plugin_id+vault_path context on mount, deactivate on destroy. Settings changes auto-forwarded via PluginSettingsService callback. RPC timeouts: new rpc_timeout.ts domain module with Promise.race — 5s default, 30s for vault.* fs methods. Rate limiting: new rate_limiter.ts domain module with sliding window (100 calls/min per plugin, pruning old timestamps). Error budget: extended PluginErrorTracker with consecutive error counter (10 → auto_disable) alongside existing time-window threshold; record_success resets consecutive counter on successful RPC. All integrated in PluginService.handle_rpc. 30 new tests (8 rate limiter, 6 rpc timeout, 11 error tracker, 5 service hardening). Pre-existing lint (build_command_context.ts layering) and test (document_service eviction) failures unchanged._
+  - _Completed 2026-04-06 `0b4817a3`. Lifecycle hooks: activate/deactivate/on_settings_change sent via postMessage with structured {type, hook, context} format. Iframe host sends activate with plugin_id+vault_path context on mount, deactivate on destroy. Settings changes auto-forwarded via PluginSettingsService callback. RPC timeouts: new rpc_timeout.ts domain module with Promise.race — 5s default, 30s for vault.\* fs methods. Rate limiting: new rate_limiter.ts domain module with sliding window (100 calls/min per plugin, pruning old timestamps). Error budget: extended PluginErrorTracker with consecutive error counter (10 → auto_disable) alongside existing time-window threshold; record_success resets consecutive counter on successful RPC. All integrated in PluginService.handle_rpc. 30 new tests (8 rate limiter, 6 rpc timeout, 11 error tracker, 5 service hardening). Pre-existing lint (build_command_context.ts layering) and test (document_service eviction) failures unchanged._
 
-- [ ] **10.3** Richer settings schema — **Svelte/UI session**
+- [x] **10.3** Richer settings schema — **Svelte/UI session**
   - `textarea`, `min`/`max`, `placeholder`, `description`. Small — can combine with 10.2.
+  - _Completed 2026-04-06 `b8edde58`. Extended PluginSettingSchema type union with "textarea", added min/max/placeholder optional fields. Created shadcn-style Textarea component (textarea.svelte + index.ts). Dialog renders textarea with full-width layout, number inputs get HTML min/max attributes + clamp_number() on commit. Placeholder forwarded to string/textarea/number inputs. Description field already existed in type and UI. 5 new tests (textarea render+save, min/max clamping, placeholder on string, description text, number HTML attributes). Pre-existing lint (build_command_context.ts layering) and test (document_service eviction) failures unchanged._
 
 ---
 
