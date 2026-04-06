@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05
 **Companion to:** `2026-04-05_unified_implementation_roadmap.md`
-**Progress:** 24 / 46 units complete
+**Progress:** 25 / 46 units complete
 
 ---
 
@@ -233,9 +233,10 @@ Review between batches — check the branch, run the app, read commits. Each bat
 **Design ref:** `carbide/metadata_api_surface.md` → Phases B1, B2
 **Depends on:** Steps 2, 3, 4
 
-- [ ] **9.1** `note_get_file_cache` Tauri command + plugin RPC wiring — **Rust + TS session**
+- [x] **9.1** `note_get_file_cache` Tauri command + plugin RPC wiring — **Rust + TS session**
   - Files: `service.rs`, `db.rs` (composite query), `plugin_rpc_handler.ts`
   - Assembly from existing tables. Wire as `metadata.getFileCache(path)`. Clean up dead `note_get_metadata` reference.
+  - _Completed 2026-04-05 `ce1461da`. Added FileCache struct (model.rs) assembling frontmatter (BTreeMap<String, (value, type)>), tags, headings, links, embeds (partitioned by link_type), stats, ctime_ms/mtime_ms/size_bytes. Composite get_file_cache query in db.rs calls existing get_note_stats/get_note_properties/get_note_tags/get_note_headings/get_note_links and partitions links from embeds. note_get_file_cache Tauri command + specta annotation in service.rs. TS FileCache/CachedHeading/CachedLink types in metadata/types.ts. Replaced dead note_get_metadata with get_file_cache in MetadataPort + MetadataTauriAdapter. Extended SearchPort + search_tauri_adapter. Plugin RPC: metadata.getFileCache case + PluginRpcMetadataBackend.get_file_cache + wired in create_app_context.ts. 3 Rust tests (assembly, link/embed partition, missing note error). 2 new TS tests (plugin RPC success + permission check). Updated 5 test files for SearchPort mock. Pre-existing lint (build_command_context.ts layering) and test (document_service eviction) failures unchanged._
 
 ---
 
