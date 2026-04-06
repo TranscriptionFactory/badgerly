@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05
 **Companion to:** `2026-04-05_unified_implementation_roadmap.md`
-**Progress:** 25 / 46 units complete
+**Progress:** 26 / 46 units complete
 
 ---
 
@@ -246,8 +246,9 @@ Review between batches — check the branch, run the app, read commits. Each bat
 **Design ref:** `carbide/mcp_native_gaps_plan.md` → Phase 5 (Gaps 2a-2e)
 **Depends on:** nothing (independent)
 
-- [ ] **10.1** Activation events + lazy loading — **TypeScript session**
+- [x] **10.1** Activation events + lazy loading — **TypeScript session**
   - Plugin service `should_activate` pattern matching, manifest type update. `on_startup_finished`, `on_file_type:*`, `vault_contains:*`.
+  - _Completed 2026-04-06 `1f04cd0b`. Extended ActivationEvent union type with on_startup_finished, on_file_type:\*, vault_contains:\*. New domain module match_activation_event.ts with pattern matching (case-insensitive file type, path-based vault_contains with dot-prefix/suffix matching). Refactored should_activate to delegate to domain function. Added activate_for_file_type method + set_vault_file_lister for DI. New plugin_file_type reactor watches editor_store.open_note for on_file_type triggers. initialize_active_vault now scans vault files for vault_contains patterns and fires on_startup_finished after startup+vault_contains. 30 new domain tests + 8 new service tests. Pre-existing lint (build_command_context.ts layering) and test (document_service eviction) failures unchanged._
 
 - [ ] **10.2** Lifecycle hooks + RPC timeouts + rate limiting — **TypeScript session**
   - `plugin_host_adapter.ts`, plugin store. `activate`/`deactivate` protocol. `Promise.race` timeout. Sliding window rate limiter. Error budget (10 → auto-disable).
