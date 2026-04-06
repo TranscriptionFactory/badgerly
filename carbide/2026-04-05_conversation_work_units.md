@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05
 **Companion to:** `2026-04-05_unified_implementation_roadmap.md`
-**Progress:** 22 / 46 units complete
+**Progress:** 23 / 46 units complete
 
 ---
 
@@ -217,8 +217,9 @@ Review between batches — check the branch, run the app, read commits. Each bat
 **Design ref:** `carbide/mcp_native_gaps_plan.md` → Phase 4
 **Depends on:** Step 7
 
-- [ ] **8.1** Claude Desktop/Code auto-config + settings UI — **Rust + Svelte session**
+- [x] **8.1** Claude Desktop/Code auto-config + settings UI — **Rust + Svelte session**
   - `mcp/setup.rs`, `.mcp.json` generation, settings panel updates. Write/merge `claude_desktop_config.json`. Auto-setup button, token regen, connection status.
+  - _Completed 2026-04-05 `622ce574`. Rust setup.rs with 4 Tauri commands: mcp_setup_claude_desktop (writes/merges claude_desktop_config.json), mcp_setup_claude_code (writes .mcp.json to vault dir with type:http), mcp_regenerate_token, mcp_get_setup_status. Config merge preserves existing mcpServers entries. Frontend: McpSetupStatus/McpSetupResult types, port/adapter/service/store wiring, MCP settings panel (enable toggle, server status badge, configure buttons for Desktop/Code with status icons, token regeneration). Settings nav gets new "MCP" category with CableIcon. Decision: used env var HOME/USERPROFILE for home dir instead of adding `dirs` crate dependency. 7 new tests (5 service + 2 store). Pre-existing lint (build_command_context.ts layering) and test (document_service eviction) failures unchanged._
 
 - [ ] **8.2** CLI PATH registration + shell completions — **Rust session**
   - Symlink logic, clap completions (bash/zsh/fish), `--install-cli` command.
