@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05
 **Companion to:** `2026-04-05_unified_implementation_roadmap.md`
-**Progress:** 28 / 46 units complete
+**Progress:** 29 / 46 units complete
 
 ---
 
@@ -266,9 +266,10 @@ Review between batches — check the branch, run the app, read commits. Each bat
 **Design ref:** `carbide/2026-04-02_smart_linking_and_block_notes.md` → Phase 3
 **Depends on:** Step 6 (smart linking engine)
 
-- [ ] **11.1** `block_embeddings` table + embedding pipeline extension — **Rust session**
+- [x] **11.1** `block_embeddings` table + embedding pipeline extension — **Rust session**
   - Files: `db.rs` (schema), `embeddings.rs`, `vector_db.rs`
   - Threshold: 20 words OR >10 lines. Reuse Snowflake Arctic Embed XS. Backfill during indexing.
+  - _Completed 2026-04-06 `3d061841`. Added `block_embeddings` table (path + heading_id composite PK) to `init_vector_schema`. Full CRUD: upsert/remove/rename (single + prefix) for block embeddings, mirroring note_embeddings pattern. `block_knn_search(path, heading_id, distance)` brute-force scan. `get_block_embedded_keys` uses `path\0heading_id` composite keys for dedup. Extended `handle_embed_batch` with `handle_block_embed_batch` — queries `get_embeddable_sections(20 words OR 10 lines)`, extracts section text from FTS body by line range, batch-embeds with same Snowflake Arctic Embed XS model. Cleanup wired into `remove_note`, `remove_notes_by_prefix`, `rename_note_path`, `rename_paths_by_prefix`, and `clear_all_embeddings`. 9 new tests (7 vector_db + 2 db). Pre-existing lint (build_command_context.ts layering) and test (document_service eviction) failures unchanged._
 
 - [ ] **11.2** `block_knn_search` + `block_semantic_similarity` smart link rule — **Rust session**
   - `vector_db.rs` (new search), smart_links module (new rule). Brute-force scan fine for MVP.
