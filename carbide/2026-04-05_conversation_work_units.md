@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05
 **Companion to:** `2026-04-05_unified_implementation_roadmap.md`
-**Progress:** 1 / 46 units complete
+**Progress:** 2 / 46 units complete
 
 ---
 
@@ -280,8 +280,9 @@ Review between batches — check the branch, run the app, read commits. Each bat
   - Detect block boundaries, render grip icon on hover for eligible blocks.
   - _Completed 2026-04-06 `b94e52cf`. Domain module detect_draggable_blocks.ts identifies 13 eligible top-level block types (heading, paragraph, code_block, blockquote, bullet_list, ordered_list, hr, table, details_block, image-block, math_block, file_embed, excalidraw_embed). ProseMirror view plugin tracks mouse position, resolves top-level block via doc.resolve, renders floating drag handle (6-dot radial-gradient grip) positioned absolutely in left gutter. Drag initiates NodeSelection + sets view.dragging for ProseMirror native drop handling (via existing dropCursor plugin). Schema uses "hr" not "horizontal_rule" as node type name. CSS: handle hidden by default, shown on hover with grab cursor, dragging state with reduced opacity. Extension wired into assemble_extensions. 10 domain tests + 2 plugin tests. Pre-existing lint (build_command_context.ts layering) and test (document_service eviction) failures unchanged._
 
-- [ ] **13.2** Drag-and-drop + markdown round-trip — **TypeScript/ProseMirror session**
+- [x] **13.2** Drag-and-drop + markdown round-trip — **TypeScript/ProseMirror session**
   - Drop handler, content reordering, re-indexing trigger. Verify AST round-trip.
+  - _Completed 2026-04-06 `f15b2221`. Added compute_block_drop.ts domain module with resolve_drop_target (snaps raw drop position to nearest block boundary using midpoint heuristic) and apply_block_move (atomic delete+insert transaction with position adjustment for direction). Extended block_drag_handle_plugin with handleDrop prop using plugin state to track dragging_from position — intercepts drops when moved=true and source is a block drag. Re-indexing triggers automatically through existing ProseMirror doc-change → autosave → index flow. 15 domain tests (resolve_drop_target snapping, compute_block_drop validation, apply_block_move for all directions + attribute preservation). 7 markdown round-trip tests (paragraph reorder, heading move, code block with language, blockquote, list block, horizontal rule, identity round-trip). Pre-existing lint (build_command_context.ts layering) and test (document_service eviction) failures unchanged._
 
 ---
 
