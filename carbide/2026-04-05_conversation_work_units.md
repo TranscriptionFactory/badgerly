@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05
 **Companion to:** `2026-04-05_unified_implementation_roadmap.md`
-**Progress:** 14 / 46 units complete
+**Progress:** 15 / 46 units complete
 
 ---
 
@@ -167,8 +167,9 @@ Review between batches — check the branch, run the app, read commits. Each bat
 **Design ref:** `carbide/2026-04-02_smart_linking_and_block_notes.md` → Phase 2
 **Depends on:** Step 5
 
-- [ ] **6.1** Semantic rule wiring + scoring engine — **Rust session**
+- [x] **6.1** Semantic rule wiring + scoring engine — **Rust session**
   - Rust: `semantic_similarity` rule (call `find_similar_notes` directly — never hybrid search), `title_overlap`, `shared_outlinks` queries. Weighted aggregation, dedup, sort.
+  - _Completed 2026-04-05 `4ba5ba3f`. Three new rules in rules.rs: semantic_similarity calls vector_db::knn_search directly (converts distance to similarity, filters ≤0), title_overlap tokenizes titles and computes Jaccard similarity (0.15 threshold), shared_outlinks queries outlinks table for shared targets (Jaccard on outlink sets). Added "semantic" rule group to default_rules() with semantic_similarity enabled by default, title_overlap and shared_outlinks disabled. 8 new tests + 2 updated config/default_rules tests. Pre-existing lint (build_command_context.ts layering) and test (document_service eviction) failures unchanged._
 
 - [ ] **6.2** Frontend scoring integration + tests — **TypeScript session**
   - TS: update service to handle multi-rule results. Integration tests for weighted merge, dedup, ranking.
