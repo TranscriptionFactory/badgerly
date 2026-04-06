@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05
 **Companion to:** `2026-04-05_unified_implementation_roadmap.md`
-**Progress:** 30 / 46 units complete
+**Progress:** 31 / 46 units complete
 
 ---
 
@@ -283,8 +283,9 @@ Review between batches — check the branch, run the app, read commits. Each bat
 **Design ref:** `carbide/mcp_native_gaps_plan.md` → Phase 6
 **Depends on:** Steps 7-8
 
-- [ ] **12.1** MCP Tier 2 tools — **Rust session**
+- [x] **12.1** MCP Tier 2 tools — **Rust session**
   - `mcp/tools/` — backlinks, outlinks, references, properties, query_by_property.
+  - _Completed 2026-04-06 `27247865`. Two new tool modules: graph.rs (get_backlinks via search_db::get_backlinks, get_outgoing_links via search_db::get_outlinks, list_properties via search_db::list_all_properties with unique values, query_notes_by_property via search_db::query_bases with operator enum eq/neq/contains/gt/gte/lt/lte). references.rs (list_references loads CSL library and formats citekey/title/author/year, search_references filters by case-insensitive match on citekey/title/author). Router extended to 14 total tools. Updated response_json body limit from 4096→16384 in http test. 12 new tests + updated 2 existing tests for new tool count. Pre-existing lint (build_command_context.ts layering) and test (document_service eviction) failures unchanged._
 
 - [ ] **12.2** MCP Tier 3 + plugin MCP bridge — **Rust + TS session**
   - Git tools, rename. `plugin_rpc_handler.ts` `mcp.*` namespace: `list_tools`, `call_tool`, `register_tool`.
