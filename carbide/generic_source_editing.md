@@ -1,7 +1,7 @@
 # Generic Source Editing for Non-Markdown Files — Implementation Plan
 
 **Date:** 2026-03-31 (updated 2026-04-07)
-**Status:** Planning
+**Status:** Implemented (branch: `feat/generic-source-editing`, commit: `056e9f31`)
 **Context:** Extend the document viewer to support editable source mode for all text-based files, reusing CodeMirror 6 infrastructure already present in `code_viewer.svelte`.
 
 ---
