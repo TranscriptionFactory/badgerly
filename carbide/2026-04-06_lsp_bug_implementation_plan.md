@@ -26,44 +26,56 @@ The bug report identifies two failure clusters that the LSP plan addresses.
 
 ## Execution Order
 
-### Wave 1 — Foundation (unblocks everything else)
+### Wave 1 — Foundation (unblocks everything else) ✅ COMPLETE
 
-**Phase 1+2: Typed session model + provider resolution separation**
+**Phase 1+2: Typed session model + provider resolution separation** ✅
 
-Small changes, high leverage. Every subsequent fix becomes easier to diagnose and verify.
+Implemented on branch `feat/wave-1-lsp-typed-session-lint-lifecycle`.
 
-- Replace string-only status projection with typed status payload (`idle | starting | running | restarting | degraded | stopped | failed`, provider info, fallback reason, restart attempt, error classification)
-- Extract provider planning from `resolve_markdown_lsp_startup()` into a separate module
-- Add provider capability table so frontend/editor can branch on capabilities
+Done:
 
-Files:
+- `MarkdownLspStatus` enum in Rust (`Starting | Running | Restarting{attempt} | Stopped | Failed{message}`) with serde serialization matching lint's pattern
+- `MarkdownLspProvider` enum (`Iwes | Marksman`) with capabilities, moved to `types.rs`
+- `MarkdownLspEvent` typed enum replaces old `MarksmanEvent` with string status
+- `MarkdownLspDiagnostic` moved from service.rs inline to types.rs
+- Provider resolution extracted to `provider.rs` module (`resolve_markdown_lsp_startup`, `ensure_iwe_config`, preflight)
+- TypeScript `MarkdownLspStatus` union type matches Rust serde format (`{ restarting: { attempt } }`, `{ failed: { message } }`)
+- Store: removed separate `error` field, initial status `"stopped"` (was `"idle"`), added `is_running` derived
+- Service: typed status passthrough replaces fragile string matching, `handle_status_change` now a one-liner
+- Helper functions: `is_markdown_lsp_running`, `is_markdown_lsp_failed`, `markdown_lsp_error_message`
+- Tests: restarting propagation, failed on start, reset to stopped on stop
 
-- `src-tauri/src/features/markdown_lsp/types.rs` (new or extend)
+Deferred to Wave 2+:
+
+- Provider capability table for frontend feature gating (Phase 7 dependency)
+- Fallback reason recording in status (needs Phase 4 transport diagnostics first)
+
+Files changed:
+
+- `src-tauri/src/features/markdown_lsp/types.rs`
 - `src-tauri/src/features/markdown_lsp/service.rs`
-- new: `src-tauri/src/features/markdown_lsp/provider.rs`
+- `src-tauri/src/features/markdown_lsp/provider.rs` (new)
+- `src-tauri/src/features/markdown_lsp/mod.rs`
 - `src/lib/features/markdown_lsp/types.ts`
 - `src/lib/features/markdown_lsp/state/markdown_lsp_store.svelte.ts`
 - `src/lib/features/markdown_lsp/application/markdown_lsp_service.ts`
+- `src/lib/features/markdown_lsp/index.ts`
+- `src/lib/reactors/backlinks_sync.reactor.svelte.ts`
+- `tests/unit/services/markdown_lsp_service.test.ts`
+- `tests/unit/reactors/backlinks_sync_reactor.test.ts`
 
-BDD scenarios:
+**Phase 8: Lint lifecycle idempotent close (BUG-010)** ✅
 
-- IWES available → status `running`, effective provider IWES
-- IWES missing → status `degraded`/`running`, fallback reason recorded, effective provider Marksman
-- Init failure after fallback → status `failed` with structured error
-- Requested Marksman + custom path → no fallback, custom source recorded
-- IWES preflight failure → plan records preflight failure distinctly from binary-resolution failure
+Done:
 
-**Phase 8: Lint lifecycle idempotent close (BUG-010)**
+- `lint_close_file` returns `Ok(())` when no session exists (was erroring)
+- Frontend `notify_file_closed` already guarded by `is_running` check
+- Tests: close when not running is no-op, close when running calls port
 
-Quick win. Removes background noise that obscures real failures.
-
-- Make `lint_close_file` a no-op if session does not exist
-- Stop treating close-after-stop as exceptional in frontend
-
-Files:
+Files changed:
 
 - `src-tauri/src/features/lint/mod.rs`
-- `src/lib/features/lint/application/lint_service.ts`
+- `tests/unit/services/lint_service.test.ts`
 
 BDD scenarios:
 
