@@ -253,7 +253,7 @@ The cascade failure (lists, fences, headings breaking) indicates the malformed n
 | 4     | BUG-004         | High     | Medium | **Done**    | Paste corruption is user-visible and breaks editing.                                        |
 | 5     | BUG-001         | High     | Medium | **Done**    | List paste fix depends on understanding the full paste pipeline. |
 | 6     | BUG-002B        | Medium   | Medium | **Partial** | CM content cache added. Full undo history deferred.    |
-| 7     | BUG-003 Phase 2 | Low      | Large  | Deferred    | Collapsible front matter is a UX enhancement, not a bug fix.                                |
+| 7     | BUG-003 Phase 2 | Low      | Large  | Dropped     | Not needed — cursor guard + canonical parser resolved the root causes.                      |
 
 ---
 
@@ -297,7 +297,7 @@ Test files (actual):
 ### Deferred
 
 - **BUG-002B undo history:** Requires not destroying CM on tab switch (architectural)
-- **BUG-003 Phase 2:** Collapsible frontmatter node view (UX enhancement)
+- **BUG-003 Phase 2:** Dropped — cursor guard + canonical parser resolved the root causes
 
 ### Verification
 
