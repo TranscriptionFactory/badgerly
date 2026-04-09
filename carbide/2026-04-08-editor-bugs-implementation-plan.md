@@ -245,15 +245,15 @@ The cascade failure (lists, fences, headings breaking) indicates the malformed n
 
 ## Priority & Sequencing
 
-| Order | Bug             | Severity | Effort | Rationale                                                                                   |
-| ----- | --------------- | -------- | ------ | ------------------------------------------------------------------------------------------- |
-| 1     | BUG-003 Phase 1 | High     | Small  | **Done**    | Cursor guard prevents data corruption.            |
-| 2     | BUG-003 Phase 3 | High     | Medium | **Done**    | Consolidating parsers eliminates a class of bugs.             |
-| 3     | BUG-002A        | High     | Small  | **Done**    | Flush ordering fix prevents data loss on tab switch.                                        |
-| 4     | BUG-004         | High     | Medium | **Done**    | Paste corruption is user-visible and breaks editing.                                        |
-| 5     | BUG-001         | High     | Medium | **Done**    | List paste fix depends on understanding the full paste pipeline. |
-| 6     | BUG-002B        | Medium   | Medium | **Partial** | CM content cache added. Full undo history deferred.    |
-| 7     | BUG-003 Phase 2 | Low      | Large  | Dropped     | Not needed — cursor guard + canonical parser resolved the root causes.                      |
+| Order | Bug             | Severity | Effort | Rationale   |
+| ----- | --------------- | -------- | ------ | ----------- | ---------------------------------------------------------------------- |
+| 1     | BUG-003 Phase 1 | High     | Small  | **Done**    | Cursor guard prevents data corruption.                                 |
+| 2     | BUG-003 Phase 3 | High     | Medium | **Done**    | Consolidating parsers eliminates a class of bugs.                      |
+| 3     | BUG-002A        | High     | Small  | **Done**    | Flush ordering fix prevents data loss on tab switch.                   |
+| 4     | BUG-004         | High     | Medium | **Done**    | Paste corruption is user-visible and breaks editing.                   |
+| 5     | BUG-001         | High     | Medium | **Done**    | List paste fix depends on understanding the full paste pipeline.       |
+| 6     | BUG-002B        | Medium   | Medium | **Partial** | CM content cache added. Full undo history deferred.                    |
+| 7     | BUG-003 Phase 2 | Low      | Large  | Dropped     | Not needed — cursor guard + canonical parser resolved the root causes. |
 
 ---
 
