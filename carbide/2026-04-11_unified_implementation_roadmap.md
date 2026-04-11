@@ -3,7 +3,7 @@
 **Date:** 2026-04-11
 **Status:** Active — supersedes `2026-04-05_unified_implementation_roadmap.md`
 **Companion:** `2026-04-05_conversation_work_units.md` (completed units remain there for history)
-**Progress:** 45 / 56 units complete (34 original + A1.1, A2.1, A2.2, A2.3, A3.1, A3.2, A3.3, B1.1, B1.2, B2.1, B2.2); 11 remaining
+**Progress:** 46 / 56 units complete (34 original + A1.1, A2.1, A2.2, A2.3, A3.1, A3.2, A3.3, B1.1, B1.2, B2.1, B2.2, B3.1); 10 remaining
 
 ---
 
@@ -425,11 +425,12 @@ Phase E: Archive branches
 
 #### B3: Slash Command Contribution Point
 
-- [ ] **B3.1** Slash command contribution point — **TypeScript + Svelte session**
+- [x] **B3.1** Slash command contribution point — **TypeScript + Svelte session**
   - `activeForm`: "Hand-porting slash command contribution point"
   - Hand-port from `6bc50243`: manifest `contributes.slash_commands`, ProseMirror `/` menu hook
   - Depends on B1.2 (plugin MCP bridge)
   - Tests: command registration, menu rendering, dispatch
+  - _Completed 2026-04-11 `d9dd3c41`. Hand-ported from 6bc50243. Added SlashCommandContribution type to ports.ts, slash command registry in PluginStore, register_slash_command/unregister_slash_command/execute_slash_command in PluginService, commands.register_slash and commands.remove_slash RPC handlers (reuse commands:register permission). Editor slash_command_plugin.ts accepts SlashCommandConfig to merge plugin commands with builtins, renders plugin badge. SlashCommandProvider in create_prod_ports.ts bridges PluginStore → editor via lazy provider pattern. 22 files changed. 8 domain tests + 4 RPC handler tests + 3 store tests. Pre-existing lint/check failures unchanged._
 
 ---
 
@@ -576,8 +577,8 @@ Phase E: Archive branches
 | A | A2: Plugin hardening | 3 | 2–3 | DONE |
 | A | A3: Plugin AI + network RPC | 3 | 3 | DONE |
 | B | B1: MCP Tier 2/3 + bridge | 2 | 2 | DONE |
-| B | B2: CLI extended commands | 2 | 2 | NOT STARTED |
-| B | B3: Slash commands | 1 | 1 | NOT STARTED |
+| B | B2: CLI extended commands | 2 | 2 | DONE |
+| B | B3: Slash commands | 1 | 1 | DONE |
 | C | C1: Metadata events | 2 | 2 | NOT STARTED |
 | D | D1: Graph visualization | 2 | 2 | NOT STARTED |
 | D | D2: Power features | 5 | 5 | NOT STARTED |
