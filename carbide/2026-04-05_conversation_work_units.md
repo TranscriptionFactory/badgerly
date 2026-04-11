@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05 (updated 2026-04-11)
 **Companion to:** `2026-04-11_unified_implementation_roadmap.md`
-**Progress:** 37 / 56 units complete (34 original + 3/22 new)
+**Progress:** 38 / 56 units complete (34 original + 4/22 new)
 
 ---
 
@@ -380,9 +380,10 @@ _The units below replace the original Steps 10, 14–16. They follow the phase s
   - Tests: textarea rendering, placeholder rendering, numeric clamp behavior
   - _Completed 2026-04-11 `b5328d64`. Hand-ported from b8edde58. Extended PluginSettingSchema with textarea type, placeholder, min, max. Created shadcn-style Textarea component. Updated plugin_settings_dialog with textarea rendering (full-width layout), min/max clamping via clamp_number(), and placeholder passthrough on string/number/textarea inputs. Updated plugin_rpc_handler read_setting_type to accept "textarea" and read_setting_schema to parse placeholder/min/max. Added textarea test stub. 4 new tests. Pre-existing tauri-pty resolution failure in test collection unchanged._
 
-- [ ] **A2.3** Documentation + vault_contains decision — **Docs session**
+- [x] **A2.3** Documentation + vault_contains decision — **Docs session**
   - Update `docs/plugin_howto.md` — mention RPC timeout behavior, rate limiting, richer settings fields
   - Decide on `vault_contains` (recommended: defer — no plugin needs it yet)
+  - _Completed 2026-04-11 `3bbc49e8`+`ba2ceef6`. Docs already updated in prior commits on this branch: RPC timeout behavior (5s default, 30s for FS), rate limiting (100 calls/min sliding window), error auto-disable (burst + consecutive), richer settings (textarea type, placeholder, min/max), network.fetch namespace (SSRF protection, size limits, allowed_origins), ai.execute namespace (ask/edit modes, provider config). Decision: vault_contains deferred — no plugin needs it yet, can be added later._
 
 ---
 
