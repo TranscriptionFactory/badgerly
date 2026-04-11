@@ -3,7 +3,7 @@
 **Date:** 2026-04-11
 **Status:** Active — supersedes `2026-04-05_unified_implementation_roadmap.md`
 **Companion:** `2026-04-05_conversation_work_units.md` (completed units remain there for history)
-**Progress:** 34 / 46 original units complete; 12 remaining units reorganized + new work added below
+**Progress:** 38 / 56 units complete (34 original + A1.1, A2.1, A2.2, A2.3); 18 remaining
 
 ---
 
@@ -23,6 +23,9 @@
 | 11 | Block Embeddings + Block KNN | 2026-04-06 | `bfbd9e11` + `c3cfeb29` (HNSW) |
 | 12 | Extended MCP/CLI Tools (on branch, not main) | 2026-04-06 | `27247865`–`6bc50243` |
 | 13 | Editor Drag Handles | 2026-04-06 | `b94e52cf`–`f15b2221` |
+| A1.1 | Editor Width Token Refactor | 2026-04-11 | `14788ee2` |
+| A2.1 | RPC hardening (timeouts, rate limiting, error budget) | 2026-04-11 | `72daa535` |
+| A2.2 | Richer settings schema (textarea, min/max, placeholder) | 2026-04-11 | `b5328d64` |
 
 **Out-of-band work merged to main:** MCP streamable HTTP transport, CLI sidecar install, CLI glow rendering, block embedding HNSW optimization, drag handle refinements, STT removal, tool status cards.
 
@@ -68,6 +71,8 @@
 
 Expose `--source-editor-max-width` as CSS var in CodeMirror; standardize `--editor-max-width` in remaining themes; fix zen mode hardcoded width.
 
+**Status:** DONE — completed 2026-04-11 (`14788ee2`, branch `fix/editor-width-tokens`)
+
 **Current state verified 2026-04-11:**
 - `--editor-max-width` defined globally in `editor.css` as `min(85ch, 90%)`
 - `--source-editor-max-width` does NOT exist anywhere
@@ -84,6 +89,8 @@ Expose `--source-editor-max-width` as CSS var in CodeMirror; standardize `--edit
 **Branch:** `feat/plugin-hardening-safe`
 **Session type:** TypeScript + Svelte
 **Depends on:** nothing
+
+**Status:** DONE — A2.1 (`72daa535`), A2.2 (`b5328d64`), A2.3 (`3bbc49e8`) completed 2026-04-11.
 
 **Current state verified 2026-04-11:**
 - `PluginErrorTracker` has burst-based thresholds (5 errors in 15s → auto-disable, 2 in 5s → warn) but NO consecutive-error budget and NO `record_success()`
@@ -301,7 +308,7 @@ Phase E: Archive branches
 
 #### A1: Editor Width Token Refactor
 
-- [ ] **A1.1** Standardize `--editor-max-width` + expose `--source-editor-max-width` — **CSS/Svelte session**
+- [x] **A1.1** Standardize `--editor-max-width` + expose `--source-editor-max-width` — **CSS/Svelte session**
   - `activeForm`: "Refactoring editor width tokens"
   - Files: `src/styles/editor.css`, `src/styles/theme-theater.css`, `src/styles/theme-spotlight.css`, `src/styles/theme-zen-deck.css`, `src/lib/features/editor/ui/source_editor_theme.ts`, `src/lib/app/bootstrap/ui/workspace_layout.svelte`
   - Add `--source-editor-max-width: 48rem` default to `:root` in `editor.css`
@@ -310,12 +317,13 @@ Phase E: Archive branches
   - Rename zen-deck `--zen-max-width` to `--editor-max-width`
   - Fix zen mode in `workspace_layout.svelte` to use `var(--editor-max-width)` instead of hardcoded `72ch`
   - Tests: visual verification only (no unit tests — pure CSS)
+  - _Completed 2026-04-11 `14788ee2`. Added `--source-editor-max-width: 48rem` to `:root` in editor.css. Theater and spotlight both had 80ch hardcoded (plan said 120ch for theater but code was 80ch) — replaced with `var(--editor-max-width)` and added theme-level `--editor-max-width` defaults. Renamed zen-deck `--zen-max-width` to `--editor-max-width`. Source editor uses `var(--source-editor-max-width, 48rem)`. Zen mode in workspace_layout.svelte uses `var(--editor-max-width, 72ch)` fallback. All themes visually identical — tokens enable user override via `token_overrides`._
 
 ---
 
 #### A2: Plugin Hardening — Safety Hand-Port
 
-- [ ] **A2.1** RPC hardening — timeouts + rate limiting + error budget — **TypeScript session**
+- [x] **A2.1** RPC hardening — timeouts + rate limiting + error budget — **TypeScript session**
   - `activeForm`: "Implementing RPC timeouts and rate limiting"
   - Create `src/lib/features/plugin/domain/` directory
   - Create `src/lib/features/plugin/domain/rpc_timeout.ts`: `RpcTimeoutError`, `get_rpc_timeout(method)` (5s default, 30s for FS), `with_timeout(promise, method, timeout_ms?)`
@@ -324,18 +332,21 @@ Phase E: Archive branches
   - Update `plugin_service.ts` `handle_rpc()`: rate-limit check → timeout wrapper → record_success on non-error
   - Add `rate_limiter.clear_all()` in `PluginService.clear_active_vault()`
   - Tests: `tests/unit/domain/rpc_timeout.test.ts`, `tests/unit/domain/rate_limiter.test.ts`, `tests/unit/services/plugin_service_hardening.test.ts`, update `tests/unit/services/plugin_error_tracker.test.ts`
+  - _Completed 2026-04-11 `72daa535`. Created `domain/rpc_timeout.ts` (RpcTimeoutError, get_rpc_timeout, with_timeout) and `domain/rate_limiter.ts` (PluginRateLimiter with sliding window). Extended PluginErrorTracker with consecutive_errors map, record_success(), get_consecutive_errors(), and 10-consecutive auto-disable threshold. Updated handle_rpc() flow: rate-limit check → timeout wrapper → record_success on non-error. Rate limiter resets on unload_plugin() and clear_active_vault(). 4 test files covering all behaviors. Pre-existing lint (build_command_context layering) and check (linked_source_utils types) failures unchanged._
 
-- [ ] **A2.2** Richer settings schema — **Svelte/UI session**
+- [x] **A2.2** Richer settings schema — **Svelte/UI session**
   - `activeForm`: "Adding textarea and placeholder support to plugin settings"
   - Extend `PluginSettingSchema` in `ports.ts`: `type: "textarea"`, `min?: number`, `max?: number`, `placeholder?: string`
   - Create `src/lib/components/ui/textarea/textarea.svelte` + `index.ts` (shadcn-style)
   - Update `plugin_settings_dialog.svelte`: render textarea, clamp numeric to min/max, pass placeholders
   - Tests: `tests/unit/features/plugin/ui/plugin_settings_dialog.test.ts`
+  - _Completed 2026-04-11 `b5328d64`. Hand-ported from b8edde58. Extended PluginSettingSchema with textarea type, placeholder, min, max. Created shadcn-style Textarea component. Updated plugin_settings_dialog with textarea rendering (full-width layout), min/max clamping via clamp_number(), and placeholder passthrough on string/number/textarea inputs. Updated plugin_rpc_handler read_setting_type to accept "textarea" and read_setting_schema to parse placeholder/min/max. Added textarea test stub. 4 new tests. Pre-existing tauri-pty resolution failure in test collection unchanged._
 
-- [ ] **A2.3** Documentation + vault_contains decision — **Docs session**
+- [x] **A2.3** Documentation + vault_contains decision — **Docs session**
   - `activeForm`: "Updating plugin hardening docs"
   - Update `docs/plugin_howto.md` — mention RPC timeout behavior, rate limiting, richer settings fields
   - Decide on `vault_contains` (see Decisions section)
+  - _Completed 2026-04-11 `3bbc49e8`. Updated plugin_howto.md: added RPC timeout docs (5s default, 30s for vault ops), rate limiting docs (100 calls/min sliding window), expanded error auto-disable to cover both burst-based and consecutive-error budget. Added textarea/min/max/placeholder to manifest example and settings tip. Decided to defer vault_contains — no concrete plugin needs it. A2 step fully complete._
 
 ---
 
@@ -493,12 +504,12 @@ Phase E: Archive branches
 
 | Batch | Phase | Units | Est. Sessions | Review Gate |
 |---|---|---|---|---|
-| **A** | A | A1.1, A2.1–A2.3, A3.1–A3.3 | 7 | Plugin tests pass, editor width works, AI + network RPC respond correctly |
+| **A** | A | ~~A1.1~~, ~~A2.1~~, ~~A2.2~~, ~~A2.3~~, A3.1–A3.3 | 7 (4 done) | Plugin tests pass, editor width works, AI + network RPC respond correctly |
 | **B** | B | B1.1–B1.2, B2.1–B2.2, B3.1 | 5 | All MCP tools respond, CLI subcommands work, slash commands render |
 | **C** | C | C1.1–C1.2 | 2 | Metadata events fire and reach plugins |
 | **D** | D | D1.1–D1.2, D2.1–D2.5 | 7 | Graph renders smart links, power features work end-to-end |
 | **E** | E | E1.1 | 1 | Branches archived, main clean |
-| **Total** | | **22 units** | **~22** | |
+| **Total** | | **22 units** | **~22** | **4 done, 18 remaining** |
 
 ---
 
@@ -552,8 +563,8 @@ Phase E: Archive branches
 
 | Phase | Step | Units | Sessions | Status |
 |---|---|---|---|---|
-| A | A1: Editor width tokens | 1 | 1 | NOT STARTED |
-| A | A2: Plugin hardening | 3 | 2–3 | NOT STARTED |
+| A | A1: Editor width tokens | 1 | 1 | DONE |
+| A | A2: Plugin hardening | 3 | 2–3 | DONE |
 | A | A3: Plugin AI + network RPC | 3 | 3 | NOT STARTED |
 | B | B1: MCP Tier 2/3 + bridge | 2 | 2 | NOT STARTED |
 | B | B2: CLI extended commands | 2 | 2 | NOT STARTED |
