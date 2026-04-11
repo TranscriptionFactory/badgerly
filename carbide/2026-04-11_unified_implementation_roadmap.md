@@ -3,7 +3,7 @@
 **Date:** 2026-04-11
 **Status:** Active — supersedes `2026-04-05_unified_implementation_roadmap.md`
 **Companion:** `2026-04-05_conversation_work_units.md` (completed units remain there for history)
-**Progress:** 39 / 56 units complete (34 original + A1.1, A2.1, A2.2, A2.3, A3.1); 17 remaining
+**Progress:** 40 / 56 units complete (34 original + A1.1, A2.1, A2.2, A2.3, A3.1, A3.2); 16 remaining
 
 ---
 
@@ -148,7 +148,7 @@ Expose `--source-editor-max-width` as CSS var in CodeMirror; standardize `--edit
 **Source:** Hand-port from `3d0179b1`, `48f0017c`
 **Branch:** `feat/cli-extended-commands`
 **Session type:** Rust
-**Depends on:** main's CLI sidecar + glow (already merged)
+**Depends on:** main's CLI sidecar
 
 - git + reference CLI subcommands + backend routes
 - bases, tasks, dev CLI subcommands + backend routes
@@ -366,7 +366,7 @@ Phase E: Archive branches
   - Tests: SSRF blocking, allowlist enforcement, rate limiting, success path
   - _Completed 2026-04-11 `df367450`. Created `http_fetch.rs` with SSRF guard (blocks private IPs, localhost, .local/.internal, DNS rebinding via resolve_and_check). Added PluginRpcNetworkBackend to RPC handler with network.fetch dispatch, origin allowlist enforcement from manifest allowed_origins, and network:fetch permission check. Added allowed_origins to PluginManifest in both Rust and TS. Created plugin_network_tauri_adapter.ts. SDK surface: carbide.network.fetch(url, opts). 9 TS tests + 7 Rust unit tests. Per-plugin rate limiting already covered by existing PluginRateLimiter in handle_rpc flow. Pre-existing lint/check failures unchanged._
 
-- [ ] **A3.2** `ai.execute` RPC namespace — **TypeScript session**
+- [x] **A3.2** `ai.execute` RPC namespace — **TypeScript session**
   - `activeForm`: "Implementing ai.execute RPC for plugins"
   - New `PluginRpcAiBackend` interface in `plugin_rpc_handler.ts`
   - `ai.execute` case in dispatch — requires `ai:execute` permission
@@ -374,6 +374,7 @@ Phase E: Archive branches
   - Returns `{ output: string, success: boolean, error: string | null }` — no streaming
   - Uses default provider config from `AiSettingsStore`
   - Tests: permission check, execution success/failure, provider not configured error
+  - _Completed 2026-04-11 `c2966610`. Added PluginRpcAiBackend type and handle_ai method in plugin_rpc_handler.ts. ai.execute dispatches with ai:execute permission check, validates prompt (required) and mode (optional, defaults to "ask"). Wired AI backend in create_app_context.ts: reads ai_providers and ai_default_provider_id from editor_settings, bridges to AiService.execute() with open note context. Added carbide.ai.execute(opts) to SDK. 9 tests covering permission check, mode validation, prompt validation, backend not initialized, success/failure propagation. Pre-existing lint/check failures unchanged._
 
 - [ ] **A3.3** SDK surface + docs — **Docs session**
   - `activeForm`: "Adding AI and network SDK docs"
