@@ -3,7 +3,7 @@
 **Date:** 2026-04-11
 **Status:** Active — supersedes `2026-04-05_unified_implementation_roadmap.md`
 **Companion:** `2026-04-05_conversation_work_units.md` (completed units remain there for history)
-**Progress:** 42 / 56 units complete (34 original + A1.1, A2.1, A2.2, A2.3, A3.1, A3.2, A3.3, B1.1); 14 remaining
+**Progress:** 43 / 56 units complete (34 original + A1.1, A2.1, A2.2, A2.3, A3.1, A3.2, A3.3, B1.1, B1.2); 13 remaining
 
 ---
 
@@ -398,11 +398,12 @@ Phase E: Archive branches
   - Tests: tool dispatch for each new handler
   - _Completed 2026-04-11 `96e5ec92`. Hand-ported 6 tools in 2 new modules: graph.rs (get_backlinks, get_outgoing_links, list_properties, query_notes_by_property) and references.rs (list_references, search_references). Used shared parse_args/prop from tools/mod.rs instead of local copies from source commit. Registered in router.rs dispatch chain. 13 tests covering definitions, schema validation, snake_case naming, descriptions. All cargo check + cargo test clean. Pre-existing lint/check failures unchanged._
 
-- [ ] **B1.2** MCP Tier 3 + plugin MCP bridge — **Rust + TypeScript session**
+- [x] **B1.2** MCP Tier 3 + plugin MCP bridge — **Rust + TypeScript session**
   - `activeForm`: "Hand-porting MCP Tier 3 and plugin MCP bridge"
   - Hand-port from `63b8bcb9`: git_status, git_log, rename_note tool handlers
   - Plugin MCP bridge: `mcp.*` RPC namespace (list_tools, call_tool, register_tool)
   - Tests: git tool responses, plugin tool registration round-trip
+  - _Completed 2026-04-11 `f5ac7a5d`. Hand-ported from 63b8bcb9. Created tools/git.rs with 3 MCP tools (git_status, git_log, rename_note) dispatching to existing git/notes services. Made collect_git_log pub(crate). Router extended to 18 total tools. Added mcp_list_tool_definitions and mcp_call_tool Tauri commands in router.rs. Plugin RPC handler gains mcp.* namespace: list_tools (combines native + plugin-registered tools), call_tool (dispatches to Rust router), register_tool (stores TS-side with plugin_id namespace prefix, requires mcp:register permission). McpPort extended with list_tool_definitions/call_tool. Fixed stale tool count assertions (9→18) from B1.1. 17 files changed. 9 Rust tests + 7 TS tests. Pre-existing failures unchanged._
 
 ---
 
@@ -572,7 +573,7 @@ Phase E: Archive branches
 | A | A1: Editor width tokens | 1 | 1 | DONE |
 | A | A2: Plugin hardening | 3 | 2–3 | DONE |
 | A | A3: Plugin AI + network RPC | 3 | 3 | DONE |
-| B | B1: MCP Tier 2/3 + bridge | 2 | 2 | NOT STARTED |
+| B | B1: MCP Tier 2/3 + bridge | 2 | 2 | DONE |
 | B | B2: CLI extended commands | 2 | 2 | NOT STARTED |
 | B | B3: Slash commands | 1 | 1 | NOT STARTED |
 | C | C1: Metadata events | 2 | 2 | NOT STARTED |
