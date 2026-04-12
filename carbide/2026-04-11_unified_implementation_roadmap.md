@@ -438,13 +438,13 @@ Phase E: Archive branches
 
 #### C1: Metadata Events
 
-- [ ] **C1.1** `metadata-changed` event emission — **Rust session**
+- [x] **C1.1** `metadata-changed` event emission — **Rust session**
   - `activeForm`: "Adding metadata change event emission"
   - Extend `db.rs` or `service.rs` to emit Tauri events on upsert/rename/delete
   - Define event payload: `{ event_type: "upsert"|"rename"|"delete", path, old_path? }`
   - Tests: event emission on each mutation type
 
-- [ ] **C1.2** Plugin bridge for metadata events — **TypeScript session**
+- [x] **C1.2** Plugin bridge for metadata events — **TypeScript session**
   - `activeForm`: "Wiring metadata events to plugin bridge"
   - Subscribe to Tauri metadata events in plugin host
   - Forward to iframe via `events.on("metadata-changed", cb)` in plugin SDK
@@ -456,13 +456,13 @@ Phase E: Archive branches
 
 #### D1: Graph Visualization
 
-- [ ] **D1.1** Smart link edges in graph data model — **Rust + TypeScript session**
+- [x] **D1.1** Smart link edges in graph data model — **Rust + TypeScript session**
   - `activeForm`: "Adding smart link edges to graph model"
   - Rust graph builder: new edge type for smart links, provenance metadata
   - TS graph types: extend `VaultGraphSnapshot`, `GraphNeighborhoodSnapshot`
   - Tests: graph builder produces smart link edges
 
-- [ ] **D1.2** Graph rendering — dashed edges, hover provenance, section-level edges — **Svelte/D3 session**
+- [x] **D1.2** Graph rendering — dashed edges, hover provenance, section-level edges — **Svelte/D3 session**
   - `activeForm`: "Rendering smart link edges in graph view"
   - Visual differentiation: dashed lines for smart links, solid for explicit
   - Hover tooltip shows rule provenance
