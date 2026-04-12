@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05 (updated 2026-04-11)
 **Companion to:** `2026-04-11_unified_implementation_roadmap.md`
-**Progress:** 47 / 56 units complete (34 original + 13/22 new)
+**Progress:** 48 / 56 units complete (34 original + 14/22 new)
 
 ---
 
@@ -43,7 +43,7 @@ Review between batches — check the branch, run the app, read commits. Each bat
 | ------ | ----- | ------------------------------ | -------- | ----------- | ---------------------------------------------------------------------- |
 | **G**  | A     | A1.1, A2.1–A2.3, A3.1–A3.3    | 7        | DONE        | Plugin tests pass, editor width works, AI + network RPC respond        |
 | **H**  | B     | B1.1–B1.2, B2.1–B2.2, B3.1    | 5        | DONE        | All MCP tools respond, CLI subcommands work, slash commands render     |
-| **I**  | C     | C1.1–C1.2                      | 2        | IN PROGRESS | Metadata events fire and reach plugins                                 |
+| **I**  | C     | C1.1–C1.2                      | 2        | DONE        | Metadata events fire and reach plugins                                 |
 | **J**  | D     | D1.1–D1.2, D2.1–D2.5          | 7        | NOT STARTED | Graph renders smart links, power features work end-to-end              |
 | **K**  | E     | E1.1                           | 1        | NOT STARTED | Branches archived, main clean                                          |
 
@@ -501,10 +501,11 @@ _The units below replace the original Steps 10, 14–16. They follow the phase s
   - Tests: event emission on each mutation type
   - _Completed 2026-04-11 `3b648000`. Added MetadataChangedEvent enum (Upsert/Rename/Delete with serde tag "event_type") to notes/service.rs. emit_metadata_changed helper calls app.emit("metadata-changed", event). Emits from create_note (upsert), write_and_index_note (upsert), rename_note (rename with old_path), delete_note (delete). 3 serialization tests verify JSON payload format. C1.2 needs to subscribe to this event in the plugin host and forward to iframes._
 
-- [ ] **C1.2** Plugin bridge for metadata events — **TypeScript session**
+- [x] **C1.2** Plugin bridge for metadata events — **TypeScript session**
   - Subscribe to Tauri metadata events in plugin host
   - Forward to iframe via `events.on("metadata-changed", cb)` in plugin SDK
   - Tests: event delivery to subscribed plugin, no delivery without subscription
+  - _Completed 2026-04-11 `e13b7838`. Added "metadata-changed" to PluginEventType union. Created plugin_metadata_events.reactor that subscribes to Tauri metadata-changed events and forwards to plugin event bus (vault_id filtering, disposed guard). Added metadata.getFileCache to plugin SDK. 6 reactor tests (listen, upsert/rename forwarding, vault filtering, cleanup guard) + 2 event bus tests for metadata-changed type. No $effect needed — plain listen pattern like menu_action_reactor._
 
 ---
 
