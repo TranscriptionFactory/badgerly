@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-05 (updated 2026-04-11)
 **Companion to:** `2026-04-11_unified_implementation_roadmap.md`
-**Progress:** 49 / 56 units complete (34 original + 15/22 new)
+**Progress:** 50 / 56 units complete (34 original + 16/22 new)
 
 ---
 
@@ -44,7 +44,7 @@ Review between batches — check the branch, run the app, read commits. Each bat
 | **G**  | A     | A1.1, A2.1–A2.3, A3.1–A3.3    | 7        | DONE        | Plugin tests pass, editor width works, AI + network RPC respond        |
 | **H**  | B     | B1.1–B1.2, B2.1–B2.2, B3.1    | 5        | DONE        | All MCP tools respond, CLI subcommands work, slash commands render     |
 | **I**  | C     | C1.1–C1.2                      | 2        | DONE        | Metadata events fire and reach plugins                                 |
-| **J**  | D     | D1.1–D1.2, D2.1–D2.5          | 7        | NOT STARTED | Graph renders smart links, power features work end-to-end              |
+| **J**  | D     | D1.1–D1.2, D2.1–D2.5          | 7        | IN PROGRESS | Graph renders smart links, power features work end-to-end              |
 | **K**  | E     | E1.1                           | 1        | NOT STARTED | Branches archived, main clean                                          |
 
 ---
@@ -528,11 +528,12 @@ _The units below replace the original Steps 10, 14–16. They follow the phase s
   - Tests: graph builder produces smart link edges
   - _Completed 2026-04-11 `bc3f028b`. Added `SmartLinkEdge` struct in Rust with batch vault-wide Tauri command `smart_links_compute_vault_edges`. TS types: `SmartLinkEdge`, `SmartLinkRuleMatchInfo` in graph ports. GraphStore gets `smart_link_edges`/`show_smart_link_edges` state. GraphService gets `load_smart_link_edges`/`toggle_smart_link_edges` methods following SemanticEdge overlay pattern. Domain module `smart_link_edges.ts` with `build_smart_link_edges`. 9 tests passing. D1.2 needs to wire these edges into the D3 renderer with dashed styling + hover provenance._
 
-- [ ] **D1.2** Graph rendering — dashed edges, hover provenance, section-level edges — **Svelte/D3 session**
+- [x] **D1.2** Graph rendering — dashed edges, hover provenance, section-level edges — **Svelte/D3 session**
   - Visual differentiation: dashed lines for smart links, solid for explicit
   - Hover tooltip shows rule provenance
   - Block-level edges when embeddings exist
   - Tests: rendering logic, hover state
+  - _Completed 2026-04-11 `73f6643c`. Wired smart link edges into Pixi.js vault graph renderer with dashed cyan lines (8/5 dash/gap, `--graph-edge-smart-link` CSS token, 0x22d3ee default) differentiated from semantic edges (amber). Three-pass rendering (dimmed/normal/highlighted) mirrors semantic edge pattern. Edge hover detection via point-to-segment distance fires tooltip showing rule provenance chips and scores. Toggle button (Link icon) in both graph_panel and graph_tab_view toolbars. Extracted `edge_hit_test.ts` domain module. 10 new tests (6 hit test + 4 rendering). Section-level edges deferred — type system supports block granularity but rendering requires block-level node support in graph types._
 
 ---
 
