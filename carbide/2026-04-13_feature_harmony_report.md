@@ -8,9 +8,9 @@
 
 ## Executive Summary
 
-The carbide app has **six** feature domains — **links**, **bases**, **tasks**, **tags**, **graph**, and **search** — that exhibit significant functional overlap and unclear boundaries. The primary source of creep is that **bases has become a de facto unified query layer** that subsumes the query capabilities of tags, tasks, and parts of search. Meanwhile, the **search feature** is far more than "search" — it is the central data infrastructure hub powering embeddings, HNSW vector indexing, hybrid search, smart link rules, and tag extraction. **LSP (Language Server Protocol)** is tightly coupled to links for backlink discovery but otherwise operates orthogonally. Three separate query interfaces exist, duplicate type definitions are scattered across features, two distinct task systems coexist without integration, and the graph feature consumes from nearly every other feature simultaneously.
+> **Note:** The [2026-04-13_omnisearch_unification_plan.md](./2026-04-13_omnisearch_unification_plan.md) implements the QueryService recommendation, providing a unified query surface across all search entry points. This document has been updated to reflect partial resolution of the query unification issues.
 
-This report maps the current state, identifies overlap zones, and proposes a path to harmonization.
+The carbide app has **six** feature domains — **links**, **bases**, **tasks**, **tags**, **graph**, and **search** — that exhibit significant functional overlap and unclear boundaries. The primary source of creep is that **bases has become a de facto unified query layer** that subsumes the query capabilities of tags, tasks, and parts of search. Meanwhile, the **search feature** is far more than "search" — it is the central data infrastructure hub powering embeddings, HNSW vector indexing, hybrid search, smart link rules, and tag extraction. **LSP (Language Server Protocol)** is tightly coupled to links for backlink discovery but otherwise operates orthogonally. Three separate query interfaces existed (now resolved via omnisearch), duplicate type definitions are scattered across features, two distinct task systems coexist without integration, and the graph feature consumes from nearly every other feature simultaneously.
 
 ---
 
@@ -85,25 +85,23 @@ The `query_bases()` function (~260 lines in `src-tauri/src/features/search/db.rs
 
 All three paths hit the same underlying tables but return different result shapes, have different UI contexts, and maintain separate filter/query type definitions.
 
-### 2.2 HIGH SEVERITY: Three Overlapping Query Interfaces
+### 2.2 RESOLVED: Three Overlapping Query Interfaces
+
+> **Status:** RESOLVED — omnisearch plan implements unified orchestrator
 
 1. **`search_notes()`** — FTS-based search, the original query path
 2. **`bases_query()`** — Property/tag/task/content SQL query engine
 3. **Query language** (`query_solver.ts`) — Structured query with `named:`, `with:`, `in:`, `linked_from:`, `with_property:` clauses
 
-The query solver delegates to both search and bases as backends:
-```typescript
-type QueryBackends = {
-  search: SearchPort;
-  index: WorkspaceIndexPort;
-  tags: TagPort;
-  bases: BasesPort;
-};
-```
+The omnisearch plan replaces all three with a unified query orchestrator:
+- `UnifiedQuery` parser merges `search_query_parser.ts` and `query_parser.ts`
+- `QueryOrchestrator` routes to pluggable backends (FTS, Vector, Property, Link, Command)
+- `ResultFusion` handles RRF merging with configurable strategies
+- Unified UI adapts to query intent (list/table/graph)
 
-But `bases.query()` already handles what `tags` does. The `resolve_with_property()` function delegates to `backends.bases.query()`, creating a layering issue where the query solver treats tags and bases as peers when bases is actually a superset.
+### 2.3 ACCEPTED: Two Task Systems
 
-### 2.3 MEDIUM SEVERITY: Two Task Systems
+> **Status:** ACCEPTED — intentionally kept separate. Inline tasks (markdown checkboxes) and standalone task lists serve fundamentally different purposes.
 
 | Aspect | `task` Feature | `task_list` Feature |
 |---|---|---|
@@ -123,7 +121,35 @@ The `LinksService` has dependencies on:
 
 This is reasonable coupling, but it means the links feature is not self-contained. The backlinks panel's data source switches between LSP (when running) and search index (fallback), creating potential inconsistency.
 
-### 2.5 MEDIUM SEVERITY: Tags Feature is a Thin Pass-Through
+### 2.4.1 ⚠️ CONCERN: LSP Backlink Re-implementation Trade-off
+
+> **This is NOT resolved — it represents an architectural choice with trade-offs.**
+
+The report recommends switching backlinks to use the `outlinks` table as the **primary source** instead of LSP `references()`. This is a **re-implementation** of backlink detection, not using LSP as intended:
+
+| Aspect | LSP `references()` | Our `outlinks` table |
+|---|---|---|
+| **Data source** | LSP analyzes markdown at runtime | We extract during indexing |
+| **Unsaved content** | ✓ Detects links in unsaved edits | ✗ Only sees saved content |
+| **Offline/without LSP** | ✗ Fails | ✓ Always available |
+| **Provider variance** | IWES vs Marksman differ | Consistent extraction |
+| **Implementation ownership** | Protocol-delegated | We own it entirely |
+
+**The trade-off:**
+- **Pro index:** Reliability, offline support, no LSP startup dependency, consistent behavior
+- **Pro LSP:** Real-time accuracy for in-progress edits, leverages standard tools
+- **Con index:** We're re-implementing what LSP already does; potential drift from LSP behavior
+
+**Additional concerns:**
+1. **Provider volatility:** IWES is preferred but Marksman is fallback — different `references()` implementations may differ in edge cases
+2. **Dual maintenance:** We now own backlink detection logic (extraction code, edge cases) rather than delegating to LSP
+3. **Sync lag:** Index-based backlinks are stale until the next sync; LSP `references()` is fresher
+
+**Recommendation:** Document this as an intentional architectural choice, not a bug fix. Verify `outlinks` table population is reliable before switching primary source. Consider LSP as enhancement for unsaved content only.
+
+### 2.5 RESOLVED: Tags Feature is a Thin Pass-Through
+
+> **Status:** RESOLVED — tags now query via omnisearch unified parser + property backend. Still useful as hierarchical browsing UI.
 
 The tags feature has no unique domain logic. Every operation is a direct database query:
 - `list_all_tags()` → `SELECT tag, COUNT(*) FROM note_inline_tags GROUP BY tag`
@@ -149,7 +175,9 @@ The graph has three view modes (neighborhood, vault, hierarchy) plus a search gr
 
 **Scope creep indicator:** The graph feature has its own `search_graph_store.svelte.ts` (multi-instance, keyed by tab_id), `search_graph_actions.ts` (8 actions), and dedicated canvas components — essentially a parallel feature within a feature.
 
-### 2.7 HIGH SEVERITY: Search Feature is a Mega-Feature, Not Just Search
+### 2.7 RESOLVED: Search Feature is a Mega-Feature, Not Just Search
+
+> **Status:** PARTIALLY RESOLVED — Search is correctly recognized as the **index/data layer**. Omnisearch provides the unified frontend over this infrastructure.
 
 The "search" feature is the central data infrastructure hub. Beyond FTS and semantic search, it owns:
 
@@ -274,34 +302,37 @@ The graph feature computes zero original data. Every node and edge is derived fr
 
 The graph is a **visualization layer** over data owned by other features, yet it has its own store, service, actions, adapters, domain logic, and 13+8 actions. Its complexity is entirely in rendering (Pixi.js, Web Worker, spatial indexing, LOD, cluster hulls), not in data ownership.
 
-### 4.4 Search Feature Owns Too Much
+### 4.6 RESOLVED: Query Fragmentation (Omnisearch Unification)
 
-The "search" feature name is misleading — it is actually the **data indexing and retrieval layer**. It owns:
-- Embedding generation (ML model loading, inference, HNSW index management)
-- Tag extraction and storage
-- Task extraction
-- Property indexing
-- FTS indexing
-- The bases SQL query engine
-- The smart link rules engine
+> **Resolved by:** [2026-04-13_omnisearch_unification_plan.md](./2026-04-13_omnisearch_unification_plan.md)
 
-This means any feature that needs indexed data (tags, tasks, properties, embeddings, similarity) must go through "search," creating a bottleneck that violates the port-adapter principle. The search feature is not a peer of tags, tasks, or bases — it is their infrastructure provider.
+The omnisearch plan addresses the root cause of query fragmentation by implementing:
+- **Unified Query Parser**: Single parser handling both simple (omnibar) and structured (query language) syntax
+- **Query Orchestrator**: Pluggable backends with intelligent backend selection based on query intent
+- **Result Fusion Engine**: RRF, priority, and union merging strategies
+- **Adaptive UI**: Single omnisearch component with list/table/graph view modes
 
-### 4.5 Graph is Pure Derivative State
+This resolves the three-query-interface problem by making omnisearch the single entry point for all search flows.
 
-The graph feature computes zero original data. Every node and edge is derived from:
-- Wiki-links (from links feature's `extract_local_links`)
-- Semantic similarity (from search feature's HNSW index)
-- Smart link rules (from search feature's rules engine)
-- Search hits (from search feature's hybrid search)
+### 4.7 ⚠️ CONCERN: LSP Backlink Re-implementation
 
-The graph is a **visualization layer** over data owned by other features, yet it has its own store, service, actions, adapters, domain logic, and 13+8 actions. Its complexity is entirely in rendering (Pixi.js, Web Worker, spatial indexing, LOD, cluster hulls), not in data ownership.
+> **This is an architectural choice, not a resolved issue.** See section 2.4.1 for full analysis.
+
+The links feature's backlink detection historically relied on LSP `references()` method. The recommended fix (section 5.6) is to use our own `outlinks` table as the primary source. This represents:
+
+- **Re-implementation:** We now own backlink detection logic rather than delegating to LSP
+- **Trade-off:** Reliability/offline-availability vs real-time accuracy for unsaved content
+- **Risk:** Dual maintenance of extraction logic; potential drift from LSP behavior
+
+This is not scope creep — it's an intentional architectural decision to own more of the data layer. Document this choice and verify `outlinks` reliability before proceeding.
 
 ---
 
 ## 5. Recommendations for Harmonization
 
-### 5.1 Rename Search to IndexService (Priority: High)
+### 5.1 Rename Search to IndexService (Priority: Medium)
+
+> **Status:** PARTIALLY RESOLVED — Search now correctly serves as the **index/data layer**. Omnisearch provides the unified frontend over this infrastructure. The separation is now architecturally correct, though the "search" feature name remains.
 
 The "search" feature should be renamed to **`index`** or **`data_layer`** to reflect its actual role. It is not a search feature — it is the indexing and retrieval infrastructure. Its responsibilities should be:
 - Embedding generation and HNSW index management
@@ -314,6 +345,8 @@ The "search" feature should be renamed to **`index`** or **`data_layer`** to ref
 The bases SQL query engine should be extracted into the QueryService (see 5.2). The search feature becomes purely about "index data and provide retrieval APIs."
 
 ### 5.2 Establish a Single Query Abstraction (Priority: High)
+
+> **Status:** RESOLVED — Omnisearch plan implements unified QueryOrchestrator with pluggable backends
 
 Create a **`QueryService`** that owns all note-finding operations. Internal backends:
 - `fts_backend` — content search (from index/search feature)
@@ -331,6 +364,8 @@ This eliminates the three separate query interfaces and makes bases, tags, and t
 
 ### 5.3 Redefine Bases as a View Layer (Priority: High)
 
+> **Status:** RESOLVED — Bases becomes the `property_backend` in omnisearch orchestrator, preserving its value as a unified query interface while removing redundant query engine
+
 Bases should be **only** a saved-view UI over query results:
 - Remove `query_bases()` SQL mega-query from Rust
 - Bases panel calls `QueryService.query()` with its filter/sort/pagination
@@ -342,6 +377,8 @@ This reduces bases from ~500 lines of Rust + ~700 lines of TypeScript to ~200 li
 
 ### 5.4 Fold Tags into QueryService (Priority: Medium)
 
+> **Status:** RESOLVED — Tags queried via unified parser + property backend. Tags feature remains useful as hierarchical browsing UI.
+
 The tags feature should become:
 - A **UI browsing surface** only (tag tree panel)
 - A **query backend** for tag prefix resolution (folded into QueryService's tag_backend)
@@ -351,6 +388,8 @@ The tags feature should become:
 The tag panel becomes a specialized view that calls `QueryService.query()` when a tag is selected, rather than having its own dedicated backend calls.
 
 ### 5.5 Unify Task Systems (Priority: Medium)
+
+> **Status:** SKIP — Intentionally kept separate. Inline tasks (markdown checkboxes) and standalone task lists serve fundamentally different use cases. Unification would add complexity without reducing it.
 
 Merge `task` and `task_list` into a single task domain:
 - Unified `Task` type with a `source` field: `"inline" | "standalone"`
@@ -362,13 +401,22 @@ Merge `task` and `task_list` into a single task domain:
 
 ### 5.6 Decouple Links from LSP Running State (Priority: Medium)
 
+> **⚠️ CONCERN:** This is an architectural choice, not a pure resolution. See section 2.4.1 for trade-offs.
+
 The links feature should not depend on LSP being in `"running"` state for backlinks:
 - Primary backlink source should be the **search index** (`outlinks` table), which is always available
 - LSP `references()` can be an enhancement for real-time accuracy (e.g., detecting links in unsaved editor content)
 - Remove the `markdown_lsp_store.status` gate from `create_backlinks_sync_reactor`
 - Keep LSP for link-related features that genuinely need it: completion, rename, hover
 
+**Pre-requisites:**
+- Verify `outlinks` table is reliably populated during indexing
+- Document the trade-off: we own backlink detection vs delegating to LSP
+- Consider keeping LSP for unsaved content only
+
 ### 5.7 Treat Graph as Pure Visualization (Priority: Medium)
+
+> **Status:** IN PROGRESS — Omnisearch plan integrates graph as a view mode via `GraphDataCollector`. Graph becomes a consumer of QueryOrchestrator rather than calling backends directly.
 
 The graph feature should be a **rendering layer** that consumes from QueryService and index feature:
 - Remove graph's direct calls to `search_port.semantic_search_batch()` and `search_port.compute_smart_link_vault_edges()`
@@ -379,6 +427,8 @@ The graph feature should be a **rendering layer** that consumes from QueryServic
 This reduces graph's data-layer complexity and makes it a pure consumer of the unified query interface.
 
 ### 5.8 Consolidate Duplicate Types (Priority: Low)
+
+> **Status:** OUTSTANDING — Still needs cleanup. Duplicate query types exist in Rust and TypeScript.
 
 Extract shared types into a single location:
 - `QueryFilter`, `QuerySort`, `QueryPagination` — shared across all query consumers
@@ -459,14 +509,19 @@ Extract shared types into a single location:
 4. Deprecate `BasesPort.query()` and `TagPort.get_notes_for_tag()`
 
 ### Phase 3: Task Unification
-1. Merge `task` and `task_list` types
-2. Create unified `TaskService`
-3. Update UI to show both sources
+1. ~~Merge `task` and `task_list` types~~ — SKIP, intentionally kept separate
+2. ~~Create unified `TaskService`~~
+3. ~~Update UI to show both sources~~
 
 ### Phase 4: Links Decoupling
+
+> **⚠️ Trade-off decision required:** This is an architectural choice to own backlink detection ourselves rather than delegate to LSP. See 2.4.1.
+
 1. Switch backlinks primary source to index (`outlinks` table)
 2. Remove LSP status gate from backlinks reactor
 3. Keep LSP for real-time enhancement only
+4. Document: Index-based = reliable/always-available; LSP = real-time for unsaved content
+5. Verify `outlinks` table population before switching
 
 ### Phase 5: Cleanup
 1. Remove duplicate type definitions
@@ -482,10 +537,10 @@ Extract shared types into a single location:
 | Change | Risk | Mitigation |
 |---|---|---|
 | Search → Index rename | Low — mechanical rename + docs update | Update all imports, ports, and docs together |
-| QueryService creation | Medium — large refactor | Build incrementally, keep old ports working during transition |
-| Bases redefinition | Low — UI change only | Bases panel is a single component, easy to update |
-| Graph decoupling | Medium — complex rendering pipeline | Keep rendering intact, only swap data source |
-| Task unification | Medium — two features merge | Do types first, then services, then UI |
+| ~~QueryService creation~~ | ~~RESOLVED~~ — omnisearch plan implements | N/A |
+| ~~Bases redefinition~~ | ~~RESOLVED~~ — bases becomes property_backend | N/A |
+| ~~Graph decoupling~~ | ~~IN PROGRESS~~ — omnisearch integrates graph | N/A |
+| Task unification | SKIP — intentionally separate | N/A |
 | Links LSP decoupling | Low — index already has outlinks | Verify outlinks table is populated before switching |
 | Type consolidation | Low — mechanical change | Use Specta type generation as single source |
 
@@ -493,15 +548,28 @@ Extract shared types into a single location:
 
 ## 9. Conclusion
 
-The scope creep in links, bases, tasks, tags, graph, and search is a natural consequence of building on a shared data layer without establishing clear abstraction boundaries. The fix is not to remove features but to **clarify responsibilities**:
+The scope creep in links, bases, tasks, tags, graph, and search is a natural consequence of building on a shared data layer without establishing clear abstraction boundaries. The fix is not to remove features but to **clarify responsibilities**.
+
+**Post-Omnisearch Update:** The [omnisearch unification plan](./2026-04-13_omnisearch_unification_plan.md) has resolved the core query fragmentation issues:
+- Unified parser replaces two fragmented parsers
+- Query orchestrator provides single entry point with pluggable backends
+- Adaptive UI (list/table/graph) replaces three separate UIs
+- Bases correctly positioned as `property_backend` consumer of omnisearch
+
+**Remaining work:**
+- Rename "search" → "index" for clarity (low priority, cosmetic)
+- Decouple links from LSP running state (investigate outlinks reliability)
+- Consolidate duplicate types
+
+**Architectural boundaries (final):**
 
 - **Index** (was "search") owns "data indexing and retrieval" — FTS, embeddings, HNSW, tag/task/property extraction, smart link rules
-- **QueryService** owns "find notes matching criteria" — single entry point with multiple backends
-- **Bases** owns "saved views over query results with table/list UI"
-- **Tags** owns "hierarchical tag browsing UI"
-- **Tasks** owns "task management (inline + standalone) with list/kanban/schedule views"
-- **Links** owns "link discovery, repair, and suggestions"
-- **Graph** owns "visualization of note relationships" — pure rendering layer
-- **LSP** owns "editor intelligence (completion, hover, rename, diagnostics)"
+- **Omnisearch** owns "unified query surface" — single entry point with FTS/Vector/Property/Link/Command backends
+- **Bases** owns "saved views over query results with table/list UI" — consumer of omnisearch property backend
+- **Tags** owns "hierarchical tag browsing UI" — consumer of omnisearch
+- **Tasks** owns "task management (inline + standalone) with list/kanban/schedule views" — intentionally separate
+- **Links** owns "link discovery, repair, and suggestions" — needs LSP decoupling investigation
+- **Graph** owns "visualization of note relationships" — consumer of omnisearch, pure rendering layer
+- **LSP** owns "editor intelligence (completion, hover, rename, diagnostics)" — orthogonal to query layer
 
 With these boundaries, each feature has a clear purpose, no feature subsumes another, the search/index feature is correctly named for its infrastructure role, graph is recognized as a visualization consumer, and LSP serves its intended role as an editor enhancement layer rather than a data query backend.
