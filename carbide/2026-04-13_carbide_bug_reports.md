@@ -439,12 +439,25 @@ as items 1–2.
 
 **Verified:** `pnpm check` (0 errors), `cargo check` (clean), `pnpm test` (3227/3227 pass), `pnpm format` (clean).
 
-## Sprint 2 — Investigation + design-heavy items
-5. wiki_link_plugin `mark_clean` investigation (item 4b) — timeboxed
-6. Linked-source dedupe/path canonicalization (item 5)
+## Sprint 2 — Investigation + design-heavy items ✅ COMPLETED
+5. ✅ wiki_link_plugin `mark_clean` investigation (item 4b) — **resolved: removed vestigial `mark_clean`**
+   - Investigation found: `dirty_state_plugin` is created with a no-op callback (`() => {}`).
+     Real dirty tracking uses serialized markdown comparison in `create_markdown_change_plugin`.
+     Nobody reads `dirty_state_plugin_key.getState()`. The `mark_clean` meta was effectively inert.
+   - Action taken: removed the vestigial `mark_clean` meta from `wiki_link_plugin.appendTransaction`
+     (kept `addToHistory: false` which is correct). Updated test to verify history exclusion instead.
+6. ✅ Linked-source dedupe/path canonicalization (item 5) — **two bugs fixed**
+   - Bug A: `resolve_linked_path` was called WITH `external_file_path` (the dead old path), which
+     always returns that same path, making `resolved === removed_path` always true. Relocation
+     never fired. Fix: omit `external_file_path` from resolve_meta so vault/home-relative paths
+     are used for resolution.
+   - Bug B: even when relocation succeeded, the relocated file stayed in `needs_extraction` causing
+     duplication. Fix: track `relocated_paths` set and filter them from extraction.
+   - Added proactive vault-relative reverse lookup in initial matching so files with changed absolute
+     paths but stable vault-relative paths are recognized without needing the removal reconciliation.
+   - 5 new tests in `scan_linked_source_reconcile.test.ts`.
 
-Item 4b may resolve to "no action needed" once item 3 is in place.
-Item 5 requires a design decision on canonical identity before coding.
+**Verified:** `pnpm check` (0 errors), `pnpm test` (3232/3232 pass), `pnpm format` (clean).
 
 ## Sprint 3 — Lower urgency
 7. Bases operator expansion (item 6)
