@@ -459,10 +459,28 @@ as items 1–2.
 
 **Verified:** `pnpm check` (0 errors), `pnpm test` (3232/3232 pass), `pnpm format` (clean).
 
-## Sprint 3 — Lower urgency
-7. Bases operator expansion (item 6)
-8. Search autocorrect off (item 7) — drive-by, do anytime
-9. Clipboard whitespace-token investigation (item 8)
+## Sprint 3 — Lower urgency ✅ COMPLETED
+7. ✅ Bases operator expansion (item 6) — added `not_contains` operator to frontend and backend
+   - Frontend: replaced unused `matches` with `not_contains` in OPERATORS array (`bases_panel.svelte`)
+   - Backend: added `not_contains` to all four filter branches (content FTS, tag, direct column, custom property)
+   - Tags: added `contains`/`not_contains` (LIKE-based prefix matching) and `neq` (NOT IN subquery)
+   - Content FTS: added `not_contains` (NOT IN FTS subquery)
+   - Custom properties: `not_contains`/`neq` use NOT IN subquery so notes without the property are included
+   - 7 new Rust tests covering all new operator paths
+8. ✅ Search autocorrect off (item 7) — added `spellcheck="false"` `autocorrect="off"` `autocapitalize="off"` `autocomplete="off"` to:
+   - `omnibar.svelte` search input
+   - `find_in_file_bar.svelte` find input
+   - `find_in_file_bar.svelte` replace input
+9. ✅ Clipboard whitespace-token investigation (item 8) — **root cause found and fixed**
+   - Root cause: `mdast-util-to-markdown` (used by remark-stringify) encodes spaces as `&#x20;`
+     when adjacent to emphasis/strong markers or in other markdown-syntax-sensitive contexts.
+     This is correct for markdown files but wrong for clipboard plain text.
+   - Fix: added post-processing in `clipboardTextSerializer` to decode all hex character
+     references (`&#xHH;` → actual character) before returning clipboard text.
+   - Only affects clipboard path — saved markdown files are unmodified (where `&#x20;` is valid).
+   - Updated test in `clipboard_text_serializer.test.ts` with entity-decoding verification.
+
+**Verified:** `pnpm check` (0 errors), `cargo check` (clean), `pnpm test` (3233/3233 pass), `pnpm format` (clean).
 
 ---
 
