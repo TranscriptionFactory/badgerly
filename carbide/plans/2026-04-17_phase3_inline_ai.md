@@ -2,7 +2,8 @@
 
 **Date:** 2026-04-17
 **Reference:** `carbide/research/mdit_comparison.md`, `carbide/plans/2026-04-17_mdit_port_plan.md`
-
+**Reference:** `carbide/research/mdit_comparison.md`
+**MDit Code** `/Users/abir/src/KBM_Notes/mdit`
 ---
 
 ## Context
@@ -15,28 +16,37 @@ Phase 1 (quick wins) and Phase 2 (callout blocks) of the mdit port are complete.
 
 Items 3.3 (Vault Tools), 3.4 (Custom Commands), 3.5 (Multi-Provider) deferred to follow-up phases.
 
-## Key Decision: Custom Streaming Adapter (not Vercel AI SDK)
+## Key Decision: Tauri-Backend Streaming with AsyncIterable Frontend API
 
-**Use a thin custom `fetch()` + SSE parser** instead of the Vercel AI SDK. Rationale:
+**Stream through Rust via Tauri events**, not direct `fetch()` from the frontend. The TypeScript adapter wraps Tauri events into an `AsyncIterable<AiStreamChunk>` for clean consumption.
 
-- The AI SDK adds ~300 KB (186 KB core + provider packages) for what is fundamentally a JSON API wrapper + SSE stream parser
-- A custom adapter is ~150-200 lines total — covers OpenAI and Anthropic SSE formats
-- Zero dependency risk, full control over retry/abort/buffering
-- Fits cleanly into the existing `AiPort` pattern (the adapter *is* the thin fetch+SSE layer)
-- The AI SDK's value (multi-provider abstraction, tool calling protocol, experimental transforms) only matters at Phase 3.5 scope — not needed for 3.1+3.2
-- Can always adopt AI SDK later if multi-provider complexity warrants it
+**Rationale:**
 
-> **Note:** The Vercel AI SDK evaluation is preserved in `~/.claude/plans/peppy-munching-wren.md` for future reference.
+- **API keys stay in Rust.** The existing `AiPort` keeps secrets in the backend. Direct `fetch()` from the frontend would leak API keys to the renderer process — a security regression even in a local webview.
+- **One HTTP stack.** Non-streaming AI already goes through Tauri invoke → Rust. A parallel `fetch()` path from the frontend means two codepaths for the same provider, two places to handle proxy/TLS/retry.
+- **Provider normalization belongs in the backend.** SSE parsing, CLI stdout streaming, and future local model protocols (Ollama, llama.cpp) are diverse — Rust normalizes them into a uniform chunk event stream.
+- **Proven event pattern.** The codebase already uses `AppHandle.emit()` → `listen()` for workspace indexing progress, toolchain events, and file watcher events. Streaming AI chunks follows the same pattern.
+- **AsyncIterable is the right frontend API.** Composable, supports backpressure, natural `break` for cancellation, easy to layer transforms (e.g. MarkdownJoiner). Callback-based `on_chunk` inverts control and is harder to compose.
+- **No new dependencies.** Zero new npm packages. Uses existing Tauri event infrastructure.
 
-### Provider-specific differences (all handled in ~80 lines of config mapping)
+> **Note:** The Vercel AI SDK evaluation is preserved in `~/.claude/plans/peppy-munching-wren.md` for future reference. Rejected for the same reason — adds ~300 KB for what the Tauri event bridge already provides.
 
-| Concern | OpenAI | Anthropic |
-|---|---|---|
-| Endpoint | `POST /v1/chat/completions` | `POST /v1/messages` |
-| Auth header | `Authorization: Bearer $key` | `x-api-key: $key` |
-| Body shape | `{ model, messages, stream: true }` | `{ model, messages, stream: true, max_tokens }` |
-| Chunk path | `choices[0].delta.content` | `delta.text` (inside `content_block_delta` event) |
-| SSE format | Standard `data:` lines | Typed events (`event: content_block_delta\ndata: ...`) |
+### How it works
+
+```
+Frontend                          Rust Backend
+────────                          ────────────
+invoke("ai_stream_start", req)  → spawn async task, start CLI/API call
+                                   ↓
+listen("ai:chunk:{request_id}")  ← emit chunks as they arrive (line-by-line from CLI stdout,
+                                   or parsed from SSE for API providers)
+                                   ↓
+invoke("ai_stream_abort", id)   → kill child process / drop AbortController
+                                   ↓
+                                   emit { type: "done" } or { type: "error" }
+```
+
+The TypeScript adapter wraps this into `AsyncIterable<AiStreamChunk>` using an async queue that yields on each event and resolves on done/error.
 
 ---
 
@@ -48,9 +58,10 @@ Items 3.3 (Vault Tools), 3.4 (Custom Commands), 3.5 (Multi-Provider) deferred to
 src/lib/features/ai/
 ├── ports.ts                          # Add AiStreamPort interface
 ├── adapters/
-│   └── ai_stream_adapter.ts         # NEW: Custom fetch+SSE streaming adapter
+│   └── ai_stream_adapter.ts         # NEW: Tauri event → AsyncIterable adapter
 ├── domain/
-│   └── ai_stream_types.ts           # NEW: Streaming domain types
+│   ├── ai_stream_types.ts           # NEW: Streaming domain types
+│   └── markdown_joiner.ts           # NEW: Reassembles partial markdown syntax from chunks
 ```
 
 ```ts
@@ -68,17 +79,94 @@ type AiStreamRequest = {
 
 type AiStreamChunk =
   | { type: "text"; text: string }
-  | { type: "done" }
-  | { type: "error"; error: string };
+  | { type: "error"; error: string }
+  | { type: "done" };
 ```
 
-The adapter implements `stream_text()` as an `async function*` that:
-1. Resolves provider config → endpoint URL, headers, body shape
-2. Calls `fetch()` with `stream: true` in the body
-3. Reads `response.body` via `ReadableStream` + `TextDecoder`
-4. Parses SSE lines (`data: {...}\n\n`) per provider format
-5. Yields `AiStreamChunk` objects
-6. Uses `AbortController` for cancellation via `abort()`
+### Tauri Streaming Adapter
+
+The adapter implements `stream_text()` as an `async function*` that bridges Tauri events into an `AsyncIterable`:
+
+```ts
+async function* stream_text(input: AiStreamRequest): AsyncIterable<AiStreamChunk> {
+  const request_id = crypto.randomUUID();
+  const queue = new AsyncQueue<AiStreamChunk>();  // push/pull async queue
+
+  const unlisten = await listen<AiStreamEvent>(
+    `ai:chunk:${request_id}`,
+    (event) => queue.push(event.payload),
+  );
+
+  try {
+    await tauri_invoke("ai_stream_start", { requestId: request_id, ...input });
+    yield* queue;  // yields chunks as they arrive, blocks between events
+  } finally {
+    unlisten();
+  }
+}
+
+abort() {
+  void tauri_invoke("ai_stream_abort", { requestId: this.current_request_id });
+}
+```
+
+`AsyncQueue` is a small (~30 line) utility: a linked list of promises where `push()` resolves the current pending `pull()`, and the async iterator terminates when a `done` or `error` chunk arrives.
+
+### Rust Streaming Commands
+
+```
+src-tauri/src/features/ai/
+├── service.rs                        # EDIT: Add ai_stream_start, ai_stream_abort commands
+├── stream.rs                         # NEW: Streaming execution (CLI + future API)
+```
+
+**`ai_stream_start`** command:
+1. Validates input (same checks as existing `ai_execute_cli`)
+2. Spawns a `tokio::task` that:
+   - For CLI transport: runs `Command` with piped stdout, reads via `BufReader::lines()`, emits each line as `{ type: "text", text }` via `app.emit(&format!("ai:chunk:{request_id}"), chunk)`
+   - For API transport (future): uses `reqwest` streaming response, parses SSE, emits text deltas
+3. On process exit: emits `{ type: "done" }` or `{ type: "error", error }`
+4. Stores the `JoinHandle` + child PID in a `DashMap<String, StreamHandle>` for abort
+
+**`ai_stream_abort`** command:
+1. Looks up `StreamHandle` by request ID
+2. Kills child process (`child.kill()`) and aborts the task
+3. Emits `{ type: "error", error: "aborted" }`
+
+This follows the same pattern as `workspace_index_tauri_adapter.ts` + `search/service.rs` — emit typed events from Rust with a session ID, listen on the TS side, resolve when done/error arrives.
+
+### MarkdownJoiner Transform
+
+Sits between the raw stream and editor insertion. Buffers partial markdown syntax tokens so the editor never sees broken delimiters mid-stream.
+
+```ts
+class MarkdownJoiner {
+  process_chunk(text: string): string;  // returns flushable text (may buffer partial syntax)
+  flush(): string;                       // returns remaining buffer on stream end
+}
+```
+
+- Buffers on `*`, `` ` ``, `[`, `|` — flushes when syntax completes (`**bold**`, `` `code` ``, `[link](url)`)
+- False-positive flush: buffer > 30 chars or newline without completing a token
+- Tracks `in_code_block` state: inside fences, flushes line-by-line (no syntax buffering)
+- Plain text passes through immediately (no buffering overhead)
+
+Used as a transform layer in the service:
+```ts
+async *stream_inline(input): AsyncGenerator<AiStreamChunk> {
+  const joiner = new MarkdownJoiner();
+  for await (const chunk of this.ai_stream_port.stream_text(input)) {
+    if (chunk.type === "text") {
+      const text = joiner.process_chunk(chunk.text);
+      if (text) yield { type: "text", text };
+    } else {
+      const remaining = joiner.flush();
+      if (remaining) yield { type: "text", text: remaining };
+      yield chunk;
+    }
+  }
+}
+```
 
 ### ProseMirror Plugin: `ai_menu_plugin.ts`
 
@@ -167,11 +255,24 @@ src/lib/features/editor/extensions/
 
 ```ts
 // In ai_service.ts — new method
-async stream_inline(input: AiInlineRequest): AsyncGenerator<AiStreamChunk> {
+async *stream_inline(input: AiInlineRequest): AsyncGenerator<AiStreamChunk> {
+  const joiner = new MarkdownJoiner();
   const prompt = build_ai_prompt({ mode: input.mode, ... });
-  yield* this.ai_stream_port.stream_text({ ... });
+
+  for await (const chunk of this.ai_stream_port.stream_text({ ... })) {
+    if (chunk.type === "text") {
+      const text = joiner.process_chunk(chunk.text);
+      if (text) yield { type: "text", text };
+    } else {
+      const remaining = joiner.flush();
+      if (remaining) yield { type: "text", text: remaining };
+      yield chunk;  // done or error
+    }
+  }
 }
 ```
+
+The service owns the MarkdownJoiner lifecycle — the port yields raw chunks, the service yields syntax-safe chunks, the plugin inserts them into the editor.
 
 ---
 
@@ -193,13 +294,17 @@ New actions in `ai_actions.ts`:
 
 | File | Purpose |
 |---|---|
-| `src/lib/features/ai/adapters/ai_stream_adapter.ts` | Custom fetch+SSE streaming adapter (~150 lines) |
+| `src/lib/features/ai/adapters/ai_stream_adapter.ts` | Tauri event → AsyncIterable streaming adapter (~80 lines) |
 | `src/lib/features/ai/domain/ai_stream_types.ts` | Streaming types (AiStreamPort, AiStreamRequest, AiStreamChunk) |
+| `src/lib/features/ai/domain/markdown_joiner.ts` | Partial markdown syntax buffering (~100 lines) |
+| `src/lib/shared/utils/async_queue.ts` | Push/pull async queue for bridging events → AsyncIterable (~30 lines) |
+| `src-tauri/src/features/ai/stream.rs` | Rust streaming execution (BufReader line-by-line + event emit) |
 | `src/lib/features/editor/adapters/ai_menu_plugin.ts` | ProseMirror plugin (keymap, state, decorations) |
 | `src/lib/features/editor/ui/ai_inline_menu.svelte` | Floating menu UI component |
 | `src/lib/features/editor/extensions/ai_inline_extension.ts` | Extension wiring |
 | `tests/unit/adapters/ai_menu_plugin.test.ts` | Plugin tests |
 | `tests/unit/adapters/ai_stream.test.ts` | Streaming adapter tests |
+| `tests/unit/domain/markdown_joiner.test.ts` | MarkdownJoiner tests |
 
 ## Files to Modify
 
@@ -207,17 +312,20 @@ New actions in `ai_actions.ts`:
 |---|---|
 | `src/lib/features/ai/ports.ts` | Add `AiStreamPort` interface |
 | `src/lib/features/ai/index.ts` | Re-export new types |
-| `src/lib/features/ai/application/ai_service.ts` | Add `stream_inline()` method + `ai_stream_port` dep |
+| `src/lib/features/ai/application/ai_service.ts` | Add `stream_inline()` method + `ai_stream_port` dep + MarkdownJoiner |
 | `src/lib/features/ai/application/ai_actions.ts` | Register new inline AI actions |
 | `src/lib/features/ai/domain/ai_prompt_builder.ts` | Add inline AI prompt templates |
 | `src/lib/features/editor/adapters/schema.ts` | Add `ai_generated` mark spec |
 | `src/lib/features/editor/extensions/index.ts` | Register `create_ai_inline_extension()` |
 | `src/lib/app/di/create_app_context.ts` | Wire `AiStreamPort` adapter |
 | `src/styles/editor.css` | AI highlight + cursor animation styles |
+| `src-tauri/src/features/ai/service.rs` | Register `ai_stream_start`, `ai_stream_abort` commands |
+| `src-tauri/src/features/ai/mod.rs` | Export stream module |
+| `src-tauri/src/app/mod.rs` | Register new commands in builder |
 
 ## No New Dependencies
 
-Zero new npm packages. The streaming adapter uses native `fetch()`, `ReadableStream`, `TextDecoder`, and `AbortController` — all available in WebKit/Tauri webview.
+Zero new npm or Cargo packages. Uses existing Tauri event infrastructure (`AppHandle.emit()` + `listen()` from `@tauri-apps/api/event`), `BufReader` from std, and native `AbortController` for frontend cancellation.
 
 ---
 
@@ -235,16 +343,19 @@ Zero new npm packages. The streaming adapter uses native `fetch()`, `ReadableStr
 ## Implementation Order
 
 1. **Types + Port** — `ai_stream_types.ts`, `AiStreamPort` in `ports.ts`
-2. **Stream Adapter** — `ai_stream_adapter.ts` with fetch+SSE
-3. **Schema** — Add `ai_generated` mark to ProseMirror schema
-4. **Plugin** — `ai_menu_plugin.ts` with keymap, state, decorations
-5. **Menu UI** — `ai_inline_menu.svelte` floating component
-6. **Extension** — `ai_inline_extension.ts` wiring
-7. **Service** — `stream_inline()` in `ai_service.ts`
-8. **Actions** — Register inline AI actions
-9. **DI** — Wire in `create_app_context.ts`
-10. **CSS** — AI highlight + animation styles
-11. **Tests** — Plugin behavior + streaming adapter
+2. **AsyncQueue utility** — `async_queue.ts` (event → AsyncIterable bridge)
+3. **Rust streaming** — `stream.rs` with `ai_stream_start` / `ai_stream_abort` commands, register in `app/mod.rs`
+4. **Stream Adapter** — `ai_stream_adapter.ts` wrapping Tauri events into `AsyncIterable`
+5. **MarkdownJoiner** — `markdown_joiner.ts` + tests (pure domain logic, testable in isolation)
+6. **Schema** — Add `ai_generated` mark to ProseMirror schema
+7. **Plugin** — `ai_menu_plugin.ts` with keymap, state, decorations
+8. **Menu UI** — `ai_inline_menu.svelte` floating component
+9. **Extension** — `ai_inline_extension.ts` wiring
+10. **Service** — `stream_inline()` in `ai_service.ts` (composes stream port + MarkdownJoiner)
+11. **Actions** — Register inline AI actions
+12. **DI** — Wire in `create_app_context.ts`
+13. **CSS** — AI highlight + animation styles
+14. **Tests** — Plugin behavior + streaming adapter + MarkdownJoiner
 
 ---
 
@@ -253,5 +364,5 @@ Zero new npm packages. The streaming adapter uses native `fetch()`, `ReadableStr
 1. `pnpm check` — TypeScript/Svelte type checking passes
 2. `pnpm lint` — Layering lint passes (stream adapter is in adapters/, service doesn't import it directly)
 3. `pnpm test` — All existing + new tests pass
-4. `cd src-tauri && cargo check` — Rust unchanged, should pass
+4. `cd src-tauri && cargo check` — Rust compiles with new streaming commands
 5. Manual: Open editor → Cmd+J → see floating menu → type prompt → observe streaming text insertion with highlight → accept/reject works

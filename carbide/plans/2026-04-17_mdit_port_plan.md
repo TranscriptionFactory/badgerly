@@ -1,8 +1,8 @@
-# Mdit Port Implementation Plan
+# DEPRECATED - Mdit Port Implementation Plan
 
 **Date:** 2026-04-17
 **Reference:** `carbide/research/mdit_comparison.md`
-
+**MDit Code** `/Users/abir/src/KBM_Notes/mdit`
 ---
 
 ## Overview

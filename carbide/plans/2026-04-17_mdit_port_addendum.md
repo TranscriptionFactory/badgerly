@@ -249,107 +249,14 @@ When multi-selection is active, context menu operations apply to all selected bl
 
 ---
 
-## Phase 3 Prerequisites: AI Streaming Infrastructure
+## ~~Phase 3 Prerequisites: AI Streaming Infrastructure~~ — INCORPORATED INTO PHASE 3
 
-These items should be implemented at the start of Phase 3, before the UI work.
+Both items from this section have been merged into the Phase 3 plan (`2026-04-17_phase3_inline_ai.md`):
 
-### 3.0.1 Markdown Joiner Transform (1 day)
+- **3.0.1 MarkdownJoiner** → incorporated as `markdown_joiner.ts` domain class, used as a transform layer in `ai_service.stream_inline()`
+- **3.0.2 Streaming AiPort** → superseded by the `AiStreamPort` design in Phase 3, which uses Tauri-backend streaming (`ai_stream_start` / `ai_stream_abort` Rust commands) with an `AsyncIterable<AiStreamChunk>` frontend API instead of extending the existing `AiPort` with a callback-based `execute_stream()`
 
-**Problem:** When AI streams markdown tokens, syntax characters arrive as separate chunks: `**`, `bold`, `**`. Naively inserting each chunk creates broken formatting mid-stream (the editor sees `**` as literal text, not bold delimiters).
-
-**Solution:** Buffer markdown syntax tokens and only flush when the token is complete.
-
-**Implementation:**
-
-1. **Domain class** — `src/lib/features/ai/domain/markdown_joiner.ts`
-   ```
-   class MarkdownJoiner {
-     process_chunk(text: string): string  // returns flushable text
-     flush(): string                       // returns remaining buffer
-   }
-   ```
-   - Buffer on `*`, `` ` ``, `[`, `|`, `<`, list start chars (`-`, `*`, digit)
-   - Flush when:
-     - Complete bold: `**...**`
-     - Complete code span: `` `...` ``
-     - Complete code fence: `` ```lang ``
-     - Complete link: `[...](…)`
-     - Complete table row: `|...|`
-     - Complete list item: `- ...` or `1. ...`
-     - False positive: buffer > 30 chars or newline without completing token
-   - Track streaming state: `in_code_block`, `in_table`, `in_large_document`
-   - Adjust delay: 10ms default, 100ms for nested blocks (code, tables)
-
-2. **Integration point** — Used in Phase 3.2 streaming insertion:
-   ```
-   const joiner = new MarkdownJoiner();
-   for await (const chunk of stream) {
-     const text = joiner.process_chunk(chunk);
-     if (text) insert_text_at_cursor(view, text);
-   }
-   const remaining = joiner.flush();
-   if (remaining) insert_text_at_cursor(view, remaining);
-   ```
-
-**Files:**
-- NEW: `src/lib/features/ai/domain/markdown_joiner.ts`
-- NEW: `tests/unit/ai/markdown_joiner.test.ts`
-
-**Tests (BDD):**
-- Buffers `**` until matching `**` → flushes `**bold**`
-- Buffers `` ` `` until matching `` ` `` → flushes `` `code` ``
-- Buffers `[` until `](url)` → flushes complete link
-- Flushes buffer on newline (false positive)
-- Flushes buffer when >30 chars without completion
-- Code fence start (`\`\`\`py`) triggers code block mode
-- In code block mode, flushes line-by-line until closing fence
-- Table row flushed when complete `|...|`
-- `flush()` returns remaining buffer content on stream end
-- Empty input returns empty output
-- Plain text passes through immediately (no buffering)
-
-### 3.0.2 Streaming AiPort Extension (1 day)
-
-Extend `AiPort` to support streaming responses. Required before building the inline AI menu.
-
-**Implementation:**
-
-1. **Port interface** — `src/lib/features/ai/ports.ts`
-   ```typescript
-   interface AiPort {
-     // existing
-     check_cli(input: AiCliCheckRequest): Promise<boolean>;
-     execute(input: AiPortExecuteRequest): Promise<AiExecutionResult>;
-     // new
-     execute_stream(
-       input: AiPortExecuteRequest,
-       on_chunk: (chunk: string) => void,
-     ): Promise<AiExecutionResult>;
-   }
-   ```
-
-2. **Tauri adapter** — `src/lib/features/ai/adapters/ai_tauri_adapter.ts`
-   - Use Tauri event channel: invoke command → subscribe to `ai:chunk` events → accumulate
-   - Or use Tauri's streaming invoke (if available)
-   - Fallback: call non-streaming `execute()` and emit single chunk
-
-3. **Service** — `src/lib/features/ai/application/ai_service.ts`
-   ```typescript
-   async execute_stream(input, on_chunk): Promise<AiExecutionResult>
-   ```
-   - Wraps port call
-   - Applies MarkdownJoiner to chunks before forwarding
-   - Handles cancellation via AbortController
-
-4. **Rust side** — `src-tauri/`
-   - Extend AI command to support streaming output
-   - Emit events per output line/chunk
-
-**Files:**
-- EDIT: `src/lib/features/ai/ports.ts`
-- EDIT: `src/lib/features/ai/adapters/ai_tauri_adapter.ts`
-- EDIT: `src/lib/features/ai/application/ai_service.ts`
-- EDIT: `src-tauri/src/ai/` (Rust streaming support)
+See the Phase 3 plan for the unified streaming architecture.
 
 ---
 
@@ -429,8 +336,8 @@ Select list items → right-click → "Create Linked Notes" → each item become
 | **2.5: Block Ops** | Turn Into, Duplicate, Delete | 1.5-2 days | **High** (table stakes) | None |
 | **2.6: Chunking** | content-visibility CSS | 0.5 days | Medium (perf) | None |
 | **2.7: Multi-Select** | Block selection + batch ops | 2-3 days | Medium-High | Phase 2.5 |
-| **3.0: AI Prereqs** | Markdown joiner, streaming port | 2 days | **High** (Phase 3 quality) | None |
-| **3: Inline AI** | (original plan) | 5-7 days | **Highest** | Phase 3.0 |
+| ~~**3.0: AI Prereqs**~~ | ~~Markdown joiner, streaming port~~ | — | — | Incorporated into Phase 3 |
+| **3: Inline AI** | (see `2026-04-17_phase3_inline_ai.md`) | 5-7 days | **Highest** | Phase 2.5 |
 | **4: Graph Perf** | (original plan) | 3-5 days | Medium | None |
 | **5: Frontmatter** | (original plan) | 2-3 days | Low | None |
 | ~~**6: Code Drawings**~~ | ~~Mermaid/PlantUML live preview~~ | — | — | Already implemented |
@@ -440,13 +347,13 @@ Select list items → right-click → "Create Linked Notes" → each item become
 ## Recommended Implementation Order
 
 ```
-Phase 2.5 (Block Ops) ──→ Phase 2.6 (Chunking) ──→ Phase 3.0 (AI Prereqs) ──→ Phase 3 (Inline AI)
-                      └──→ Phase 2.7 (Multi-Select, can parallel with 3.0)
-                                                                             ──→ Phase 4 (Graph)
-                                                                             ──→ Phase 5 (Frontmatter)
-                                                                             ──→ Phase 7 (Linked Notes)
+Phase 2.5 (Block Ops) ──→ Phase 2.6 (Chunking) ──→ Phase 3 (Inline AI)
+                      └──→ Phase 2.7 (Multi-Select, can parallel with 3)
+                                                                        ──→ Phase 4 (Graph)
+                                                                        ──→ Phase 5 (Frontmatter)
+                                                                        ──→ Phase 7 (Linked Notes)
 ```
 
-**Critical path:** 2.5 → 3.0 → 3 (Block Ops establish patterns, AI prereqs unblock Phase 3)
+**Critical path:** 2.5 → 3 (Block Ops establish patterns, Phase 3 includes its own streaming infra)
 **Quick win:** 2.6 (Chunking) can ship any time, 3 CSS lines.
-**Parallelizable:** 2.7 (Multi-Select) can develop alongside Phase 3.0/3, merge later.
+**Parallelizable:** 2.7 (Multi-Select) can develop alongside Phase 3, merge later.
