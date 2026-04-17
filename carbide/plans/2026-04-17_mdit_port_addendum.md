@@ -249,17 +249,6 @@ When multi-selection is active, context menu operations apply to all selected bl
 
 ---
 
-## ~~Phase 3 Prerequisites: AI Streaming Infrastructure~~ — INCORPORATED INTO PHASE 3
-
-Both items from this section have been merged into the Phase 3 plan (`2026-04-17_phase3_inline_ai.md`):
-
-- **3.0.1 MarkdownJoiner** → incorporated as `markdown_joiner.ts` domain class, used as a transform layer in `ai_service.stream_inline()`
-- **3.0.2 Streaming AiPort** → superseded by the `AiStreamPort` design in Phase 3, which uses Tauri-backend streaming (`ai_stream_start` / `ai_stream_abort` Rust commands) with an `AsyncIterable<AiStreamChunk>` frontend API instead of extending the existing `AiPort` with a callback-based `execute_stream()`
-
-See the Phase 3 plan for the unified streaming architecture.
-
----
-
 ## Phase 3.1 Addendum: AI in Selection Toolbar
 
 The original Phase 3.1 describes the AI menu as a standalone floating popover. It should also integrate with the existing formatting toolbar.
@@ -271,34 +260,6 @@ The original Phase 3.1 describes the AI menu as a standalone floating popover. I
 **Files:**
 - EDIT: `src/lib/features/editor/ui/formatting_toolbar.svelte` — add AI button group
 - EDIT: `src/lib/features/editor/adapters/formatting_toolbar_commands.ts` — add `ask_ai` command
-
----
-
-## ~~Phase 6: Code Drawings~~ — REMOVED
-
-**Reason:** Carbide already has full Mermaid live-preview support in `code_block_view_plugin.ts`:
-- Live SVG rendering with edit/preview toggle
-- LRU SVG cache (128 entries) with theme-aware keys
-- Dark/light theme support
-- Debounced re-render on content change (150ms)
-- Error handling with parse validation
-- Loading spinner during render
-
-PlantUML/D2 support can be added incrementally to the existing code block view if needed later.
-
----
-
-## ~~Phase 7: Git Vault Sync~~ — REMOVED
-
-**Reason:** Carbide already has a comprehensive git integration that supersedes mdit's `git-sync`:
-- Auto-commit (on_save / interval with debounce)
-- Full remote sync (commit → pull → push with merge/rebase/ff strategy)
-- Auto-fetch (background interval, ahead/behind tracking)
-- Checkpoints (commit + annotated tag)
-- Version history (paginated log, diff viewer, restore)
-- Git status widget (branch, dirty state, sync button)
-
-Mdit's git-sync is a strict subset of what already exists.
 
 ---
 
