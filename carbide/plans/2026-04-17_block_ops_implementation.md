@@ -422,20 +422,25 @@ All 7 steps completed:
 - `todo_list` is `bullet_list > list_item({ checked: false })` (no separate node type).
 - `callout` conversion places original content in `callout_body > paragraph`, leaves `callout_title` empty.
 
-### Phase 2.6 — TODO (independent, can be done in any order)
+### Phase 2.6 — DONE
 
-Steps from plan above. 3 lines of CSS in `src/styles/editor.css`.
+CSS-only `content-visibility: auto` on `.ProseMirror > *:not(.ProseMirror-selectednode)` with `contain-intrinsic-block-size: auto 3rem`. Added to `src/styles/editor.css`.
 
-### Phase 2.7 — TODO (depends on Phase 2.5)
+### Phase 2.7 — DONE
 
-Steps from plan above. Key files to create/edit:
-- `src/lib/features/editor/adapters/block_selection_plugin.ts` (NEW)
-- `src/lib/features/editor/extensions/index.ts` (wire plugin)
-- `src/lib/features/editor/adapters/block_transforms.ts` (add `positions?` param for batch ops)
-- `src/lib/features/editor/ui/editor_context_menu.svelte` (multi-select badge + pass positions)
-- `src/styles/editor.css` (`.block-selected` style)
-- `tests/unit/adapters/block_selection_plugin.test.ts` (NEW)
-- Also update `editor_service.ts`, `ports.ts`, `prosemirror_adapter.ts` to pass positions through
+All 6 steps completed:
+
+1. **`block_selection_plugin.ts`** — Created at `src/lib/features/editor/adapters/block_selection_plugin.ts`. Plugin state tracks `selected_positions: Set<number>` and `anchor_pos`. Meta actions: toggle, extend (range from anchor), clear, set. Position remapping on doc changes. Decorations via `Decoration.node` with `.block-selected` class. Shift+Arrow extends selection, Shift+Click toggles, Escape clears.
+2. **CSS** — `.block-selected` style using `color-mix(in oklch, var(--primary) ...)` for background/outline.
+3. **Wire plugin** — `create_block_selection_plugin()` added to `assemble_extensions()` after `block_drag_handle`. Re-exported `block_selection_plugin_key`, `get_block_selection`, `clear_block_selection` from extensions index.
+4. **Batch ops in `block_transforms.ts`** — Added `batch_turn_into`, `batch_duplicate`, `batch_delete` functions. Positions sorted in reverse doc order, applied in single transaction. Separate `build_turn_into_replacement` helper for pure node construction (no state/dispatch dependency).
+5. **Service/session/context menu** — `EditorSession` ports type extended with `batch_turn_into/batch_duplicate/batch_delete/get_block_selection/clear_block_selection`. `EditorService` delegates. `prosemirror_adapter.ts` wires to commands. Context menu shows "{N} blocks selected" label when multi-select active, routes Turn Into/Duplicate/Delete through batch methods when `has_multi_selection`.
+6. **Tests** — 11 tests in `block_selection_plugin.test.ts`: toggle add/remove, extend range, clear, set, doc remap, delete remap, batch turn_into, batch delete (including last-block guard), batch duplicate, empty-positions guard.
+
+**Design decisions:**
+- Batch functions are separate exports (`batch_turn_into`, `batch_duplicate`, `batch_delete`) rather than overloading existing single-block functions with optional `positions` param. Cleaner API, avoids mixed single/batch logic.
+- `build_turn_into_replacement` is a pure function that returns `ProseNode[] | null` — no state/dispatch needed. Enables both single-block and batch usage.
+- Context menu dispatches through service layer for batch ops, bypassing action registry (batch ops need positions set which the registry doesn't carry).
 
 ---
 
@@ -443,16 +448,16 @@ Steps from plan above. Key files to create/edit:
 
 | File | Action | Phase | Status |
 |---|---|---|---|
-| `src/lib/features/editor/adapters/block_transforms.ts` | NEW | 2.5, 2.7 | 2.5 done |
+| `src/lib/features/editor/adapters/block_transforms.ts` | NEW | 2.5, 2.7 | done |
 | `src/lib/app/action_registry/action_ids.ts` | EDIT | 2.5 | done |
 | `src/lib/app/orchestration/app_actions.ts` | EDIT | 2.5 | done |
-| `src/lib/features/editor/application/editor_service.ts` | EDIT | 2.5 | done |
-| `src/lib/features/editor/adapters/prosemirror_adapter.ts` | EDIT | 2.5 | done |
-| `src/lib/features/editor/ports.ts` | EDIT | 2.5 | done |
-| `src/lib/features/editor/ui/editor_context_menu.svelte` | EDIT | 2.5, 2.7 | 2.5 done |
+| `src/lib/features/editor/application/editor_service.ts` | EDIT | 2.5, 2.7 | done |
+| `src/lib/features/editor/adapters/prosemirror_adapter.ts` | EDIT | 2.5, 2.7 | done |
+| `src/lib/features/editor/ports.ts` | EDIT | 2.5, 2.7 | done |
+| `src/lib/features/editor/ui/editor_context_menu.svelte` | EDIT | 2.5, 2.7 | done |
 | `src/lib/features/editor/extensions/core_extension.ts` | EDIT | 2.5 | done |
-| `tests/unit/adapters/block_transforms.test.ts` | NEW | 2.5, 2.7 | 2.5 done |
-| `src/styles/editor.css` | EDIT | 2.6, 2.7 | TODO |
-| `src/lib/features/editor/adapters/block_selection_plugin.ts` | NEW | 2.7 | TODO |
-| `src/lib/features/editor/extensions/index.ts` | EDIT | 2.7 | TODO |
-| `tests/unit/adapters/block_selection_plugin.test.ts` | NEW | 2.7 | TODO |
+| `tests/unit/adapters/block_transforms.test.ts` | NEW | 2.5 | done |
+| `src/styles/editor.css` | EDIT | 2.6, 2.7 | done |
+| `src/lib/features/editor/adapters/block_selection_plugin.ts` | NEW | 2.7 | done |
+| `src/lib/features/editor/extensions/index.ts` | EDIT | 2.7 | done |
+| `tests/unit/adapters/block_selection_plugin.test.ts` | NEW | 2.7 | done |
