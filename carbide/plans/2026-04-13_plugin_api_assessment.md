@@ -1,6 +1,6 @@
 # Plugin API Surface Assessment
 
-**Date:** 2026-04-13 (updated with code audit)
+**Date:** 2026-04-13 (original) → 2026-04-17 (re-audited against codebase)
 **Goal:** Evaluate extensibility/efficiency/flexibility vs Obsidian plugin environment
 See `carbide/research/plugin_obsidian.md` for original implementation planning
 
@@ -12,13 +12,16 @@ The current plugin architecture is **solid for a v1 system** and has matured bey
 
 **Coverage:** ~35% of Obsidian's API surface by method count (up from ~30% at planning time).
 
-**Key changes since initial assessment:**
+**Status as of 2026-04-17:** No plugin API changes since the 2026-04-13 assessment. Recent development focused on editor features (block operations, callouts, LSP integration, code blocks), none of which added plugin-facing API surface.
+
+**Key findings from re-audit:**
 - `metadata.getFileCache()` is **fully implemented** (Tauri → Rust → SQLite), returning frontmatter, tags, headings, links, embeds, stats, timestamps
-- Events grew from 8 → **10** (`note-indexed`, `metadata-changed` added via reactors)
-- Editor namespace has **5 methods** (undocumented `get_info` returns `{path, name}`)
+- Events remain at **10** (`note-indexed`, `metadata-changed` added via reactors)
+- Editor namespace has **5 methods**, all exposed in SDK (`get_info` returns `{path, name}`)
 - Slash command registration is **live** but was not listed in the original assessment
 - SSRF protection includes DNS rebind checks (not just URL-level blocking)
 - Origin allowlist enforcement on `network.fetch` (per-manifest `allowed_origins`)
+- ~~**JS SDK was out of sync with RPC handler**~~ — Fixed 2026-04-17. All 42 RPC methods now exposed in `carbide_plugin_api.js` (see [SDK Sync Issue](#sdk-sync-issue) below)
 
 ---
 
@@ -51,7 +54,7 @@ PluginRpcHandler (TypeScript)
 | Origin allowlist | ✅ Per-manifest `allowed_origins` | Enforced in `handle_network()` before fetch |
 | Error tracking | ✅ Burst + consecutive detection | `≥2 in 5s` → warn, `≥5 in 15s` → auto-disable, `≥10 consecutive` → auto-disable |
 | Event backpressure | ✅ Debounced + bounded queues | `MAX_PENDING_EVENTS=64`, debounce per-plugin |
-| RPC timeout | ✅ Per-request timeout | `with_timeout()` wrapper |
+| RPC timeout | ✅ Per-request timeout | `with_timeout()` wrapper: 5s generic, 30s for vault ops |
 
 This is **better than Obsidian** (binary restricted mode).
 
@@ -62,7 +65,7 @@ This is **better than Obsidian** (binary restricted mode).
 | Area | Carbide | Obsidian | Verdict |
 |------|---------|----------|---------|
 | File CRUD | create/read/modify/delete/list | +rename/trash/createFolder/readBinary | ~85% |
-| Editor basics | getValue/setValue/getSelection/replaceSelection/getInfo | Same 4 + cursor/line/range | ✅ Basics covered |
+| Editor basics | getInfo/getValue/setValue/getSelection/replaceSelection | Same 4 + cursor/line/range | ✅ Basics covered |
 | Commands | register({id, label, description, keywords, icon}) | +checkCallback/editorCallback | ~70% |
 | Slash commands | register_slash/remove_slash | N/A (Obsidian lacks this) | ✅ Carbide-unique |
 | Status bar | text via RPC (add/update/remove) | raw HTMLElement | Functional |
@@ -77,6 +80,25 @@ This is **better than Obsidian** (binary restricted mode).
 | Diagnostics | push(file, diagnostics[]), clear(file?) | N/A | ✅ Carbide-unique |
 | MCP | list_tools, call_tool, register_tool | N/A | ✅ Carbide-unique |
 | Network | fetch with origin allowlist + SSRF protection | requestUrl (no SSRF protection) | ✅ Better |
+
+---
+
+## ~~SDK Sync Issue~~ — Resolved
+
+**Discovered 2026-04-17, Fixed 2026-04-17.**
+
+All 6 missing SDK methods have been added to `carbide_plugin_api.js`:
+
+| RPC Method | SDK Method | Status |
+|------------|-----------|--------|
+| `editor.set_value` | `carbide.editor.setValue(text)` | ✅ Added |
+| `commands.register_slash` | `carbide.commands.registerSlash(opts)` | ✅ Added |
+| `commands.remove_slash` | `carbide.commands.removeSlash(id)` | ✅ Added |
+| `mcp.list_tools` | `carbide.mcp.listTools()` | ✅ Added |
+| `mcp.call_tool` | `carbide.mcp.callTool(name, args)` | ✅ Added |
+| `mcp.register_tool` | `carbide.mcp.registerTool(definition)` | ✅ Added |
+
+**SDK now exposes all 42 RPC methods across 12 namespaces (was 37/42).**
 
 ---
 
@@ -107,6 +129,8 @@ editor.cm        // raw EditorView
 
 **Fixable:** Yes — needs position adapter `{line, ch}` ↔ ProseMirror `ResolvedPos`.
 
+**Status:** ❌ Unchanged since 2026-04-13.
+
 ---
 
 ### 2. Markdown Processing — Not Implemented
@@ -120,6 +144,10 @@ editor.cm        // raw EditorView
 
 **Fixable:** Yes — host renders markdown, plugin post-processes via RPC.
 
+**Note:** The editor now has callout blocks (Phase 2 — remark plugin, schema, node view, slash commands) and code block enhancements (mdit port with language memory, fallback parse). These are internal editor features, not plugin-accessible APIs. They could serve as the foundation for `registerMarkdownCodeBlockProcessor()` if exposed.
+
+**Status:** ❌ Unchanged since 2026-04-13. However, the internal infrastructure is now richer.
+
 ---
 
 ### 3. Events — Growing but Still Sparse (10 vs 24+)
@@ -128,8 +156,8 @@ editor.cm        // raw EditorView
 - file-created, file-modified, file-deleted, file-renamed
 - active-file-changed, editor-selection-changed
 - vault-opened, layout-changed
-- note-indexed *(new — fires after search indexer processes a note)*
-- metadata-changed *(new — fires on Tauri metadata-changed events with `{path, event_type, old_path?, vault_id}`)*
+- note-indexed *(fires after search indexer processes a note)*
+- metadata-changed *(fires on Tauri metadata-changed events with `{path, event_type, old_path?, vault_id}`)*
 
 **Missing (high-value):**
 | Event | Use Case |
@@ -144,6 +172,8 @@ editor.cm        // raw EditorView
 | quit | Cleanup on exit |
 
 **Fixable:** Yes — emit more events from reactors.
+
+**Status:** ❌ Unchanged since 2026-04-13.
 
 ---
 
@@ -160,6 +190,8 @@ editor.cm        // raw EditorView
 
 **Fixable:** Yes — add missing methods.
 
+**Status:** ❌ Unchanged since 2026-04-13.
+
 ---
 
 ### 5. Workspace/Layout — Not Covered (By Design)
@@ -167,6 +199,8 @@ editor.cm        // raw EditorView
 Obsidian has ~30 methods for leaf splitting, pinning, popouts, layout serialization.
 
 **Assessment:** Different paradigm (tabs vs leaves). Hardest to shim.
+
+**Status:** ❌ Unchanged. Not planned.
 
 ---
 
@@ -179,6 +213,8 @@ Missing: `Modal`, `SuggestModal<T>`, `FuzzySuggestModal<T>`
 **Impact:** No fuzzy search pickers, interactive settings, or custom dialogs.
 
 **Fixable:** Yes — add modal API with sandboxed iframe rendering.
+
+**Status:** ❌ Unchanged since 2026-04-13.
 
 ---
 
@@ -193,6 +229,8 @@ Missing: `Modal`, `SuggestModal<T>`, `FuzzySuggestModal<T>`
 - Hotkey binding
 
 **Fixable:** Yes — add callback variants.
+
+**Status:** ❌ Unchanged since 2026-04-13.
 
 ---
 
@@ -291,6 +329,10 @@ The `plugin_note_indexed` reactor fires after the search indexer processes a not
 
 ## Recommendations
 
+### ~~Immediate (Low-Effort, High-Value)~~ — Done
+
+1. ~~**Fix SDK sync** — add missing methods to `carbide_plugin_api.js` (editor.setValue, commands.registerSlash/removeSlash, mcp namespace).~~ ✅ Fixed 2026-04-17.
+
 ### Priority Order (If Obsidian Compat Matters)
 
 1. Add `editor-change` event
@@ -302,34 +344,35 @@ The `plugin_note_indexed` reactor fires after the search indexer processes a not
 
 ### Priority Order (If Only Carbide-Native Matters)
 
-1. Code block processors — enables custom rendering
-2. `editor-change` event — enables reactive editor plugins
-3. Cursor/line/range editor methods — enables precise text manipulation
-4. Richer modal API — enables interactive plugin UIs beyond toasts
-5. `vault.rename()` / `vault.trash()` — completes file lifecycle
+1. ~~**Fix SDK sync** — unblock existing capabilities~~ ✅ Done
+2. Code block processors — enables custom rendering (internal infra now exists via callout/code block work)
+3. `editor-change` event — enables reactive editor plugins
+4. Cursor/line/range editor methods — enables precise text manipulation
+5. Richer modal API — enables interactive plugin UIs beyond toasts
+6. `vault.rename()` / `vault.trash()` — completes file lifecycle
 
 ---
 
-## Appendix: Current API Surface (Verified Against Code)
+## Appendix: Current API Surface (Verified Against Code, 2026-04-17)
 
 ### Namespaces
 
-| Namespace | Methods | Notes |
-|-----------|---------|-------|
-| vault | read, create, modify, delete, list | `list` returns all note paths |
-| editor | get_info, get_value, set_value, get_selection, replace_selection | `get_info` → `{path, name}` |
-| commands | register, remove, register_slash, remove_slash | Commands get `{id, label, description, keywords, icon}` |
-| ui | add_statusbar_item, update_statusbar_item, remove_statusbar_item, add_sidebar_panel, remove_sidebar_panel, show_notice, add_ribbon_icon, remove_ribbon_icon | |
-| settings | get, set, get_all, register_tab | Declarative schema: string/number/boolean/select/textarea |
-| events | on, off | 10 event types |
-| search | fts, tags | `tags()` lists all; `tags(pattern)` returns notes for tag |
-| metadata | query, list_properties, get_backlinks, get_stats, getFileCache | `getFileCache` returns full `FileCache` struct |
-| network | fetch | Origin allowlist + SSRF protection |
-| ai | execute | Modes: "ask", "edit" |
-| diagnostics | push, clear | Scoped by `plugin:{id}` source |
-| mcp | list_tools, call_tool, register_tool | Tool names namespaced to plugin |
+| Namespace | Methods | RPC Handler | JS SDK | Notes |
+|-----------|---------|-------------|--------|-------|
+| vault | read, create, modify, delete, list | ✅ All 5 | ✅ All 5 | `list` returns all note paths |
+| editor | get_info, get_value, set_value, get_selection, replace_selection | ✅ All 5 | ✅ All 5 | `get_info` → `{path, name}` |
+| commands | register, remove, register_slash, remove_slash | ✅ All 4 | ✅ All 4 | Commands get `{id, label, description, keywords, icon}` |
+| ui | add_statusbar_item, update_statusbar_item, remove_statusbar_item, add_sidebar_panel, remove_sidebar_panel, show_notice, add_ribbon_icon, remove_ribbon_icon | ✅ All 8 | ✅ All 8 | |
+| settings | get, set, get_all, register_tab | ✅ All 4 | ✅ All 4 | Declarative schema: string/number/boolean/select/textarea |
+| events | on, off | ✅ Both | ✅ Both | 10 event types |
+| search | fts, tags | ✅ Both | ✅ Both | `tags()` lists all; `tags(pattern)` returns notes for tag |
+| metadata | query, list_properties, get_backlinks, get_stats, get_file_cache | ✅ All 5 | ✅ All 5 | `getFileCache` returns full `FileCache` struct |
+| network | fetch | ✅ | ✅ | Origin allowlist + SSRF protection |
+| ai | execute | ✅ | ✅ | Modes: "ask", "edit" |
+| diagnostics | push, clear | ✅ Both | ✅ Both | Scoped by `plugin:{id}` source |
+| mcp | list_tools, call_tool, register_tool | ✅ All 3 | ✅ All 3 | Tool names namespaced to plugin |
 
-**Total: 12 namespaces, ~40 RPC methods**
+**Total: 12 namespaces, 42 RPC methods (all exposed in SDK)**
 
 ### Events (10)
 
@@ -379,5 +422,5 @@ The `plugin_note_indexed` reactor fires after the search indexer processes a not
 | Origin allowlist | `handle_network()` checks `manifest.allowed_origins` |
 | Request body limit | `MAX_REQUEST_BODY_BYTES` in Rust |
 | Event backpressure | `MAX_PENDING_EVENTS=64` + debounce per-plugin |
-| RPC timeout | `with_timeout()` wrapper on `handle_rpc()` |
+| RPC timeout | `with_timeout()` — 5s generic, 30s for vault.* ops (`FS_METHODS` set) |
 | Namespace isolation | All plugin IDs namespaced (`${plugin_id}:${local_id}`) |
