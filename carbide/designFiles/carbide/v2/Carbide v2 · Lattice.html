@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Carbide v2 — Lattice</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --sans: "Geist", system-ui, -apple-system, sans-serif;
+    --mono: "Geist Mono", ui-monospace, Menlo, monospace;
+
+    /* Light theme — cool paper, with a luminous teal-spruce accent (Octarine echo) */
+    --canvas: oklch(0.99 0.004 220);
+    --canvas-2: oklch(0.975 0.005 220);
+    --panel: oklch(0.972 0.006 220);
+    --panel-2: oklch(0.96 0.007 220);
+    --chrome: oklch(0.955 0.008 220);
+    --chrome-deep: oklch(0.94 0.01 220);
+    --surface: oklch(1 0 0);
+
+    --fg: oklch(0.22 0.018 240);
+    --fg-2: oklch(0.42 0.015 240);
+    --fg-3: oklch(0.58 0.012 240);
+
+    --hairline: oklch(0.91 0.008 220);
+    --hairline-strong: oklch(0.85 0.01 220);
+    --hover: oklch(0.94 0.012 220);
+    --selected: oklch(0.93 0.028 180);
+
+    /* Accent — luminous spruce-teal shifting toward violet */
+    --accent: oklch(0.56 0.16 190);
+    --accent-2: oklch(0.58 0.19 260);
+    --accent-soft: oklch(0.85 0.08 200);
+    --accent-glow: oklch(0.65 0.18 200 / 0.55);
+    --accent-bg: oklch(0.94 0.04 195);
+    --accent-ink: oklch(0.35 0.14 200);
+    --on-accent: oklch(0.99 0.01 190);
+
+    --add: oklch(0.52 0.14 160);
+    --add-ink: oklch(0.3 0.11 160);
+    --del: oklch(0.55 0.17 28);
+    --del-ink: oklch(0.38 0.15 28);
+    --warn: oklch(0.7 0.15 75);
+    --dirty: oklch(0.65 0.15 40);
+  }
+  [data-color-scheme="dark"] {
+    --canvas: oklch(0.16 0.012 250);
+    --canvas-2: oklch(0.185 0.014 250);
+    --panel: oklch(0.175 0.015 250);
+    --panel-2: oklch(0.2 0.016 250);
+    --chrome: oklch(0.14 0.012 250);
+    --chrome-deep: oklch(0.11 0.01 250);
+    --surface: oklch(0.22 0.018 250);
+
+    --fg: oklch(0.96 0.008 220);
+    --fg-2: oklch(0.78 0.012 220);
+    --fg-3: oklch(0.58 0.012 220);
+
+    --hairline: oklch(0.26 0.015 250);
+    --hairline-strong: oklch(0.34 0.018 250);
+    --hover: oklch(0.24 0.018 250);
+    --selected: oklch(0.28 0.06 200);
+
+    --accent: oklch(0.78 0.17 190);
+    --accent-2: oklch(0.72 0.2 260);
+    --accent-soft: oklch(0.4 0.1 200);
+    --accent-glow: oklch(0.8 0.2 200 / 0.55);
+    --accent-bg: oklch(0.28 0.07 200);
+    --accent-ink: oklch(0.9 0.14 195);
+    --on-accent: oklch(0.12 0.015 250);
+
+    --add: oklch(0.78 0.15 160);
+    --add-ink: oklch(0.88 0.13 160);
+    --del: oklch(0.75 0.17 28);
+    --del-ink: oklch(0.86 0.14 28);
+    --warn: oklch(0.78 0.15 75);
+    --dirty: oklch(0.72 0.16 40);
+  }
+
+  html, body, #root { height: 100%; margin: 0; }
+  body {
+    background: var(--canvas); color: var(--fg);
+    font-family: var(--sans); font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+  * { box-sizing: border-box; }
+  button { font-family: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  textarea { font-family: inherit; color: inherit; }
+  ::selection { background: color-mix(in oklch, var(--accent) 35%, transparent); }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--hairline-strong); border-radius: 4px; border: 2px solid var(--panel); }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  /* Reusable token bridge so we can pull shared icons/diff/tweaks */
+  /* Some shared components reference older vars — keep them working */
+  :root {
+    --background: var(--canvas);
+    --foreground: var(--fg);
+    --muted-foreground: var(--fg-3);
+    --border: var(--hairline);
+    --border-subtle: var(--hairline);
+    --border-strong: var(--hairline-strong);
+    --background-surface-2: var(--panel);
+    --background-surface-3: var(--panel-2);
+    --popover: var(--surface);
+    --secondary: var(--panel);
+    --sidebar: var(--panel);
+    --sidebar-accent: var(--hover);
+    --sidebar-border: var(--hairline);
+    --teal-50: var(--accent-bg);
+    --teal-100: color-mix(in oklch, var(--accent) 15%, var(--canvas));
+    --teal-200: color-mix(in oklch, var(--accent) 30%, var(--canvas));
+    --teal-400: var(--accent-soft);
+    --teal-500: var(--accent);
+    --teal-600: var(--accent-ink);
+    --teal-700: var(--accent-ink);
+    --diff-add-bg: color-mix(in oklch, var(--add) 14%, transparent);
+    --diff-add-fg: var(--add-ink);
+    --diff-add-gutter: var(--add);
+    --diff-del-bg: color-mix(in oklch, var(--del) 14%, transparent);
+    --diff-del-fg: var(--del-ink);
+    --diff-del-gutter: var(--del);
+    --diff-mod-bg: color-mix(in oklch, var(--warn) 14%, transparent);
+    --warning: var(--warn);
+    --warning-bg: color-mix(in oklch, var(--warn) 12%, transparent);
+    --warning-text-on-bg: var(--warn);
+    --interactive: var(--accent);
+    --interactive-hover: var(--accent-ink);
+    --interactive-bg: var(--accent-bg);
+    --interactive-bg-hover: color-mix(in oklch, var(--accent) 20%, var(--canvas));
+    --selection-bg: color-mix(in oklch, var(--accent) 25%, transparent);
+    --accent-hover: var(--hover);
+    --primary: var(--accent);
+    --primary-foreground: var(--on-accent);
+    --card: var(--surface);
+    --card-foreground: var(--fg);
+    --muted: var(--panel);
+    --foreground-tertiary: var(--fg-3);
+    --font-family-sans: var(--sans);
+    --font-family-mono: var(--mono);
+    --indicator-dirty: var(--dirty);
+    --indicator-clean: var(--accent);
+    --focus-ring: var(--accent);
+    --radius: 0.5rem;
+    --shadow-xs: 0 1px 2px oklch(0.2 0.02 240 / 0.05);
+    --shadow-sm: 0 1px 3px oklch(0.2 0.02 240 / 0.08);
+    --shadow-md: 0 4px 8px -2px oklch(0.2 0.02 240 / 0.08);
+    --shadow-lg: 0 10px 20px -4px oklch(0.2 0.02 240 / 0.12);
+  }
+
+  .tweaks-panel {
+    position: fixed; right: 16px; bottom: 40px; z-index: 9999;
+    background: var(--surface); color: var(--fg);
+    border: 1px solid var(--hairline-strong); border-radius: 10px;
+    box-shadow: var(--shadow-lg); padding: 12px 14px; width: 248px;
+    font-size: 12px;
+  }
+  .tweaks-panel h4 { margin: 0 0 10px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-3); font-weight: 600; }
+  .tweaks-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+  .tweaks-row label { color: var(--fg-3); }
+  .tweaks-seg { display: inline-flex; background: var(--panel); border-radius: 6px; padding: 2px; }
+  .tweaks-seg button { font-size: 11px; padding: 3px 8px; border-radius: 4px; color: var(--fg-3); }
+  .tweaks-seg button[data-on="true"] { background: var(--surface); color: var(--fg); box-shadow: var(--shadow-xs); }
+  .tweaks-switch { width: 30px; height: 18px; border-radius: 999px; background: var(--panel); position: relative; transition: 120ms; border: 1px solid var(--hairline); }
+  .tweaks-switch[data-on="true"] { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+  .tweaks-switch::after { content:""; position:absolute; top:2px; left:2px; width:12px; height:12px; border-radius:999px; background: var(--surface); transition: 120ms; }
+  .tweaks-switch[data-on="true"]::after { left: 14px; background: var(--on-accent); }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script>
+    window.TWEAKS = /*EDITMODE-BEGIN*/{
+      "theme": "light",
+      "density": "compact",
+      "aiCommit": true
+    }/*EDITMODE-END*/;
+  </script>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="../app/icons.jsx"></script>
+  <script type="text/babel" src="../app/data.jsx"></script>
+  <script type="text/babel">
+    // Shim: provide StatusBadge (normally defined in scpanel.jsx) so diff.jsx works standalone.
+    function StatusBadge({ kind }) {
+      const map = {
+        M: { bg: "var(--warning-bg)", fg: "var(--warning-text-on-bg)", label: "M" },
+        A: { bg: "var(--diff-add-bg)", fg: "var(--diff-add-fg)", label: "A" },
+        D: { bg: "var(--diff-del-bg)", fg: "var(--diff-del-fg)", label: "D" },
+        R: { bg: "var(--interactive-bg)", fg: "var(--teal-700)", label: "R" },
+      };
+      const s = map[kind] || map.M;
+      return (
+        <span style={{
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          width: 18, height: 18, borderRadius: 4,
+          background: s.bg, color: s.fg,
+          fontFamily: "var(--font-family-mono)", fontSize: 11, fontWeight: 700,
+        }}>{s.label}</span>
+      );
+    }
+    window.StatusBadge = StatusBadge;
+  </script>
+  <script type="text/babel" src="../app/diff.jsx"></script>
+  <script type="text/babel" src="../app/tweaks.jsx"></script>
+  <script type="text/babel" src="app2.jsx"></script>
+</body>
+</html>

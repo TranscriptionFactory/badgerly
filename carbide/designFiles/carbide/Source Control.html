@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Carbide — Source Control</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================
+     Carbide tokens (pulled from src/styles/design_tokens.css)
+     ============================================ */
+  :root {
+    --font-family-sans: "Inter", system-ui, -apple-system, sans-serif;
+    --font-family-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+
+    --accent-hue: 155;
+    --accent-chroma: 0.11;
+
+    --teal-50: oklch(0.97 0.02 var(--accent-hue));
+    --teal-100: oklch(0.94 0.03 var(--accent-hue));
+    --teal-200: oklch(0.88 0.05 var(--accent-hue));
+    --teal-300: oklch(0.78 0.07 var(--accent-hue));
+    --teal-400: oklch(0.65 0.09 var(--accent-hue));
+    --teal-500: oklch(0.48 var(--accent-chroma) var(--accent-hue));
+    --teal-600: oklch(0.43 var(--accent-chroma) var(--accent-hue));
+    --teal-700: oklch(0.37 0.09 var(--accent-hue));
+
+    --interactive: var(--teal-500);
+    --interactive-hover: var(--teal-600);
+    --interactive-bg: oklch(0.96 0.025 var(--accent-hue));
+    --interactive-bg-hover: oklch(0.93 0.03 var(--accent-hue));
+
+    --focus-ring: oklch(0.6 0.1 var(--accent-hue));
+    --selection-bg: oklch(0.92 0.04 var(--accent-hue));
+
+    --warning: oklch(0.8 0.14 85);
+    --warning-bg: oklch(0.97 0.025 85);
+    --warning-text-on-bg: oklch(0.4 0.1 85);
+
+    --indicator-dirty: oklch(0.62 0.12 44);
+    --indicator-clean: var(--teal-500);
+
+    /* Diff / status colors — warm, matched to palette */
+    --diff-add-bg: oklch(0.95 0.04 155);
+    --diff-add-fg: oklch(0.35 0.09 155);
+    --diff-add-gutter: oklch(0.8 0.09 155);
+    --diff-del-bg: oklch(0.95 0.04 28);
+    --diff-del-fg: oklch(0.42 0.11 28);
+    --diff-del-gutter: oklch(0.78 0.1 28);
+    --diff-mod-bg: oklch(0.96 0.03 85);
+
+    /* shadcn base — warm Nordic */
+    --background: oklch(0.985 0.004 82);
+    --foreground: oklch(0.25 0.012 66);
+    --card: oklch(0.985 0.004 82);
+    --card-foreground: oklch(0.25 0.012 66);
+    --popover: oklch(0.99 0.003 82);
+    --secondary: oklch(0.965 0.008 82);
+    --muted: oklch(0.965 0.008 82);
+    --muted-foreground: oklch(0.55 0.01 64);
+    --border: oklch(0.92 0.008 80);
+    --sidebar: oklch(0.985 0.004 82);
+    --sidebar-accent: oklch(0.965 0.008 82);
+    --sidebar-border: oklch(0.94 0.006 82);
+    --background-surface-2: oklch(0.965 0.008 82);
+    --background-surface-3: oklch(0.94 0.012 80);
+    --foreground-tertiary: oklch(0.62 0.008 64);
+    --border-strong: oklch(0.86 0.01 78);
+    --border-subtle: oklch(0.95 0.005 82);
+    --accent-hover: oklch(0.94 0.01 82);
+    --primary: var(--teal-500);
+    --primary-foreground: oklch(1 0 0);
+
+    --shadow-xs: 0 1px 2px oklch(0.25 0.01 66 / 0.05);
+    --shadow-sm: 0 1px 3px oklch(0.25 0.01 66 / 0.07), 0 1px 2px oklch(0.25 0.01 66 / 0.05);
+    --shadow-md: 0 4px 6px -1px oklch(0.25 0.01 66 / 0.07), 0 2px 4px -2px oklch(0.25 0.01 66 / 0.05);
+    --shadow-lg: 0 10px 15px -3px oklch(0.25 0.01 66 / 0.07), 0 4px 6px -4px oklch(0.25 0.01 66 / 0.05);
+
+    --radius: 0.625rem;
+  }
+
+  [data-color-scheme="dark"] {
+    --teal-50: oklch(0.22 0.04 var(--accent-hue));
+    --teal-100: oklch(0.26 0.05 var(--accent-hue));
+    --teal-200: oklch(0.32 0.06 var(--accent-hue));
+    --teal-300: oklch(0.42 0.07 var(--accent-hue));
+    --teal-400: oklch(0.55 0.09 var(--accent-hue));
+    --teal-500: oklch(0.68 var(--accent-chroma) var(--accent-hue));
+    --teal-600: oklch(0.73 var(--accent-chroma) var(--accent-hue));
+    --teal-700: oklch(0.8 0.09 var(--accent-hue));
+
+    --interactive: var(--teal-500);
+    --interactive-hover: var(--teal-600);
+    --interactive-bg: oklch(0.24 0.035 var(--accent-hue));
+    --interactive-bg-hover: oklch(0.28 0.04 var(--accent-hue));
+    --selection-bg: oklch(0.28 0.05 var(--accent-hue));
+
+    --diff-add-bg: oklch(0.26 0.045 155);
+    --diff-add-fg: oklch(0.85 0.1 155);
+    --diff-add-gutter: oklch(0.5 0.1 155);
+    --diff-del-bg: oklch(0.28 0.055 28);
+    --diff-del-fg: oklch(0.85 0.1 28);
+    --diff-del-gutter: oklch(0.5 0.11 28);
+    --diff-mod-bg: oklch(0.3 0.03 85);
+
+    --background: oklch(0.18 0.008 68);
+    --foreground: oklch(0.92 0.008 78);
+    --card: oklch(0.22 0.008 68);
+    --popover: oklch(0.22 0.008 68);
+    --secondary: oklch(0.265 0.008 68);
+    --muted: oklch(0.265 0.008 68);
+    --muted-foreground: oklch(0.58 0.008 70);
+    --border: oklch(0.31 0.006 68);
+    --sidebar: oklch(0.19 0.008 68);
+    --sidebar-accent: oklch(0.265 0.008 68);
+    --sidebar-border: oklch(0.28 0.006 68);
+    --background-surface-2: oklch(0.225 0.008 68);
+    --background-surface-3: oklch(0.255 0.008 68);
+    --foreground-tertiary: oklch(0.55 0.008 68);
+    --border-strong: oklch(0.38 0.006 68);
+    --border-subtle: oklch(0.225 0.005 68);
+    --accent-hover: oklch(0.3 0.008 68);
+    --primary: var(--teal-500);
+    --primary-foreground: oklch(0.1 0 0);
+
+    --warning-bg: oklch(0.24 0.035 85);
+    --warning-text-on-bg: oklch(0.88 0.08 90);
+  }
+
+  html, body, #root { height: 100%; margin: 0; }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-family-sans);
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  * { box-sizing: border-box; }
+  ::selection { background: var(--selection-bg); }
+  button { font-family: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  input, textarea { font-family: inherit; color: inherit; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: oklch(0.89 0.008 80); border-radius: 3px; }
+  [data-color-scheme="dark"] ::-webkit-scrollbar-thumb { background: oklch(0.33 0.006 68); }
+
+  /* Tweaks panel */
+  .tweaks-panel {
+    position: fixed; right: 16px; bottom: 16px; z-index: 9999;
+    background: var(--popover); color: var(--foreground);
+    border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: var(--shadow-lg); padding: 12px 14px; width: 248px;
+    font-size: 12px;
+  }
+  .tweaks-panel h4 { margin: 0 0 10px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted-foreground); font-weight: 600; }
+  .tweaks-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+  .tweaks-row label { color: var(--muted-foreground); }
+  .tweaks-seg { display: inline-flex; background: var(--secondary); border-radius: 6px; padding: 2px; }
+  .tweaks-seg button { font-size: 11px; padding: 3px 8px; border-radius: 4px; color: var(--muted-foreground); }
+  .tweaks-seg button[data-on="true"] { background: var(--background); color: var(--foreground); box-shadow: var(--shadow-xs); }
+  .tweaks-switch { width: 30px; height: 18px; border-radius: 999px; background: var(--secondary); position: relative; transition: 120ms; }
+  .tweaks-switch[data-on="true"] { background: var(--teal-500); }
+  .tweaks-switch::after { content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:999px; background: #fff; transition: 120ms; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+  .tweaks-switch[data-on="true"]::after { left: 14px; }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script>
+    // Tweakable defaults (persisted by host)
+    window.TWEAKS = /*EDITMODE-BEGIN*/{
+      "theme": "light",
+      "density": "compact",
+      "aiCommit": true
+    }/*EDITMODE-END*/;
+  </script>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="app/icons.jsx"></script>
+  <script type="text/babel" src="app/data.jsx"></script>
+  <script type="text/babel" src="app/chrome.jsx"></script>
+  <script type="text/babel" src="app/editor.jsx"></script>
+  <script type="text/babel" src="app/scpanel.jsx"></script>
+  <script type="text/babel" src="app/diff.jsx"></script>
+  <script type="text/babel" src="app/timeline.jsx"></script>
+  <script type="text/babel" src="app/tweaks.jsx"></script>
+  <script type="text/babel" src="app/main.jsx"></script>
+</body>
+</html>
