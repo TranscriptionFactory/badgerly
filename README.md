@@ -17,13 +17,14 @@ Miners once dropped calcium carbide into water to produce acetylene flame for th
 - **Plain-folder vaults**: Notes, settings, indexes, attachments, references, and plugins stay on disk in portable formats.
 - **Markdown editing**: ProseMirror and CodeMirror support visual/source editing, wikilinks, transclusions, callouts, tables, code blocks, KaTeX, Mermaid, outlines, and daily notes.
 - **Search and navigation**: Omnibar, inline `@` palette, SQLite FTS5, semantic embeddings, structured note/task queries, saved `.query` files, tags, backlinks, graph views, and Bases over frontmatter.
-- **Documents**: In-app viewers for PDF, images, code, HTML, CSV, and Excalidraw, plus an EPUB reader with in-book search and reading-position resume, with each book full-text indexed into vault search. Markdown-to-PDF export includes images, Mermaid diagrams, SVG, and KaTeX math.
+- **Documents**: In-app viewers for PDF, images, code, HTML, CSV, and Excalidraw, plus an EPUB reader with in-book search and reading-position resume, with each book full-text indexed into vault search. Export a note as PDF, HTML, or EPUB; PDF export includes images, Mermaid diagrams, SVG, and KaTeX math.
 - **HTML artifacts**: Search, link, embed, and render `.html` files in Source, Safe, or Live mode with explicit trust grants. See [HTML Artifacts](docs/html_artifacts.md).
 - **Web clipping**: Save any page into the vault — direct fetch or a JS-capable capture window, readability extraction, localized images, and provenance frontmatter — as Markdown, a searchable HTML artifact, or an EPUB you read in-app. See [Web Clipping](docs/web_clipping.md).
 - **Tasks and planning**: Markdown tasks with status cycling, due dates, list/kanban/schedule views, quick capture, and embedded task-query results.
 - **References**: Citation library, BibTeX/CSL/RIS import and export, Zotero Better BibTeX search/import/sync, bibliography export, and linked PDF/HTML source folders.
 - **Git workflow**: Init, status, stage, commit, checkpoint, diff, restore, remotes, sync, and optional auto-commit on save.
-- **AI and Vault Chat**: CLI providers and local OpenAI-compatible servers power inline ask/edit and citation-backed vault chat over hybrid retrieval.
+- **AI and Vault Chat**: CLI providers (Claude Code, Codex, opencode, pi, Ollama) and OpenAI-compatible servers — local or your own endpoint, with keys in the OS keychain — power inline ask/edit and citation-backed vault chat over hybrid retrieval. See [AI & Vault Chat](docs/ai_and_chat.md).
+- **Agent mode**: Carbide hosts agents over the Agent Client Protocol and runs a native tool-calling loop against any OpenAI-compatible server, so the agent can be a fully local model. Safe and power presets ask before each tool call, grants persist and stay revocable, the MCP server enforces the granted toolset server-side, and every edit arrives as a reviewable proposal behind a checkpoint.
 - **Plugins and MCP**: Sandboxed plugins, marketplace flows, permissioned SDK/RPC APIs, bundled plugins, Carbide MCP tools, and plugin-hosted MCP sidecars.
 - **Language tools**: Markdown LSP support via IWE, Markdown Oxide, Marksman, and rumdl, plus code LSP discovery for common programming languages.
 
