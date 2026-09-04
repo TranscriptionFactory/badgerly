@@ -818,6 +818,83 @@ describe("omnibar folders and direction", () => {
     expect(harness.execute_note_open).not.toHaveBeenCalled();
   });
 
+  it("fuzzy-matches folders for a plain query without a trailing slash", async () => {
+    const harness = create_omnibar_actions_harness();
+    harness.stores.notes.set_folder_paths([
+      "1_INBOX",
+      "4_PROJ",
+      "4_PROJ/prior",
+    ]);
+    harness.services.search.search_omnibar = vi.fn().mockResolvedValue({
+      domain: "notes",
+      items: [
+        {
+          kind: "note",
+          note: create_test_note("prior/todo.md", "Prior Todo"),
+          score: 1,
+        },
+      ],
+    });
+
+    await harness.registry.execute(ACTION_IDS.omnibar_set_query, "prior");
+    await vi.advanceTimersByTimeAsync(200);
+
+    expect(harness.stores.search.omnibar_items).toContainEqual({
+      kind: "note",
+      note: expect.objectContaining({ title: "Prior Todo" }),
+      score: 1,
+    });
+    const folder_paths = harness.stores.search.omnibar_items
+      .filter((item) => item.kind === "folder")
+      .map((item) => (item.kind === "folder" ? item.path : ""));
+    expect(folder_paths).toEqual(["4_PROJ/prior"]);
+  });
+
+  it("narrows to folders only when the folders tab is active", async () => {
+    const harness = create_omnibar_actions_harness();
+    harness.stores.notes.set_folder_paths(["4_PROJ/prior"]);
+    harness.services.search.search_omnibar = vi.fn().mockResolvedValue({
+      domain: "notes",
+      items: [
+        {
+          kind: "note",
+          note: create_test_note("prior/todo.md", "Prior Todo"),
+          score: 1,
+        },
+      ],
+    });
+
+    await harness.registry.execute(
+      ACTION_IDS.omnibar_toggle_kind_filter,
+      "folders",
+    );
+    await harness.registry.execute(ACTION_IDS.omnibar_set_query, "prior");
+    await vi.advanceTimersByTimeAsync(200);
+
+    expect(
+      harness.stores.search.omnibar_items.map((item) => item.kind),
+    ).toEqual(["folder"]);
+    expect(harness.stores.search.omnibar_items[0]).toEqual({
+      kind: "folder",
+      path: "4_PROJ/prior",
+    });
+  });
+
+  it("excludes folders from the all-vaults scope", async () => {
+    const harness = create_omnibar_actions_harness();
+    harness.stores.notes.set_folder_paths(["4_PROJ/prior"]);
+
+    await harness.registry.execute(ACTION_IDS.omnibar_set_scope, "all_vaults");
+    await harness.registry.execute(ACTION_IDS.omnibar_set_query, "prior");
+    await vi.advanceTimersByTimeAsync(200);
+
+    expect(
+      harness.stores.search.omnibar_items.filter(
+        (item) => item.kind === "folder",
+      ),
+    ).toEqual([]);
+  });
+
   it("toggles direction outside relevance and ignores relevance", async () => {
     const harness = create_omnibar_actions_harness();
     harness.stores.search.set_omnibar_items_raw([

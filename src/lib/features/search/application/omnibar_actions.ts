@@ -141,14 +141,24 @@ function map_cross_vault_items(
 }
 
 function apply_omnibar_view(input: ActionRegistrationInput) {
-  const { file_type_filters, kind_filters, sort_mode, sort_ascending, query } =
-    input.stores.ui.omnibar;
+  const {
+    file_type_filters,
+    kind_filters,
+    sort_mode,
+    sort_ascending,
+    query,
+    scope,
+  } = input.stores.ui.omnibar;
   const raw = input.stores.search.omnibar_items_raw;
+  const trimmed_query = query.trim();
+  // Folders fuzzy-match into every current-vault query (`prior` surfaces
+  // `4_PROJ/prior`); structured syntax (`>`, `#`, quotes) cannot match a path
+  // and self-excludes. Kind filters narrow to folders-only below.
   const show_folders =
-    input.stores.ui.omnibar.scope === "current_vault" &&
-    (query.trim().endsWith("/") || kind_filters.includes("folders"));
+    scope === "current_vault" &&
+    (trimmed_query.length > 0 || kind_filters.includes("folders"));
   const folder_items: OmnibarItem[] = show_folders
-    ? filter_folder_paths(query.trim(), input.stores.notes.folder_paths).map(
+    ? filter_folder_paths(trimmed_query, input.stores.notes.folder_paths).map(
         (path) => ({ kind: "folder", path }),
       )
     : [];
