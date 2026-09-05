@@ -69,3 +69,26 @@ export function make_proposal(overrides: Partial<Proposal> = {}): Proposal {
     ...overrides,
   };
 }
+
+export type TurnProposalInput = {
+  run_id: string;
+  created_at: number;
+  note_path: string;
+  session_id?: string;
+  anchor?: string | null;
+  status?: Proposal["status"];
+};
+
+export function make_turn_proposal(input: TurnProposalInput): Proposal {
+  return make_proposal({
+    target: { kind: "note", note_path: input.note_path },
+    origin: {
+      session_id: input.session_id ?? "session-1",
+      run_id: input.run_id,
+      anchor:
+        input.anchor === undefined ? `anchor-${input.run_id}` : input.anchor,
+    },
+    status: input.status ?? "applied",
+    created_at: input.created_at,
+  });
+}

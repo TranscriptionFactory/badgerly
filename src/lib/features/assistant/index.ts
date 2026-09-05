@@ -346,3 +346,23 @@ export { register_assistant_notice_actions } from "$lib/features/assistant/appli
 
 export { default as AssistantNoticeRail } from "$lib/features/assistant/ui/assistant_notice_rail.svelte";
 export { default as AssistantNoticeCard } from "$lib/features/assistant/ui/assistant_notice_card.svelte";
+
+export {
+  ProposalRevertService,
+  type ProposalRevertDeps,
+  type ProposalRevertGit,
+  type ProposalRevertOptions,
+  type ProposalRevertOutcome,
+} from "$lib/features/assistant/application/proposal_revert_service";
+export {
+  describe_turn_revert,
+  group_proposal_turns,
+  plan_session_revert,
+  plan_turn_revert,
+  turn_revert_block_reason,
+  NO_ANCHOR_REASON,
+  type ProposalTurn,
+  type ProposalTurnStatus,
+  type ReadyTurnRevertPlan,
+  type TurnRevertPlan,
+} from "$lib/features/assistant/domain/proposal_turns";

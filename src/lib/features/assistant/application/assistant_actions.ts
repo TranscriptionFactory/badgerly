@@ -15,6 +15,11 @@ import type {
   ProposalApplyOutcome,
   ProposalApplyService,
 } from "$lib/features/assistant/application/proposal_apply_service";
+import type {
+  ProposalRevertOutcome,
+  ProposalRevertService,
+} from "$lib/features/assistant/application/proposal_revert_service";
+import { describe_turn_revert } from "$lib/features/assistant/domain/proposal_turns";
 import type { AssistantProposalStore } from "$lib/features/assistant/state/assistant_proposal_store.svelte";
 import type { AssistantRunStore } from "$lib/features/assistant/state/assistant_run_store.svelte";
 import type { AssistantSessionStore } from "$lib/features/assistant/state/assistant_session_store.svelte";
@@ -46,6 +51,33 @@ function report_apply_outcome(outcome: ProposalApplyOutcome) {
   }
 }
 
+// A revert that did its work is silent like a clean apply — the turn row
+// flips to reverted. The three ways it can decline must each say why.
+function report_revert_outcome(outcome: ProposalRevertOutcome) {
+  switch (outcome.status) {
+    case "reverted":
+      if (outcome.failed.length > 0) {
+        toast.error(
+          outcome.failed.length === 1
+            ? "Could not restore one note"
+            : `Could not restore ${String(outcome.failed.length)} notes`,
+          { description: outcome.failed[0]?.error ?? "" },
+        );
+      }
+      return;
+    case "needs_confirmation":
+      toast.warning("This revert needs confirmation", {
+        description: describe_turn_revert(outcome.plan),
+      });
+      return;
+    case "refused":
+      toast.error("Could not revert", { description: outcome.reason });
+      return;
+    case "nothing":
+      return;
+  }
+}
+
 export function register_assistant_actions(
   input: ActionRegistrationInput & {
     assistant_kernel: AssistantKernelService;
@@ -53,6 +85,7 @@ export function register_assistant_actions(
     assistant_sessions: AssistantSessionStore;
     assistant_proposals: AssistantProposalStore;
     proposal_apply: ProposalApplyService;
+    proposal_revert: ProposalRevertService;
     chat_store: AssistantChatStore;
     active_document_path: () => string | null;
   },
@@ -64,6 +97,7 @@ export function register_assistant_actions(
     assistant_sessions,
     assistant_proposals,
     proposal_apply,
+    proposal_revert,
     chat_store,
     active_document_path,
     stores,
@@ -204,6 +238,40 @@ export function register_assistant_actions(
       const proposal_id = typeof args[0] === "string" ? args[0] : "";
       if (!proposal_id) return;
       await proposal_apply.reject_batch([proposal_id]);
+    },
+  });
+
+  // The restored notes reach the editor the same way applied ones do.
+  async function revert_and_report(outcome: ProposalRevertOutcome) {
+    if (outcome.status === "reverted") {
+      await sync_changed_notes(input, outcome.restored_note_paths);
+    }
+    report_revert_outcome(outcome);
+  }
+
+  registry.register({
+    id: ACTION_IDS.assistant_revert_turn,
+    label: "Revert Agent Turn",
+    execute: async (...args: unknown[]) => {
+      const turn_id = typeof args[0] === "string" ? args[0] : "";
+      if (!turn_id) return;
+      const confirmed = args[1] === true;
+      await revert_and_report(
+        await proposal_revert.revert_turn(turn_id, { confirmed }),
+      );
+    },
+  });
+
+  registry.register({
+    id: ACTION_IDS.assistant_revert_session,
+    label: "Revert Agent Session Edits",
+    execute: async (...args: unknown[]) => {
+      const session_id = typeof args[0] === "string" ? args[0] : "";
+      if (!session_id) return;
+      const confirmed = args[1] === true;
+      await revert_and_report(
+        await proposal_revert.revert_session(session_id, { confirmed }),
+      );
     },
   });
 

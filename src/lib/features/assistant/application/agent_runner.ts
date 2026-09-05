@@ -324,7 +324,7 @@ export class AgentRunner {
     try {
       const report = await this.proposals.produce({
         anchor,
-        origin: { session_id, run_id },
+        origin: { session_id, run_id, anchor },
         touched_paths,
         expected_mtimes: await this.resolve_mtimes(mtimes),
       });

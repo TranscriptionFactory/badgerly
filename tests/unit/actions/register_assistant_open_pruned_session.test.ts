@@ -32,6 +32,10 @@ function create_harness() {
       apply_batch: vi.fn(),
       reject_batch: vi.fn(),
     } as never,
+    proposal_revert: {
+      revert_turn: vi.fn(),
+      revert_session: vi.fn(),
+    } as never,
     chat_store: new AssistantChatStore(sessions),
     active_document_path: () => null,
   });

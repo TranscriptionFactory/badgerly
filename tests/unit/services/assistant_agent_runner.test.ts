@@ -499,6 +499,16 @@ describe("AgentRunner end-of-turn proposals", () => {
     expect(typeof request?.origin.run_id).toBe("string");
   });
 
+  it("stamps the turn's checkpoint sha onto the proposals' origin as anchor", async () => {
+    const { runner, proposals } = make_harness(writing_turn);
+
+    await runner.run_turn(provider, "organize my notes", "acp");
+
+    expect(proposals.produce.mock.calls[0]?.[0]?.origin.anchor).toBe(
+      "anchor-sha",
+    );
+  });
+
   // Producing proposals rolls the notes back, so the vault refresh and the
   // open-note sync must run after it or they land on content that is about
   // to change underneath them.

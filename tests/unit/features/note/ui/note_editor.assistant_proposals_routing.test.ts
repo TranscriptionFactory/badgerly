@@ -24,6 +24,7 @@ import { flushSync } from "../../../helpers/svelte_client_runtime";
 import {
   make_proposal,
   make_proposal_hunk,
+  make_turn_proposal,
 } from "../../../helpers/assistant_proposal_fixtures";
 
 function make_proposals_tab(): Tab {
@@ -189,6 +190,33 @@ describe("note_editor routing for assistant_proposals tabs", () => {
       hunk.id,
       false,
     );
+
+    view.cleanup();
+  });
+});
+
+describe("note_editor routing for turn reverts", () => {
+  it("dispatches assistant_revert_turn with the turn id from the review center", () => {
+    const applied = make_turn_proposal({
+      run_id: "run-1",
+      created_at: 100,
+      note_path: "a.md",
+    });
+    const view = render({ proposals: [applied] });
+
+    const revert = view.target.querySelector(
+      '[data-testid="assistant-revert-turn"]',
+    ) as HTMLButtonElement;
+    revert.click();
+
+    expect(view.execute).toHaveBeenCalledWith(
+      ACTION_IDS.assistant_revert_turn,
+      "run-1",
+      false,
+    );
+    expect(
+      view.target.querySelector('[data-testid="assistant-proposal-card"]'),
+    ).toBeNull();
 
     view.cleanup();
   });

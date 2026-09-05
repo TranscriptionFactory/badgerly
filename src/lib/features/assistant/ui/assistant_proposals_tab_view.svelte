@@ -2,17 +2,22 @@
   import Inbox from "@lucide/svelte/icons/inbox";
   import EmptyMessage from "$lib/components/ui/empty_message.svelte";
   import AssistantProposalCard from "./assistant_proposal_card.svelte";
+  import AssistantTurnHistory from "./assistant_turn_history.svelte";
   import type {
     Proposal,
     ProposalHunkId,
     ProposalId,
   } from "$lib/features/assistant/types/proposal";
+  import type { RunId } from "$lib/features/assistant/types/run";
   import { KIND_GLYPHS } from "$lib/features/assistant/domain/kind_glyphs";
   import { group_proposals_by_day } from "$lib/features/assistant/domain/proposal_day_groups";
   import type { AssistantSessionSummary } from "$lib/features/assistant/types/session";
 
   interface Props {
     proposals: Proposal[];
+    // Applied and reverted proposals, kept apart from the pending queue so
+    // the review list and its empty state keep meaning "pending".
+    applied_history: Proposal[];
     session_summaries: AssistantSessionSummary[];
     on_accept_proposal: (id: ProposalId) => void;
     on_accept_all_pending: (ids: ProposalId[]) => void;
@@ -22,16 +27,21 @@
       hunk_id: ProposalHunkId,
       selected: boolean,
     ) => void;
+    on_revert_turn: (turn_id: RunId, confirmed: boolean) => void;
+    on_revert_session: (session_id: string, confirmed: boolean) => void;
     now?: () => number;
   }
 
   let {
     proposals,
+    applied_history,
     session_summaries,
     on_accept_proposal,
     on_accept_all_pending,
     on_reject_proposal,
     on_toggle_hunk,
+    on_revert_turn,
+    on_revert_session,
     now = () => Date.now(),
   }: Props = $props();
 
@@ -105,4 +115,11 @@
       </div>
     {/each}
   {/if}
+
+  <AssistantTurnHistory
+    proposals={applied_history}
+    {session_summaries}
+    {on_revert_turn}
+    {on_revert_session}
+  />
 </div>
