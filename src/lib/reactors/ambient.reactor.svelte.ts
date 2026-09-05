@@ -16,6 +16,9 @@ export type AmbientReactorState = {
   scanned_vault_id: string | null;
   scanned_note_path: string | null;
   last_is_dirty: boolean;
+  mtime_ms: number;
+  max_notices: number;
+  min_score: number;
 };
 
 export type AmbientReactorInput = {
@@ -24,6 +27,9 @@ export type AmbientReactorInput = {
   vault_id: string | null;
   note_path: string | null;
   is_dirty: boolean;
+  mtime_ms: number;
+  max_notices: number;
+  min_score: number;
 };
 
 export type AmbientDecision = {
@@ -46,6 +52,9 @@ export const INITIAL_AMBIENT_STATE: AmbientReactorState = {
   scanned_vault_id: null,
   scanned_note_path: null,
   last_is_dirty: false,
+  mtime_ms: 0,
+  max_notices: 3,
+  min_score: 0.6,
 };
 
 // Pure so the trigger policy is testable in the cheap `node` environment,
@@ -80,8 +89,7 @@ export function resolve_ambient_decision(
   }
 
   const next_state: AmbientReactorState = {
-    scanned_vault_id: state.scanned_vault_id,
-    scanned_note_path: state.scanned_note_path,
+    ...state,
     last_is_dirty: input.is_dirty,
   };
 
@@ -100,7 +108,17 @@ export function resolve_ambient_decision(
   const note_changed = input.note_path !== state.scanned_note_path;
   const save_completed = state.last_is_dirty;
 
-  if (!vault_changed && !note_changed && !save_completed) {
+  const scan_input_changed =
+    input.mtime_ms !== state.mtime_ms ||
+    input.max_notices !== state.max_notices ||
+    input.min_score !== state.min_score;
+
+  if (
+    !vault_changed &&
+    !note_changed &&
+    !save_completed &&
+    !scan_input_changed
+  ) {
     return {
       action: "noop",
       note_path: input.note_path,
@@ -109,6 +127,9 @@ export function resolve_ambient_decision(
     };
   }
 
+  next_state.mtime_ms = input.mtime_ms;
+  next_state.max_notices = input.max_notices;
+  next_state.min_score = input.min_score;
   next_state.scanned_vault_id = input.vault_id;
   next_state.scanned_note_path = input.note_path;
 
@@ -125,10 +146,14 @@ type ScanRequest = {
   vault_id: string;
   note_path: string;
   mtime_ms: number;
+  max_notices: number;
+  min_score: number;
 };
 
 type MissingLinkCacheEntry = {
   mtime_ms: number;
+  max_notices: number;
+  min_score: number;
   hits: MissingLinkHit[];
 };
 
@@ -155,39 +180,43 @@ export function create_ambient_reactor(
     missing_link_cache.clear();
   }
 
-  function load_missing_links({
-    vault_id,
-    note_path,
-    mtime_ms,
-  }: ScanRequest): Promise<MissingLinkHit[]> {
-    const settings = ui_store.editor_settings;
-    if (settings.ambient_missing_link_max_notices <= 0) {
-      return Promise.resolve([]);
-    }
-
+  function load_missing_links(
+    { vault_id, note_path, mtime_ms, max_notices, min_score }: ScanRequest,
+    scan_generation: number,
+  ): Promise<MissingLinkHit[]> {
     const cached = missing_link_cache.get(note_path);
-    if (cached && cached.mtime_ms === mtime_ms) {
+    if (cached && cached.mtime_ms !== mtime_ms) {
+      notice_store.lift_missing_link_suppressions(note_path);
+    }
+    if (max_notices <= 0) return Promise.resolve([]);
+    if (
+      cached &&
+      cached.mtime_ms === mtime_ms &&
+      cached.max_notices === max_notices &&
+      cached.min_score === min_score
+    ) {
       return Promise.resolve(cached.hits);
     }
 
-    notice_store.lift_missing_link_suppressions(note_path);
     return search_port
       .find_missing_links(
         vault_id as VaultId,
         note_path,
-        settings.ambient_missing_link_max_notices,
-        settings.ambient_missing_link_min_score,
+        max_notices,
+        min_score,
       )
       .then((hits) => {
-        missing_link_cache.set(note_path, { mtime_ms, hits });
+        if (scan_generation === generation) {
+          missing_link_cache.set(note_path, {
+            mtime_ms,
+            max_notices,
+            min_score,
+            hits,
+          });
+        }
         return hits;
       })
-      .catch(() => {
-        // Similarity is the optional half of a scan: without embeddings the
-        // link findings still stand, and nothing is cached so the next
-        // settle retries.
-        return [];
-      });
+      .catch(() => []);
   }
 
   const scan = create_debounced_task_controller<ScanRequest>({
@@ -196,10 +225,15 @@ export function create_ambient_reactor(
       const { vault_id, note_path } = request;
       void Promise.all([
         search_port.get_note_links_snapshot(vault_id as VaultId, note_path),
-        load_missing_links(request),
+        load_missing_links(request, scan_generation),
       ])
         .then(([snapshot, missing_links]) => {
           if (scan_generation !== generation) return;
+          const linked = new Set<string>(
+            [...snapshot.backlinks, ...snapshot.outlinks].map(
+              (note) => note.path,
+            ),
+          );
           notice_store.replace_for_note(
             note_path,
             produce(
@@ -208,7 +242,9 @@ export function create_ambient_reactor(
                 backlinks: snapshot.backlinks,
                 outlinks: snapshot.outlinks,
                 orphan_links: snapshot.orphan_links,
-                missing_links,
+                missing_links: missing_links.filter(
+                  (hit) => !linked.has(hit.target_path),
+                ),
                 suppressed_targets:
                   notice_store.suppressed_missing_link_targets(note_path),
                 missing_link_max_notices:
@@ -233,10 +269,22 @@ export function create_ambient_reactor(
         vault_id: vault_store.active_vault_id,
         note_path: editor_store.open_note?.meta.path ?? null,
         is_dirty: editor_store.open_note?.is_dirty ?? false,
+        mtime_ms: editor_store.open_note?.meta.mtime_ms ?? 0,
+        max_notices: ui_store.editor_settings.ambient_missing_link_max_notices,
+        min_score: ui_store.editor_settings.ambient_missing_link_min_score,
       });
       state = decision.next_state;
 
-      if (decision.action === "noop") return;
+      if (decision.action === "noop") {
+        if (
+          !ui_store.editor_settings_loaded ||
+          editor_store.open_note?.is_dirty
+        ) {
+          generation += 1;
+          scan.cancel();
+        }
+        return;
+      }
 
       generation += 1;
       scan.cancel();
@@ -258,6 +306,9 @@ export function create_ambient_reactor(
           vault_id: String(vault_id),
           note_path: decision.note_path,
           mtime_ms: editor_store.open_note?.meta.mtime_ms ?? 0,
+          max_notices:
+            ui_store.editor_settings.ambient_missing_link_max_notices,
+          min_score: ui_store.editor_settings.ambient_missing_link_min_score,
         },
         SCAN_DEBOUNCE_MS,
       );

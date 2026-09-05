@@ -28,7 +28,11 @@ import { AssistantNoticeStore } from "$lib/features/assistant";
 import { UIStore } from "$lib/app/orchestration/ui_store.svelte";
 import { VaultStore } from "$lib/features/vault/state/vault_store.svelte";
 import { EditorStore } from "$lib/features/editor/state/editor_store.svelte";
-import { as_markdown_text, as_note_path } from "$lib/shared/types/ids";
+import {
+  as_markdown_text,
+  as_note_path,
+  as_vault_id,
+} from "$lib/shared/types/ids";
 import {
   create_search_port_spy,
   create_graph_port_spy,
@@ -446,6 +450,87 @@ describe("ambient reactor — missing links: one Rust call per (note, mtime)", (
     h.unmount();
   });
 
+  it("rescans when an external update changes mtime without a dirty transition", async () => {
+    const h = make_harness({ enabled: true });
+    await settle();
+    h.editor_store.set_open_note({
+      ...open_note_state(NOTE),
+      meta: { ...note_meta(NOTE), mtime_ms: 8 },
+    });
+    await settle();
+    expect(h.search_spy._calls.find_missing_links).toHaveLength(2);
+    h.unmount();
+  });
+
+  it("applies changed similarity settings without lifting declines", async () => {
+    const h = make_harness({
+      enabled: true,
+      missing_links: () => Promise.resolve([missing_link_hit(B)]),
+    });
+    await settle();
+    h.notice_store.dismiss(h.notice_store.for_note(NOTE)[0]?.id ?? "");
+    h.ui_store.editor_settings.ambient_missing_link_min_score = 0.9;
+    h.ui_store.editor_settings.ambient_missing_link_max_notices = 5;
+    await settle();
+    expect(h.search_spy._calls.find_missing_links).toHaveLength(2);
+    expect(h.search_spy._calls.find_missing_links[1]).toMatchObject({
+      k: 5,
+      min_score: 0.9,
+    });
+    expect(missing_link_ids(h)).toEqual([]);
+    h.ui_store.editor_settings.ambient_missing_link_max_notices = 0;
+    await settle();
+    expect(h.search_spy._calls.find_missing_links).toHaveLength(2);
+    expect(missing_link_ids(h)).toEqual([]);
+    h.unmount();
+  });
+
+  it("does not publish an in-flight finding after editing starts", async () => {
+    let resolve!: (hits: MissingLinkHit[]) => void;
+    const h = make_harness({
+      enabled: true,
+      missing_links: () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    });
+    await settle();
+    expect(h.search_spy._calls.find_missing_links).toHaveLength(1);
+    h.editor_store.set_open_note(open_note_state(NOTE, true));
+    flushSync();
+    resolve([missing_link_hit(B)]);
+    await settle();
+    expect(missing_link_ids(h)).toEqual([]);
+    h.unmount();
+  });
+
+  it("does not let an old vault request overwrite the new vault cache", async () => {
+    let resolve!: (hits: MissingLinkHit[]) => void;
+    let calls = 0;
+    const h = make_harness({
+      enabled: true,
+      missing_links: () =>
+        ++calls === 1
+          ? new Promise((done) => {
+              resolve = done;
+            })
+          : Promise.resolve([missing_link_hit("new-vault.md")]),
+    });
+    await settle();
+    h.vault_store.set_vault(create_test_vault({ id: as_vault_id("vault-2") }));
+    await settle();
+    expect(missing_link_ids(h)).toEqual(["new-vault.md"]);
+    resolve([missing_link_hit(B)]);
+    await settle();
+    h.editor_store.set_open_note(open_note_state("other.md"));
+    await settle();
+    h.editor_store.set_open_note(open_note_state(NOTE));
+    await settle();
+    expect(missing_link_ids(h)).toEqual(["new-vault.md"]);
+    expect(h.search_spy._calls.find_missing_links).toHaveLength(3);
+    h.unmount();
+  });
+
   it("calls again once the note's mtime changes", async () => {
     const h = make_harness({
       enabled: true,
@@ -537,21 +622,31 @@ describe("ambient reactor — missing links: one Rust call per (note, mtime)", (
     h.unmount();
   });
 
-  // A linked target never reaches the producer: the exclusion is Rust's, so
-  // the reactor forwards whatever the port returns without a second filter
-  // against the snapshot's outlinks. This pins that division of labour.
-  it("trusts the port's exclusion of linked targets rather than re-filtering on the snapshot", async () => {
-    const h = make_harness({
-      enabled: true,
-      result: snapshot({ outlinks: [note_meta(B)] }),
-      missing_links: () => Promise.resolve([]),
-    });
-    await settle();
-
-    expect(h.search_spy._calls.find_missing_links).toHaveLength(1);
-    expect(missing_link_ids(h)).toEqual([]);
-    h.unmount();
-  });
+  it.each(["backlinks", "outlinks"] as const)(
+    "filters cached candidates against fresh %s without another similarity call",
+    async (direction) => {
+      const result = snapshot();
+      const h = make_harness({
+        enabled: true,
+        result,
+        missing_links: () => Promise.resolve([missing_link_hit(B)]),
+      });
+      await settle();
+      expect(missing_link_ids(h)).toEqual([B]);
+      result[direction].push(note_meta(B));
+      h.editor_store.set_open_note(open_note_state("other.md"));
+      await settle();
+      h.editor_store.set_open_note(open_note_state(NOTE));
+      await settle();
+      expect(missing_link_ids(h)).toEqual([]);
+      expect(
+        h.search_spy._calls.find_missing_links.filter(
+          (call) => call.note_path === NOTE,
+        ),
+      ).toHaveLength(1);
+      h.unmount();
+    },
+  );
 });
 
 // Group B — the trigger policy, pure and cheap. These need no DOM at all;
@@ -564,12 +659,18 @@ describe("resolve_ambient_decision", () => {
     vault_id: "v1",
     note_path: "a.md",
     is_dirty: false,
+    mtime_ms: 0,
+    max_notices: 3,
+    min_score: 0.6,
   };
 
   const scanned: AmbientReactorState = {
     scanned_vault_id: "v1",
     scanned_note_path: "a.md",
     last_is_dirty: false,
+    mtime_ms: 0,
+    max_notices: 3,
+    min_score: 0.6,
   };
 
   it("B1 scans a note it has not scanned yet", () => {
