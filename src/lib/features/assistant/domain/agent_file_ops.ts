@@ -23,6 +23,7 @@ const MUTATING_MCP_TOOLS = new Set([
   "ensure_frontmatter",
   "rename_note",
   "reindex",
+  "create_checkpoint",
 ]);
 
 const MUTATING_BUILTIN_TOOLS = new Set([

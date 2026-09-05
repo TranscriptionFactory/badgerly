@@ -336,3 +336,6 @@ crate::features::clip::capture::clip_capture_cancel,
             .expect("Failed to export typescript bindings");
     }
 }
+
+#[path = "../../tests/git_history.rs"]
+mod git_history;

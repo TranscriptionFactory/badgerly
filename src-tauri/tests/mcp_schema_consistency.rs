@@ -8,7 +8,8 @@ use crate::features::mcp::shared_ops::{
     VAULT_ID_OPTIONAL_DESC,
 };
 use crate::features::mcp::tools::git::{
-    GitLogArgs, RenameNoteArgs, VaultArgs as GitVaultArgs,
+    CheckpointArgs, GitLogArgs, NoteHistoryArgs, NoteVersionArgs, RenameNoteArgs,
+    VaultArgs as GitVaultArgs,
 };
 use crate::features::mcp::tools::graph::{PathArgs, QueryByPropertyArgs, VaultArgs as GraphVaultArgs};
 use crate::features::mcp::tools::notes::{EditNoteArgs, NoteContentArgs};
@@ -102,6 +103,9 @@ fn check(def: &ToolDefinition) {
         "git_status" => check_tool::<GitVaultArgs>(def),
         "git_log" => check_tool::<GitLogArgs>(def),
         "rename_note" => check_tool::<RenameNoteArgs>(def),
+        "get_note_history" => check_tool::<NoteHistoryArgs>(def),
+        "read_note_version" => check_tool::<NoteVersionArgs>(def),
+        "create_checkpoint" => check_tool::<CheckpointArgs>(def),
         "query_tasks" => check_tool::<QueryTasksArgs>(def),
         "rag_query" => check_tool::<RagQueryArgs>(def),
         "rag_status" => check_tool::<RagStatusArgs>(def),

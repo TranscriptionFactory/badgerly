@@ -6,10 +6,16 @@ use crate::features::ai::permissions::{
     SessionPolicy,
 };
 use crate::features::ai::agent_stream::{
-    PermissionOptionKind, PermissionOptionSpec, ToolKind,
+    infer_tool_kind, PermissionOptionKind, PermissionOptionSpec, ToolKind,
 };
 
 const AGENT: &str = "claude-code";
+
+#[test]
+fn note_history_and_version_are_evaluated_as_read() {
+    assert_eq!(infer_tool_kind("get_note_history"), ToolKind::Read);
+    assert_eq!(infer_tool_kind("read_note_version"), ToolKind::Read);
+}
 
 fn off() -> SessionPolicy {
     SessionPolicy::default()

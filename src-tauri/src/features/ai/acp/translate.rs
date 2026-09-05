@@ -6,7 +6,7 @@ use agent_client_protocol::schema::v1::{
 };
 
 use crate::features::ai::agent_stream::{
-    infer_tool_kind, summarize_chars, summarize_json, AgentEvent, ToolCallStatus, ToolContent,
+    declared_tool_kind, infer_tool_kind, summarize_chars, summarize_json, AgentEvent, ToolCallStatus, ToolContent,
     ToolKind, ToolLocation,
 };
 use crate::features::ai::harness::{strip_mcp_prefix, MutatingToolSet};
@@ -175,6 +175,9 @@ impl TurnTranslator {
 }
 
 pub(crate) fn resolve_kind(kind: Option<AcpToolKind>, name: &str) -> ToolKind {
+    if let Some(declared) = declared_tool_kind(&strip_mcp_prefix(name).to_ascii_lowercase()) {
+        return declared;
+    }
     match kind {
         Some(AcpToolKind::Read) => ToolKind::Read,
         Some(AcpToolKind::Edit) => ToolKind::Edit,
