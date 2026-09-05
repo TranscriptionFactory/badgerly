@@ -40,6 +40,7 @@ import {
 } from "$lib/features/editor";
 import { find_frontmatter_span } from "$lib/shared/domain/frontmatter_parser";
 import { inject_initial_frontmatter } from "$lib/features/metadata";
+import { is_session_link } from "$lib/features/assistant";
 import { toast } from "$lib/shared/ui/toast";
 
 type WikiLinkPayload = {
@@ -479,6 +480,16 @@ export function register_note_actions(input: ActionRegistrationInput) {
       execute: async (payload: unknown) => {
         const parsed = parse_wiki_link_payload(payload);
         if (!parsed) {
+          return;
+        }
+
+        if (is_session_link(parsed.raw_path)) {
+          const session = services.search.resolve_session_link(parsed.raw_path);
+          if (session)
+            await registry.execute(
+              ACTION_IDS.assistant_open_session,
+              session.id,
+            );
           return;
         }
 

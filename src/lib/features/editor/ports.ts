@@ -65,6 +65,7 @@ export type EditorSession = {
   is_dirty: () => boolean;
   focus: () => void;
   scroll_cursor_into_view?: () => void;
+  refresh_session_links?: () => void;
   set_wiki_suggestions?: (
     items: Array<{
       title: string;
@@ -160,6 +161,9 @@ export type EditorSession = {
 };
 
 export type EditorEventHandlers = {
+  resolve_session_link?: (
+    target: string,
+  ) => { id: string; title: string } | null;
   on_markdown_change: (markdown: string) => void;
   on_dirty_state_change: (is_dirty: boolean) => void;
   on_cursor_change?: (info: CursorInfo) => void;

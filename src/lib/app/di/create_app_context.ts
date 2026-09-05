@@ -279,12 +279,18 @@ export function create_app_context(input: {
     input.ports.tag,
     input.ports.bases,
     () => stores.notes.note_access_history,
+    (vault_id) =>
+      stores.assistant_sessions.vault_id === vault_id
+        ? stores.assistant_sessions.sessions
+        : [],
   );
 
   let flush_lsp_sync: () => void = () => {};
   let note_service: NoteService | null = null;
 
   const editor_callbacks: EditorServiceCallbacks = {
+    resolve_session_link: (target) =>
+      search_service.resolve_session_link(target),
     read_note_markdown: (note_path) =>
       note_service?.read_authoritative_markdown(note_path) ??
       Promise.resolve(null),

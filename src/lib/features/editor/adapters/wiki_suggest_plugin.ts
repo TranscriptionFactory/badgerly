@@ -5,6 +5,7 @@ import {
   type SuggestState,
 } from "./suggest_plugin_factory";
 import { format_wiki_display } from "$lib/features/editor/domain/wiki_link";
+import { is_session_link } from "$lib/features/assistant";
 import { parent_folder_path } from "$lib/shared/utils/path";
 import { longest_common_prefix } from "$lib/shared/utils/longest_common_prefix";
 import type { BlockSuggestion } from "$lib/features/editor/ports";
@@ -45,7 +46,9 @@ export type WikiSuggestPluginConfig = {
 };
 
 export function describe_suggestion_location(path: string): string {
-  return parent_folder_path(path) || "Vault root";
+  return is_session_link(path)
+    ? "Assistant session"
+    : parent_folder_path(path) || "Vault root";
 }
 
 type ExtractedQuery =
@@ -77,7 +80,7 @@ export function extract_wiki_query(text_before: string): ExtractedQuery | null {
   const is_embed = open_idx > 0 && text_before[open_idx - 1] === "!";
   const effective_offset = is_embed ? open_idx - 1 : open_idx;
 
-  const hash_idx = after_open.indexOf("#");
+  const hash_idx = is_session_link(after_open) ? -1 : after_open.indexOf("#");
   if (hash_idx !== -1) {
     const note_name = after_open.slice(0, hash_idx);
     const after_hash = after_open.slice(hash_idx + 1);
@@ -214,6 +217,10 @@ export function create_wiki_suggest_prose_plugin(
       inner = `${note_prefix}#^${item.block_id}`;
     } else {
       inner = format_wiki_display(item.path);
+      if (is_session_link(item.path)) {
+        const label = item.title.replace(/[[\]|\r\n]/g, " ");
+        inner = `${inner}|${label}`;
+      }
     }
     const replacement = `${prefix}[[${inner}]]`;
 

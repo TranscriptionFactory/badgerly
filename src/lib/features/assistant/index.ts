@@ -369,3 +369,10 @@ export {
   type ReadyTurnRevertPlan,
   type TurnRevertPlan,
 } from "$lib/features/assistant/domain/proposal_turns";
+
+export {
+  is_session_link,
+  session_link_target,
+  resolve_session_link,
+  type SessionLinkTarget,
+} from "./domain/session_link";

@@ -93,6 +93,7 @@ export function create_note_routing_harness() {
     folder: {},
     settings: {},
     search: {
+      resolve_session_link: vi.fn(),
       resolve_note_link: vi.fn(),
       resolve_wiki_link: vi.fn(),
       search_omnibar: vi.fn().mockResolvedValue({ items: [] }),

@@ -111,6 +111,9 @@ function note_name_from_path(path: string): string {
 }
 
 export type EditorServiceCallbacks = {
+  resolve_session_link?: (
+    target: string,
+  ) => { id: string; title: string } | null;
   read_note_markdown?: (note_path: NotePath) => Promise<MarkdownText | null>;
   commit_note_markdown?: (
     note_path: NotePath,
@@ -910,6 +913,10 @@ export class EditorService {
     fn(id, path);
   }
 
+  refresh_session_links(): void {
+    this.session?.refresh_session_links?.();
+  }
+
   private map_wiki_suggestions(
     results: Awaited<
       ReturnType<
@@ -918,6 +925,13 @@ export class EditorService {
     >["results"],
   ) {
     return results.map((result_item) => {
+      if (result_item.kind === "session") {
+        return {
+          kind: "existing" as const,
+          title: `◈ ${result_item.title}`,
+          path: `◈ ${result_item.id}`,
+        };
+      }
       if (result_item.kind === "planned") {
         return {
           kind: "planned" as const,
@@ -1225,7 +1239,9 @@ export class EditorService {
       }
       const filtered = markdown_only
         ? result.results.filter(
-            (r) => r.kind === "planned" || r.note.file_type === null,
+            (r) =>
+              r.kind === "planned" ||
+              (r.kind === "existing" && r.note.file_type === null),
           )
         : result.results;
       const ranked = rank_note_suggestions(
@@ -1346,6 +1362,8 @@ export class EditorService {
           this.editor_store.set_selection(id, selection);
         });
       },
+      resolve_session_link: (target) =>
+        this.callbacks.resolve_session_link?.(target) ?? null,
       on_internal_link_click: (
         raw_path: string,
         base_note_path: string,

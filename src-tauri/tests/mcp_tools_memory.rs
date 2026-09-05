@@ -51,7 +51,7 @@ fn row(path: &str, index_title: &str, frontmatter_title: Option<&str>, mtime_ms:
 
 #[test]
 fn render_memory_note_writes_memory_true_title_and_body() {
-    let note = render_memory_note("Deploy region", "We deploy to eu-west.", None);
+    let note = render_memory_note("Deploy region", "We deploy to eu-west.", None).unwrap();
     assert_eq!(
         note,
         "---\nmemory: true\ntitle: \"Deploy region\"\n---\n\nWe deploy to eu-west.\n"
@@ -60,13 +60,13 @@ fn render_memory_note_writes_memory_true_title_and_body() {
 
 #[test]
 fn render_memory_note_includes_source_session_only_when_given() {
-    let with = render_memory_note("T", "b", Some("sess-1"));
-    assert!(with.contains("source_session: \"sess-1\"\n"));
+    let with = render_memory_note("T", "b", Some("sess-1")).unwrap();
+    assert!(with.contains("source_session: \"[[◈ sess-1]]\"\n"));
 
-    let blank = render_memory_note("T", "b", Some("  "));
+    let blank = render_memory_note("T", "b", Some("  ")).unwrap();
     assert!(!blank.contains("source_session"));
 
-    let quoted = render_memory_note("Say \"hi\"", "b", None);
+    let quoted = render_memory_note("Say \"hi\"", "b", None).unwrap();
     assert!(quoted.contains("title: \"Say \\\"hi\\\"\"\n"));
 }
 
@@ -176,7 +176,7 @@ fn memory_targets_reject_slug_collisions_and_ordinary_notes() {
     for (original, requested) in [("A B", "A-B"), ("???", "!!!"), ("東京", "京都"), ("Foo", "'Foo'")] {
         let path = memory_note_path("Memory", original);
         assert_eq!(path, memory_note_path("Memory", requested));
-        let content = render_memory_note(original, "preserve this", None);
+        let content = render_memory_note(original, "preserve this", None).unwrap();
         assert!(verify_memory_target(&path, &content, requested).is_err());
     }
     assert!(verify_memory_target("Memory/a-b.md", "# A B\nordinary note", "A B").is_err());
@@ -187,7 +187,7 @@ fn memory_targets_reject_slug_collisions_and_ordinary_notes() {
 fn current_disk_identity_overrules_a_stale_index_match() {
     let rows = vec![row("Memory/a-b.md", "a-b", Some("A B"), 1)];
     let indexed = find_memory_by_title(&rows, "A B").unwrap();
-    for current in ["ordinary note".to_string(), render_memory_note("A-B", "replaced", None)] {
+    for current in ["ordinary note".to_string(), render_memory_note("A-B", "replaced", None).unwrap()] {
         assert!(verify_memory_target(&indexed.note.path, &current, "A B").is_err());
     }
 }
@@ -195,7 +195,7 @@ fn current_disk_identity_overrules_a_stale_index_match() {
 #[test]
 fn same_title_memory_is_verified_at_any_path_without_trusting_the_slug() {
     for title in ["Deploy Region", "Say \"hi\"", "Path \\server"] {
-        let content = render_memory_note(title, "original", None);
+        let content = render_memory_note(title, "original", None).unwrap();
         assert!(verify_memory_target("Elsewhere/renamed.md", &content, &title.to_uppercase()).is_ok());
     }
     assert!(verify_memory_target("Memory/Deploy.md", "---\nmemory: true\n---\n", "deploy").is_ok());
@@ -219,8 +219,18 @@ fn malformed_or_ambiguous_frontmatter_is_not_proof_of_memory_identity() {
 #[test]
 fn title_serialization_cannot_inject_frontmatter_fields() {
     let title = "Deploy\nmemory: false";
-    let content = render_memory_note(title, "body", Some("session\ntitle: Other"));
+    let content = render_memory_note(title, "body", None).unwrap();
     assert!(verify_memory_target("Memory/deploy.md", &content, title).is_ok());
     assert!(verify_memory_target("Memory/deploy.md", &content, "Deploy").is_err());
     assert_eq!(content.lines().filter(|line| line.starts_with("memory:")).count(), 1);
+}
+
+#[test]
+fn memory_source_session_rejects_markup_and_control_characters_before_rendering() {
+    for source in ["[[◈ session-1]]", "◈ session-1", "id|label", "id]", "id[", "id\ntitle: Other", "id\rvalue", "id\0value"] {
+        assert!(render_memory_note("T", "body", Some(source)).is_err(), "{source:?}");
+    }
+    let note = render_memory_note("T", "body", Some("  session-1  ")).unwrap();
+    assert!(note.contains("source_session: \"[[◈ session-1]]\"\n"));
+    assert!(verify_memory_target("Memory/t.md", &note, "T").is_ok());
 }

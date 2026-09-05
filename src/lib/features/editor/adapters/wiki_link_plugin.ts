@@ -1,3 +1,4 @@
+import { Decoration, DecorationSet } from "prosemirror-view";
 import { Plugin, PluginKey, TextSelection } from "prosemirror-state";
 import type { MarkType, Node as ProseNode, Mark } from "prosemirror-model";
 import {
@@ -5,6 +6,7 @@ import {
   format_wiki_target_display,
 } from "$lib/features/editor/domain/wiki_link";
 import type { InternalLinkSource } from "$lib/features/editor/ports";
+import { is_session_link } from "$lib/features/assistant";
 import { editor_context_plugin_key } from "./editor_context_plugin";
 
 const ZERO_WIDTH_SPACE = "\u200B";
@@ -105,9 +107,42 @@ function build_replacement(input: {
 
 export function create_wiki_link_converter_prose_plugin(input: {
   link_type: MarkType;
+  resolve_session_link?:
+    | ((target: string) => { id: string; title: string } | null)
+    | undefined;
 }) {
   return new Plugin({
     key: wiki_link_plugin_key,
+    props: {
+      decorations(state) {
+        const decorations: Decoration[] = [];
+        state.doc.descendants((node, pos) => {
+          if (!node.isText) return;
+          const mark = node.marks.find((mark) => mark.type === input.link_type);
+          const href: unknown = mark?.attrs["href"];
+          if (typeof href !== "string" || !is_session_link(href)) return;
+          const session = input.resolve_session_link?.(href);
+          decorations.push(
+            Decoration.inline(
+              pos,
+              pos + node.nodeSize,
+              session
+                ? {
+                    "data-session-id": session.id,
+                    title: session.title,
+                  }
+                : {
+                    "data-session-link-broken": "true",
+                    "aria-invalid": "true",
+                    title: "Session not found or title is ambiguous",
+                    class: "text-muted-foreground underline decoration-dashed",
+                  },
+            ),
+          );
+        });
+        return DecorationSet.create(state.doc, decorations);
+      },
+    },
     appendTransaction(transactions, _old_state, new_state) {
       const force_full_scan = transactions.some((tr) =>
         is_full_scan_action(tr.getMeta(wiki_link_plugin_key)),
@@ -276,6 +311,7 @@ function is_external_url(href: string): boolean {
 function parse_internal_href(href: string): string | null {
   if (href.trim() === "" || is_external_url(href)) return null;
 
+  if (is_session_link(href)) return href.trim();
   let target = href;
   try {
     target = decodeURIComponent(target.trim());

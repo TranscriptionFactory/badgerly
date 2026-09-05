@@ -1,3 +1,5 @@
+import { is_session_link } from "$lib/features/assistant";
+
 const ANCHOR_SEPARATOR = " > ";
 
 export type WikiTarget = { path: string; fragment: string | null };
@@ -14,6 +16,8 @@ function ensure_md_extension(value: string): string {
 }
 
 export function split_wiki_target(raw_target: string): WikiTarget {
+  if (is_session_link(raw_target))
+    return { path: raw_target.trim(), fragment: null };
   const hash = raw_target.indexOf("#");
   if (hash === -1) return { path: raw_target, fragment: null };
   const fragment = raw_target.slice(hash + 1);
@@ -24,12 +28,15 @@ export function split_wiki_target(raw_target: string): WikiTarget {
 }
 
 export function format_wiki_display(vault_path: string): string {
-  return strip_md_extension(vault_path);
+  return is_session_link(vault_path)
+    ? vault_path.trim()
+    : strip_md_extension(vault_path);
 }
 
 export function build_wiki_href(raw_target: string): string {
   const { path, fragment } = split_wiki_target(raw_target);
-  const base = path === "" ? "" : ensure_md_extension(path);
+  const base =
+    path === "" ? "" : is_session_link(path) ? path : ensure_md_extension(path);
   return fragment === null ? base : `${base}#${fragment}`;
 }
 

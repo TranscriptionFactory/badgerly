@@ -1,3 +1,4 @@
+import { is_session_link } from "$lib/features/assistant";
 import { parse_to_mdast } from "$lib/features/editor";
 import { visit } from "unist-util-visit";
 import type { ExternalLink } from "../types/link";
@@ -40,7 +41,7 @@ export function extract_local_links(markdown: string): LocalLinksResult {
 
   visit(tree, "link", (node: { url: string; children: unknown[] }) => {
     const url = node.url;
-    if (!url) return;
+    if (!url || is_session_link(url)) return;
 
     if (is_external_url(url)) {
       if (!seen_urls.has(url)) {
@@ -61,7 +62,7 @@ export function extract_local_links(markdown: string): LocalLinksResult {
 
   for (const match of markdown.matchAll(WIKI_LINK_RE)) {
     const target = match[1]?.trim();
-    if (target) {
+    if (target && !is_session_link(target)) {
       const path = target.split("#")[0];
       if (path) {
         if (ATTACHMENT_EXT_RE.test(path)) {

@@ -47,6 +47,7 @@ import { create_linked_source_tree_reactor } from "$lib/reactors/linked_source_t
 import { create_plugin_note_indexed_reactor } from "$lib/reactors/plugin_note_indexed.reactor.svelte";
 import { create_plugin_metadata_events_reactor } from "$lib/reactors/plugin_metadata_events.reactor.svelte";
 import { create_mcp_autostart_reactor } from "$lib/reactors/mcp_autostart.reactor.svelte";
+import { create_session_links_reactor } from "$lib/reactors/session_links.reactor.svelte";
 import { create_assistant_sessions_load_reactor } from "$lib/reactors/assistant_sessions_load.reactor.svelte";
 import { create_assistant_readiness_reactor } from "$lib/reactors/assistant_readiness.reactor.svelte";
 import { create_assistant_proposals_sync_reactor } from "$lib/reactors/assistant_proposals_sync.reactor.svelte";
@@ -461,6 +462,11 @@ export function mount_reactors(context: ReactorContext): ReactorHandles {
       context.vault_store,
       context.ui_store,
       context.mcp_service,
+    ),
+    create_session_links_reactor(
+      context.assistant_sessions,
+      context.vault_store,
+      context.editor_service,
     ),
     create_assistant_sessions_load_reactor(
       context.assistant_sessions,

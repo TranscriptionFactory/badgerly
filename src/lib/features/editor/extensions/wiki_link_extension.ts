@@ -25,6 +25,7 @@ export function create_wiki_link_extension(
     plugins.push(
       create_wiki_link_converter_prose_plugin({
         link_type: link_mark_type,
+        resolve_session_link: ctx.events.resolve_session_link,
       }),
     );
   }
