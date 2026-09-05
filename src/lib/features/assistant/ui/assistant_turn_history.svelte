@@ -33,9 +33,10 @@
 
   type SessionTurns = { session_id: string; turns: ProposalTurn[] };
 
-  type PendingConfirm =
+  type PendingConfirm = (
     | { kind: "turn"; turn_id: RunId; plan: ReadyTurnRevertPlan }
-    | { kind: "session"; session_id: string; plan: ReadyTurnRevertPlan };
+    | { kind: "session"; session_id: string; plan: ReadyTurnRevertPlan }
+  ) & { refreshed?: boolean };
 
   const session_by_id = $derived(
     new Map(session_summaries.map((session) => [session.id, session])),
@@ -80,10 +81,29 @@
     on_revert_session(session_id, false);
   }
 
+  function revert_scope(plan: ReadyTurnRevertPlan): string {
+    return JSON.stringify([
+      plan.target.turn_id,
+      plan.target.ordinal,
+      plan.anchor,
+      plan.proposals.map((proposal) => proposal.id),
+      plan.note_paths,
+    ]);
+  }
+
   function confirm_pending() {
     const confirmed = pending;
     pending = null;
     if (!confirmed) return;
+    const current =
+      confirmed.kind === "turn"
+        ? plan_turn_revert(proposals, confirmed.turn_id)
+        : plan_session_revert(proposals, confirmed.session_id);
+    if (current.status !== "ready") return;
+    if (revert_scope(current) !== revert_scope(confirmed.plan)) {
+      pending = { ...confirmed, plan: current, refreshed: true };
+      return;
+    }
     if (confirmed.kind === "turn") on_revert_turn(confirmed.turn_id, true);
     else on_revert_session(confirmed.session_id, true);
   }
@@ -171,6 +191,12 @@
             class="flex flex-col gap-2 rounded-md bg-accent p-2 text-xs text-accent-foreground"
             data-testid="assistant-revert-confirm"
           >
+            {#if pending.refreshed}
+              <p>
+                The edits to revert changed. Review the updated scope and
+                confirm again.
+              </p>
+            {/if}
             <p>{describe_turn_revert(pending.plan)}</p>
             <div class="flex items-center gap-2">
               <button
@@ -179,7 +205,10 @@
                 data-testid="assistant-revert-confirm-accept"
                 onclick={confirm_pending}
               >
-                Revert {pending.plan.later_turns.length + 1} turns
+                Revert {pending.plan.later_turns.length + 1} turn{pending.plan
+                  .later_turns.length === 0
+                  ? ""
+                  : "s"}
               </button>
               <button
                 type="button"
