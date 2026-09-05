@@ -136,7 +136,7 @@ fn all_new_properties_have_type_and_description() {
 }
 
 #[test]
-fn router_lists_all_eight_tools() {
+fn router_lists_all_twenty_eight_tools() {
     use crate::features::mcp::router::McpRouter;
     use crate::features::mcp::types::*;
     use serde_json::json;
@@ -164,7 +164,7 @@ fn router_lists_all_eight_tools() {
     let resp = router.handle_request(&list_req).unwrap();
     let result = resp.result.unwrap();
     let tools = result["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 25);
+    assert_eq!(tools.len(), 28);
 
     let names: Vec<&str> = tools.iter().map(|t| t["name"].as_str().unwrap()).collect();
     assert!(names.contains(&"list_notes"));
@@ -176,6 +176,9 @@ fn router_lists_all_eight_tools() {
     assert!(names.contains(&"reindex"));
     assert!(names.contains(&"get_note_metadata"));
     assert!(names.contains(&"list_vaults"));
+    assert!(names.contains(&"get_note_history"));
+    assert!(names.contains(&"read_note_version"));
+    assert!(names.contains(&"create_checkpoint"));
 }
 
 #[test]

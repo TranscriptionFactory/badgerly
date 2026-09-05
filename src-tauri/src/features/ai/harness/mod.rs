@@ -31,9 +31,13 @@ impl MutatingToolSet {
     }
 
     pub fn contains(&self, name: &str) -> bool {
-        MUTATING_BUILTIN_TOOLS.contains(&name)
-            || self.mcp_names.contains(name)
-            || self.mcp_names.contains(&format!("{MCP_TOOL_PREFIX}{name}"))
+        MUTATING_BUILTIN_TOOLS.contains(&name) || self.mcp_name(name).is_some()
+    }
+
+    pub fn mcp_name(&self, name: &str) -> Option<&str> {
+        self.mcp_names.get(name)
+            .or_else(|| self.mcp_names.get(&format!("{MCP_TOOL_PREFIX}{name}")))
+            .map(String::as_str)
     }
 }
 

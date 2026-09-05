@@ -4,13 +4,13 @@ use git2::{
 };
 use serde::Serialize;
 use specta::Type;
+use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 pub(crate) const NOTHING_TO_COMMIT: &str = "nothing to commit";
 const CHECKPOINT_PREFIX: &str = "Checkpoint:";
 const CHECKPOINT_TAG_SLUG_MAX: usize = 40;
-const RENAME_WALK_LIMIT: usize = 10_000;
 
 #[derive(Debug, Clone, Serialize, Type)]
 pub struct GitFileStatus {
@@ -480,7 +480,7 @@ pub(crate) fn checkpoint_message(description: &str) -> String {
 pub(crate) fn checkpoint_tag_name(description: &str, now_ms: u128) -> String {
     let mut slug = String::new();
     let mut pending_dash = false;
-    for ch in description.trim().to_ascii_lowercase().chars() {
+    for ch in description.to_lowercase().chars() {
         if ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-') {
             if pending_dash && !slug.is_empty() {
                 slug.push('-');
@@ -491,9 +491,12 @@ pub(crate) fn checkpoint_tag_name(description: &str, now_ms: u128) -> String {
             pending_dash = true;
         }
     }
-    let slug: String = slug.chars().take(CHECKPOINT_TAG_SLUG_MAX).collect();
-    let base = slug.trim_matches('-');
-    let base = if base.is_empty() { "checkpoint" } else { base };
+    let slug: String = slug
+        .trim_matches('-')
+        .chars()
+        .take(CHECKPOINT_TAG_SLUG_MAX)
+        .collect();
+    let base = if slug.is_empty() { "checkpoint" } else { &slug };
     format!("checkpoint-{}-{}", base, now_ms)
 }
 
@@ -588,63 +591,80 @@ pub async fn git_log(
     }
 }
 
-// Walks history from HEAD handing `visit` the name the file had at each commit,
-// so a note renamed along the way is followed back to its old path. Rename
-// detection is only attempted where the current name first appears in a
-// commit's tree, since that is the only place a rename can have happened.
+// Topological order ensures all child trails reach a commit before it is visited.
 fn walk_path_history<F>(repo: &Repository, path: &str, mut visit: F) -> Result<(), String>
 where
-    F: FnMut(&git2::Commit<'_>, &str) -> bool,
+    F: FnMut(&git2::Commit<'_>, &BTreeSet<String>) -> bool,
 {
-    match repo.head() {
+    let head = match repo.head() {
         Err(e) if e.code() == git2::ErrorCode::UnbornBranch => return Ok(()),
         Err(e) => return Err(format!("failed to read HEAD: {}", e)),
-        Ok(_) => {}
-    }
-
+        Ok(head) => head
+            .peel_to_commit()
+            .map_err(|e| format!("failed to read HEAD commit: {}", e))?
+            .id(),
+    };
     let mut revwalk = repo
         .revwalk()
         .map_err(|e| format!("failed to create revwalk: {}", e))?;
     revwalk
-        .push_head()
+        .push(head)
         .map_err(|e| format!("failed to push HEAD: {}", e))?;
     revwalk
         .set_sorting(Sort::TIME | Sort::TOPOLOGICAL)
         .map_err(|e| format!("failed to set sorting: {}", e))?;
 
-    let mut current = path.to_string();
-    for oid_result in revwalk.take(RENAME_WALK_LIMIT) {
+    let mut paths = HashMap::from([(head, BTreeSet::from([path.to_string()]))]);
+    for oid_result in revwalk {
         let oid = oid_result.map_err(|e| format!("revwalk error: {}", e))?;
         let commit = repo
             .find_commit(oid)
             .map_err(|e| format!("failed to find commit: {}", e))?;
+        let current = paths
+            .remove(&oid)
+            .expect("each ancestor receives its child paths");
         if !visit(&commit, &current) {
             break;
         }
-        if let Some(old_path) = renamed_from(repo, &commit, &current) {
-            current = old_path;
+        let tree = commit
+            .tree()
+            .map_err(|e| format!("failed to read tree: {}", e))?;
+        for parent in commit.parents() {
+            let parent_tree = parent
+                .tree()
+                .map_err(|e| format!("failed to read parent tree: {}", e))?;
+            let parent_paths = paths.entry(parent.id()).or_insert_with(BTreeSet::new);
+            for path in &current {
+                parent_paths.insert(
+                    renamed_from(repo, &tree, &parent_tree, path)?.unwrap_or_else(|| path.clone()),
+                );
+            }
         }
     }
     Ok(())
 }
 
-fn renamed_from(repo: &Repository, commit: &git2::Commit<'_>, path: &str) -> Option<String> {
-    let parent_tree = commit.parent(0).ok()?.tree().ok()?;
-    let tree = commit.tree().ok()?;
+fn renamed_from(
+    repo: &Repository,
+    tree: &git2::Tree<'_>,
+    parent_tree: &git2::Tree<'_>,
+    path: &str,
+) -> Result<Option<String>, String> {
     let appeared_here =
         tree.get_path(Path::new(path)).is_ok() && parent_tree.get_path(Path::new(path)).is_err();
     if !appeared_here {
-        return None;
+        return Ok(None);
     }
 
     let mut diff = repo
-        .diff_tree_to_tree(Some(&parent_tree), Some(&tree), None)
-        .ok()?;
+        .diff_tree_to_tree(Some(parent_tree), Some(tree), None)
+        .map_err(|e| format!("failed to diff rename history: {}", e))?;
     diff.find_similar(Some(DiffFindOptions::new().renames(true)))
-        .ok()?;
-    diff.deltas()
+        .map_err(|e| format!("failed to detect renames: {}", e))?;
+    Ok(diff
+        .deltas()
         .find(|d| d.status() == Delta::Renamed && d.new_file().path() == Some(Path::new(path)))
-        .and_then(|d| d.old_file().path().map(|p| p.to_string_lossy().into_owned()))
+        .and_then(|d| d.old_file().path().map(|p| p.to_string_lossy().into_owned())))
 }
 
 pub(crate) fn collect_file_history(
@@ -654,8 +674,14 @@ pub(crate) fn collect_file_history(
 ) -> Result<Vec<GitCommit>, String> {
     let repo = open_repo(vault_path)?;
     let mut commits = Vec::new();
-    walk_path_history(&repo, file_path, |commit, path_here| {
-        if commit_touches_file(&repo, commit, path_here) {
+    if limit == 0 {
+        return Ok(commits);
+    }
+    walk_path_history(&repo, file_path, |commit, paths_here| {
+        if paths_here
+            .iter()
+            .any(|path| commit_touches_file(&repo, commit, path))
+        {
             commits.push(to_git_commit(commit.clone()));
         }
         commits.len() < limit
@@ -677,16 +703,31 @@ pub(crate) fn path_at_ref(
         .map_err(|e| format!("failed to peel to commit: {}", e))?
         .id();
 
-    let mut resolved = file_path.to_string();
-    let mut reached = false;
-    walk_path_history(repo, file_path, |commit, path_here| {
-        if commit.id() == target {
-            resolved = path_here.to_string();
-            reached = true;
+    let mut resolved = Ok(file_path.to_string());
+    walk_path_history(repo, file_path, |commit, paths_here| {
+        if commit.id() != target {
+            return true;
         }
-        !reached
+        resolved = commit
+            .tree()
+            .map_err(|e| format!("failed to read target tree: {}", e))
+            .and_then(|tree| {
+                let candidates: Vec<_> = paths_here
+                    .iter()
+                    .filter(|path| tree.get_path(Path::new(path)).is_ok())
+                    .collect();
+                match candidates.as_slice() {
+                    [] => Err(format!("file {} not found at {}", file_path, commit_ref)),
+                    [path] => Ok((*path).clone()),
+                    _ => Err(format!(
+                        "ambiguous rename resolution for {} at {}: {:?}",
+                        file_path, commit_ref, candidates,
+                    )),
+                }
+            });
+        false
     })?;
-    Ok(resolved)
+    resolved
 }
 
 pub(crate) fn git_show_file_following_renames(

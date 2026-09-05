@@ -142,7 +142,8 @@ fn build_spec(agent: &str, request: &RequestPermissionRequest) -> PermissionRequ
 
 #[test]
 fn checkpoint_approval_issues_one_http_ticket_but_rejection_issues_none() {
-    for wire_kind in [None, Some("read"), Some("edit"), Some("execute")] {
+    for (name, wire_kind) in ["create_checkpoint", "mcp__carbide__create_checkpoint"].into_iter()
+        .flat_map(|name| [None, Some("read"), Some("edit"), Some("execute")].map(|kind| (name, kind))) {
         for choice in [PermissionOptionKind::AllowOnce, PermissionOptionKind::AllowAlways,
                        PermissionOptionKind::RejectOnce, PermissionOptionKind::RejectAlways] {
             let dir = tempfile::tempdir().unwrap();
@@ -150,7 +151,7 @@ fn checkpoint_approval_issues_one_http_ticket_but_rejection_issues_none() {
             let policy = SessionPolicy::default();
             let request = serde_json::from_value(json!({
                 "sessionId": "sess-1",
-                "toolCall": { "toolCallId": "call-1", "title": "mcp__carbide__create_checkpoint", "kind": wire_kind },
+                "toolCall": { "toolCallId": "call-1", "title": name, "kind": wire_kind },
                 "options": all_options(),
             })).unwrap();
             let spec = build_spec("claude", &request);

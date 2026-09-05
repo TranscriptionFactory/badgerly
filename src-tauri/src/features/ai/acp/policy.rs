@@ -39,7 +39,7 @@ pub fn build_request_spec(
     PermissionRequestSpec {
         agent_id: agent_id.to_string(),
         tool_call_id: Some(tool_call_id),
-        name: name.clone(),
+        name: mutating_tools.mcp_name(&name).unwrap_or(&name).to_string(),
         kind,
         input_summary: fields
             .raw_input

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import checkpoint_tags from "../../fixtures/checkpoint_tags.json";
 import { GitService } from "$lib/features/git/application/git_service";
 import { GitStore } from "$lib/features/git/state/git_store.svelte";
 import { OpStore } from "$lib/app/orchestration/op_store.svelte";
@@ -274,6 +275,26 @@ describe("GitService", () => {
     // pins itself to; it used to be discarded one layer below this.
     expect(result).toEqual({ status: "created", sha: "abc123" });
   });
+
+  it.each(checkpoint_tags)(
+    "normalizes checkpoint tag: $description",
+    async ({ description, slug }) => {
+      const { service, status, create_tag } = create_harness();
+      status.mockResolvedValue({
+        branch: "main",
+        is_dirty: true,
+        ahead: 0,
+        behind: 0,
+        files: [{ path: "a.md", status: "modified" }],
+      });
+      await service.create_checkpoint(description);
+      expect(create_tag).toHaveBeenCalledWith(
+        expect.anything(),
+        `checkpoint-${slug}-1000`,
+        `Checkpoint: ${description}`,
+      );
+    },
+  );
 
   it("create_checkpoint keeps the sha when only tagging fails", async () => {
     const { service, status, create_tag } = create_harness();
