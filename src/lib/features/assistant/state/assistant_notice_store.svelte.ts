@@ -41,13 +41,41 @@ export class AssistantNoticeStore {
     ];
   }
 
+  // Declined (source, target) pairs for `missing_link`, keyed by source note.
+  // Not `$state`: nothing renders from it; the reactor reads it when it
+  // rebuilds a note's set. Accept retires through `dismiss` too, so an
+  // accepted pair is also held back until the note is saved — otherwise a
+  // cache replay would re-offer a link that is already queued for review.
+  private suppressed_missing_links = new Map<string, Set<string>>();
+
   dismiss(id: AmbientNoticeId): void {
+    const notice = this.get(id);
+    if (notice?.kind === "missing_link" && notice.target_path) {
+      this.suppress_missing_link(notice.note_path, notice.target_path);
+    }
     this.notices = this.notices.filter((notice) => notice.id !== id);
+  }
+
+  private suppress_missing_link(note_path: string, target_path: string): void {
+    const targets = this.suppressed_missing_links.get(note_path) ?? new Set();
+    targets.add(target_path);
+    this.suppressed_missing_links.set(note_path, targets);
+  }
+
+  suppressed_missing_link_targets(note_path: string): string[] {
+    return [...(this.suppressed_missing_links.get(note_path) ?? [])];
+  }
+
+  // The declines were about the note as it was; once its mtime moves the
+  // reactor calls this before it re-queries.
+  lift_missing_link_suppressions(note_path: string): void {
+    this.suppressed_missing_links.delete(note_path);
   }
 
   // Vault switch clears everything — notices are scoped to the vault whose
   // links produced them.
   clear(): void {
     this.notices = [];
+    this.suppressed_missing_links.clear();
   }
 }

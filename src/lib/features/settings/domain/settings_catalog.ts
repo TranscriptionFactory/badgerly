@@ -753,6 +753,40 @@ export const SETTINGS_REGISTRY: SettingDefinition[] = [
     ],
   },
   {
+    key: "ambient_missing_link_min_score",
+    label: "Missing Link Min Similarity",
+    description:
+      "Only suggest a link when a block of the open note is at least this similar (cosine, 0–1) to a block in a note it does not link to — higher keeps fewer, closer matches. Needs Ambient Notices",
+    category: "AI",
+    keywords: [
+      "ambient",
+      "missing",
+      "link",
+      "similarity",
+      "score",
+      "threshold",
+      "suggestions",
+      "assistant",
+    ],
+  },
+  {
+    key: "ambient_missing_link_max_notices",
+    label: "Missing Link Suggestions",
+    description:
+      "Maximum missing-link suggestions offered for the open note. 0 turns the finding off. Needs Ambient Notices",
+    category: "AI",
+    keywords: [
+      "ambient",
+      "missing",
+      "link",
+      "notices",
+      "limit",
+      "count",
+      "suggestions",
+      "assistant",
+    ],
+  },
+  {
     key: "document_pdf_default_zoom",
     label: "PDF Default Zoom",
     description: "Initial zoom mode when opening PDFs",

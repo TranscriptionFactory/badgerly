@@ -122,6 +122,19 @@ function stale_link_notice() {
   });
 }
 
+function missing_link_notice() {
+  return make_ambient_notice({
+    note_path: NOTE,
+    kind: "missing_link",
+    target_path: "notes/b.md",
+    anchor: { kind: "text", match: "Results", occurrence: 0 },
+    offer: {
+      action_id: ACTION_IDS.assistant_accept_notice,
+      label: "Add link",
+    },
+  });
+}
+
 function seed(
   h: ReturnType<typeof create_harness>,
   notice = stale_link_notice(),
@@ -260,6 +273,39 @@ describe("assistant notice actions — I6 offer-only", () => {
     await h.registry.execute(ACTION_IDS.assistant_accept_notice, notice.id);
 
     expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it("accepting a missing-link notice proposes appending [[B]] and writes nothing", async () => {
+    const h = create_harness();
+    const notice = seed(h, missing_link_notice());
+
+    await h.registry.execute(ACTION_IDS.assistant_accept_notice, notice.id);
+
+    const added = h.assistant_proposals.proposals[0]?.hunks
+      .flatMap((hunk) => hunk.lines)
+      .filter((line) => line.kind === "add")
+      .map((line) => line.content)
+      .join("\n");
+
+    expect(added).toContain("[[notes/b]]");
+    expect(h.assistant_proposals.proposals[0]?.target).toEqual({
+      kind: "note",
+      note_path: NOTE,
+    });
+    expect(h.write_note_indexed).not.toHaveBeenCalled();
+  });
+
+  it("declining a missing-link notice suppresses the (A, B) pair", async () => {
+    const h = create_harness();
+    const notice = seed(h, missing_link_notice());
+
+    await h.registry.execute(ACTION_IDS.assistant_dismiss_notice, notice.id);
+
+    expect(h.assistant_notices.get(notice.id)).toBeNull();
+    expect(h.assistant_notices.suppressed_missing_link_targets(NOTE)).toEqual([
+      "notes/b.md",
+    ]);
+    expect(h.assistant_proposals.proposals).toEqual([]);
   });
 
   // An orphan_note finding has no deterministic single-note repair, so it

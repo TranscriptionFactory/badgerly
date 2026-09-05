@@ -47,6 +47,7 @@ function make_mock_graph_port(): GraphPort {
 function make_mock_search_port(batch_edges: SemanticEdge[] = []): SearchPort {
   return {
     find_similar_notes: vi.fn().mockResolvedValue([]),
+    find_missing_links: vi.fn().mockResolvedValue([]),
     semantic_search_batch: vi.fn().mockResolvedValue(batch_edges),
     search_notes: vi.fn().mockResolvedValue([]),
     suggest_wiki_links: vi.fn().mockResolvedValue([]),

@@ -36,7 +36,7 @@ import {
 import { create_mock_search_port } from "../helpers/mock_ports";
 import { create_test_graph_adapter } from "../../adapters/test_graph_adapter";
 import { create_test_vault } from "../helpers/test_fixtures";
-import type { NoteLinksSnapshot } from "$lib/features/search";
+import type { MissingLinkHit, NoteLinksSnapshot } from "$lib/features/search";
 import type { NoteMeta } from "$lib/shared/types/note";
 
 const SCAN_DEBOUNCE_MS = 400;
@@ -80,10 +80,23 @@ function snapshot(
 // Composes a configured base rather than stubbing the spy: the spy must wrap a
 // port that really answers, or the recording proves nothing about the call
 // path.
-function search_base(result: NoteLinksSnapshot) {
+function search_base(
+  result: NoteLinksSnapshot,
+  missing_links: () => Promise<MissingLinkHit[]> = () => Promise.resolve([]),
+) {
   return {
     ...create_mock_search_port(),
     get_note_links_snapshot: () => Promise.resolve(result),
+    find_missing_links: missing_links,
+  };
+}
+
+function missing_link_hit(target_path: string): MissingLinkHit {
+  return {
+    source_heading_id: "h-2-results-1",
+    source_heading: "Results",
+    target_path,
+    score: 0.8,
   };
 }
 
@@ -94,6 +107,8 @@ type HarnessOptions = {
   note?: string | null;
   is_dirty?: boolean;
   result?: NoteLinksSnapshot;
+  missing_links?: () => Promise<MissingLinkHit[]>;
+  max_notices?: number;
 };
 
 function make_harness(options: HarnessOptions = {}) {
@@ -104,10 +119,13 @@ function make_harness(options: HarnessOptions = {}) {
     note = NOTE,
     is_dirty = false,
     result = snapshot(),
+    missing_links = () => Promise.resolve([]),
+    max_notices = 3,
   } = options;
 
   const ui_store = new UIStore();
   ui_store.editor_settings.ambient_notices_enabled = enabled;
+  ui_store.editor_settings.ambient_missing_link_max_notices = max_notices;
   ui_store.editor_settings_loaded = settings_loaded;
 
   const vault_store = new VaultStore();
@@ -117,7 +135,7 @@ function make_harness(options: HarnessOptions = {}) {
   if (note) editor_store.set_open_note(open_note_state(note, is_dirty));
 
   const notice_store = new AssistantNoticeStore();
-  const search_spy = create_search_port_spy(search_base(result));
+  const search_spy = create_search_port_spy(search_base(result, missing_links));
   const graph_spy = create_graph_port_spy(create_test_graph_adapter());
 
   const unmount = create_ambient_reactor(
@@ -357,6 +375,182 @@ describe("ambient reactor — producing notices", () => {
 
     expect(notice_store.notices).toEqual([]);
     unmount();
+  });
+});
+
+describe("ambient reactor — missing links: one Rust call per (note, mtime)", () => {
+  const B = "notes/fusion-weights.md";
+
+  function missing_link_ids(h: ReturnType<typeof make_harness>) {
+    return h.notice_store
+      .for_note(NOTE)
+      .filter((n) => n.kind === "missing_link")
+      .map((n) => n.target_path);
+  }
+
+  // Simulates a save: dirty, then clean at a new mtime, exactly as
+  // `NoteService` drives `EditorStore.mark_clean`.
+  async function save_note(h: ReturnType<typeof make_harness>, mtime: number) {
+    h.editor_store.set_dirty(as_note_path(NOTE), true);
+    await settle();
+    h.editor_store.mark_clean(as_note_path(NOTE), mtime);
+    await settle();
+  }
+
+  it("performs no find_missing_links call when the opt-in is off", async () => {
+    const h = make_harness({
+      enabled: false,
+      missing_links: () => Promise.resolve([missing_link_hit(B)]),
+    });
+    await settle();
+
+    expect(h.search_spy._calls.find_missing_links).toEqual([]);
+    h.unmount();
+  });
+
+  it("POSITIVE CONTROL: calls find_missing_links once with the note and both settings", async () => {
+    const h = make_harness({
+      enabled: true,
+      max_notices: 2,
+      missing_links: () => Promise.resolve([missing_link_hit(B)]),
+    });
+    h.ui_store.editor_settings.ambient_missing_link_min_score = 0.7;
+    await settle();
+
+    expect(h.search_spy._calls.find_missing_links).toEqual([
+      { vault_id: "vault-1", note_path: NOTE, k: 2, min_score: 0.7 },
+    ]);
+    expect(missing_link_ids(h)).toEqual([B]);
+    h.unmount();
+  });
+
+  it("serves the same (path, mtime) from cache: a note switch and back makes no further call", async () => {
+    const h = make_harness({
+      enabled: true,
+      missing_links: () => Promise.resolve([missing_link_hit(B)]),
+    });
+    await settle();
+    expect(h.search_spy._calls.find_missing_links).toHaveLength(1);
+
+    h.editor_store.set_open_note(open_note_state("notes/second.md"));
+    await settle();
+    h.editor_store.set_open_note(open_note_state(NOTE));
+    await settle();
+
+    expect(h.search_spy._calls.find_missing_links).toHaveLength(2);
+    expect(
+      h.search_spy._calls.find_missing_links.map((c) => c.note_path),
+    ).toEqual([NOTE, "notes/second.md"]);
+    expect(h.search_spy._calls.get_note_links_snapshot).toHaveLength(3);
+    expect(missing_link_ids(h)).toEqual([B]);
+    h.unmount();
+  });
+
+  it("calls again once the note's mtime changes", async () => {
+    const h = make_harness({
+      enabled: true,
+      missing_links: () => Promise.resolve([missing_link_hit(B)]),
+    });
+    await settle();
+
+    await save_note(h, 5);
+
+    expect(
+      h.search_spy._calls.find_missing_links.filter(
+        (c) => c.note_path === NOTE,
+      ),
+    ).toHaveLength(2);
+    h.unmount();
+  });
+
+  it("makes no find_missing_links call when max_notices is 0, but still scans links", async () => {
+    const h = make_harness({
+      enabled: true,
+      max_notices: 0,
+      result: snapshot({
+        orphan_links: [{ target_path: "gone", ref_count: 1 }],
+      }),
+      missing_links: () => Promise.resolve([missing_link_hit(B)]),
+    });
+    await settle();
+
+    expect(h.search_spy._calls.find_missing_links).toEqual([]);
+    expect(h.notice_store.for_note(NOTE).map((n) => n.kind)).toEqual([
+      "stale_link",
+    ]);
+    h.unmount();
+  });
+
+  it("keeps the link findings when the similarity call fails, and retries next settle", async () => {
+    const h = make_harness({
+      enabled: true,
+      result: snapshot({
+        orphan_links: [{ target_path: "gone", ref_count: 1 }],
+      }),
+      missing_links: () => Promise.reject(new Error("no embeddings")),
+    });
+    await settle();
+    expect(h.notice_store.for_note(NOTE).map((n) => n.kind)).toEqual([
+      "stale_link",
+    ]);
+
+    h.editor_store.set_open_note(open_note_state("notes/second.md"));
+    await settle();
+    h.editor_store.set_open_note(open_note_state(NOTE));
+    await settle();
+
+    expect(
+      h.search_spy._calls.find_missing_links.filter(
+        (c) => c.note_path === NOTE,
+      ),
+    ).toHaveLength(2);
+    h.unmount();
+  });
+
+  it("keeps a declined pair hidden across cache replays and lifts it once the mtime changes", async () => {
+    const h = make_harness({
+      enabled: true,
+      missing_links: () => Promise.resolve([missing_link_hit(B)]),
+    });
+    await settle();
+    const [notice] = h.notice_store
+      .for_note(NOTE)
+      .filter((n) => n.kind === "missing_link");
+    expect(notice?.target_path).toBe(B);
+
+    h.notice_store.dismiss(notice?.id ?? "");
+    h.editor_store.set_open_note(open_note_state("notes/second.md"));
+    await settle();
+    h.editor_store.set_open_note(open_note_state(NOTE));
+    await settle();
+
+    expect(missing_link_ids(h)).toEqual([]);
+    expect(
+      h.search_spy._calls.find_missing_links.filter(
+        (c) => c.note_path === NOTE,
+      ),
+    ).toHaveLength(1);
+
+    await save_note(h, 5);
+
+    expect(missing_link_ids(h)).toEqual([B]);
+    h.unmount();
+  });
+
+  // A linked target never reaches the producer: the exclusion is Rust's, so
+  // the reactor forwards whatever the port returns without a second filter
+  // against the snapshot's outlinks. This pins that division of labour.
+  it("trusts the port's exclusion of linked targets rather than re-filtering on the snapshot", async () => {
+    const h = make_harness({
+      enabled: true,
+      result: snapshot({ outlinks: [note_meta(B)] }),
+      missing_links: () => Promise.resolve([]),
+    });
+    await settle();
+
+    expect(h.search_spy._calls.find_missing_links).toHaveLength(1);
+    expect(missing_link_ids(h)).toEqual([]);
+    h.unmount();
   });
 });
 

@@ -1,10 +1,11 @@
 import { create_debounced_task_controller } from "$lib/reactors/debounced_task";
 import type {
+  AmbientLinkFacts,
   AmbientNotice,
   AssistantNoticeStore,
 } from "$lib/features/assistant";
 import type { EditorStore } from "$lib/features/editor";
-import type { SearchPort } from "$lib/features/search";
+import type { MissingLinkHit, SearchPort } from "$lib/features/search";
 import type { UIStore } from "$lib/app";
 import type { VaultStore } from "$lib/features/vault";
 import type { VaultId } from "$lib/shared/types/ids";
@@ -32,18 +33,12 @@ export type AmbientDecision = {
   next_state: AmbientReactorState;
 };
 
-// Structurally typed rather than imported from
-// `assistant/domain/ambient_producers`: the layering lint bans cross-feature
-// deep imports, and `assistant/index.ts` is E2-banned for this lane, so the
-// producer arrives as a dependency instead. `produce_ambient_notices` satisfies
-// this shape. WIRING.md names it as the value to pass at the mount site.
+// The producer arrives as a dependency rather than being imported here: the
+// layering lint bans cross-feature deep imports, and keeping the reactor
+// ignorant of which producers exist is what lets the tests swap one in.
+// `produce_ambient_notices` is the value passed at the mount site.
 export type AmbientProducer = (
-  facts: {
-    note_path: string;
-    backlinks: readonly unknown[];
-    outlinks: readonly unknown[];
-    orphan_links: readonly { target_path: string; ref_count: number }[];
-  },
+  facts: AmbientLinkFacts,
   now: number,
 ) => AmbientNotice[];
 
@@ -126,6 +121,17 @@ export function resolve_ambient_decision(
   };
 }
 
+type ScanRequest = {
+  vault_id: string;
+  note_path: string;
+  mtime_ms: number;
+};
+
+type MissingLinkCacheEntry = {
+  mtime_ms: number;
+  hits: MissingLinkHit[];
+};
+
 export function create_ambient_reactor(
   ui_store: UIStore,
   vault_store: VaultStore,
@@ -139,16 +145,60 @@ export function create_ambient_reactor(
   // Guards against a snapshot landing after the note moved on; the reply would
   // otherwise be written against whatever note is open by then.
   let generation = 0;
+  // Block similarity is the expensive half of a scan, so it is fetched once per
+  // (note, mtime) and replayed from here on every revisit until the note is
+  // saved again. A new mtime also lifts the user's declines for that note.
+  const missing_link_cache = new Map<string, MissingLinkCacheEntry>();
 
-  const scan = create_debounced_task_controller<{
-    vault_id: string;
-    note_path: string;
-  }>({
-    run: ({ vault_id, note_path }) => {
+  function clear_all() {
+    notice_store.clear();
+    missing_link_cache.clear();
+  }
+
+  function load_missing_links({
+    vault_id,
+    note_path,
+    mtime_ms,
+  }: ScanRequest): Promise<MissingLinkHit[]> {
+    const settings = ui_store.editor_settings;
+    if (settings.ambient_missing_link_max_notices <= 0) {
+      return Promise.resolve([]);
+    }
+
+    const cached = missing_link_cache.get(note_path);
+    if (cached && cached.mtime_ms === mtime_ms) {
+      return Promise.resolve(cached.hits);
+    }
+
+    notice_store.lift_missing_link_suppressions(note_path);
+    return search_port
+      .find_missing_links(
+        vault_id as VaultId,
+        note_path,
+        settings.ambient_missing_link_max_notices,
+        settings.ambient_missing_link_min_score,
+      )
+      .then((hits) => {
+        missing_link_cache.set(note_path, { mtime_ms, hits });
+        return hits;
+      })
+      .catch(() => {
+        // Similarity is the optional half of a scan: without embeddings the
+        // link findings still stand, and nothing is cached so the next
+        // settle retries.
+        return [];
+      });
+  }
+
+  const scan = create_debounced_task_controller<ScanRequest>({
+    run: (request) => {
       const scan_generation = generation;
-      void search_port
-        .get_note_links_snapshot(vault_id as VaultId, note_path)
-        .then((snapshot) => {
+      const { vault_id, note_path } = request;
+      void Promise.all([
+        search_port.get_note_links_snapshot(vault_id as VaultId, note_path),
+        load_missing_links(request),
+      ])
+        .then(([snapshot, missing_links]) => {
           if (scan_generation !== generation) return;
           notice_store.replace_for_note(
             note_path,
@@ -158,6 +208,11 @@ export function create_ambient_reactor(
                 backlinks: snapshot.backlinks,
                 outlinks: snapshot.outlinks,
                 orphan_links: snapshot.orphan_links,
+                missing_links,
+                suppressed_targets:
+                  notice_store.suppressed_missing_link_targets(note_path),
+                missing_link_max_notices:
+                  ui_store.editor_settings.ambient_missing_link_max_notices,
               },
               now(),
             ),
@@ -187,19 +242,23 @@ export function create_ambient_reactor(
       scan.cancel();
 
       if (decision.action === "clear") {
-        notice_store.clear();
+        clear_all();
         return;
       }
 
       if (decision.clear_first) {
-        notice_store.clear();
+        clear_all();
       }
 
       const vault_id = vault_store.active_vault_id;
       if (!vault_id || !decision.note_path) return;
 
       scan.schedule(
-        { vault_id: String(vault_id), note_path: decision.note_path },
+        {
+          vault_id: String(vault_id),
+          note_path: decision.note_path,
+          mtime_ms: editor_store.open_note?.meta.mtime_ms ?? 0,
+        },
         SCAN_DEBOUNCE_MS,
       );
     });
