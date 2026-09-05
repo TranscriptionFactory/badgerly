@@ -1,3 +1,7 @@
+import { make_proposal } from "../helpers/assistant_proposal_fixtures";
+import { PROPOSAL_MUTATION_OP } from "$lib/features/assistant/types/proposal";
+import { OpStore } from "$lib/app/orchestration/op_store.svelte";
+import { AssistantProposalStore } from "$lib/features/assistant/state/assistant_proposal_store.svelte";
 import { describe, expect, it, vi } from "vitest";
 import { AgentRunner } from "$lib/features/assistant";
 import { AssistantChatStore } from "$lib/features/assistant";
@@ -65,6 +69,10 @@ function make_harness(events: RunEvent[]) {
     next_mtime += 1;
     return Promise.resolve(next_mtime);
   });
+  const mutations = {
+    proposals: new AssistantProposalStore(),
+    ops: new OpStore(),
+  };
   const runner = new AgentRunner(
     starter,
     rag_store,
@@ -74,8 +82,10 @@ function make_harness(events: RunEvent[]) {
     sync_changed_notes,
     proposals,
     read_note_mtime,
+    mutations,
   );
   return {
+    mutations,
     runner,
     rag_store,
     calls,
@@ -308,6 +318,7 @@ describe("AgentRunner.run_turn", () => {
       vi.fn(),
       create_test_proposal_producer(),
       () => Promise.resolve(1_000),
+      { proposals: new AssistantProposalStore(), ops: new OpStore() },
     );
 
     const running = runner.run_turn(provider, "organize my notes", "acp");
@@ -455,6 +466,7 @@ describe("AgentRunner.run_turn", () => {
       vi.fn(),
       create_test_proposal_producer(),
       () => Promise.resolve(1_000),
+      { proposals: new AssistantProposalStore(), ops: new OpStore() },
     );
 
     const before = rag_store.active?.messages.length ?? 0;
@@ -497,6 +509,48 @@ describe("AgentRunner end-of-turn proposals", () => {
     const request = proposals.produce.mock.calls[0]?.[0];
     expect(request?.origin.session_id).toBe(rag_store.active?.id);
     expect(typeof request?.origin.run_id).toBe("string");
+  });
+
+  it("stamps the turn's checkpoint sha onto the proposals' origin as anchor", async () => {
+    const { runner, proposals } = make_harness(writing_turn);
+
+    await runner.run_turn(provider, "organize my notes", "acp");
+
+    expect(proposals.produce.mock.calls[0]?.[0]?.origin.anchor).toBe(
+      "anchor-sha",
+    );
+  });
+
+  it("captures applied ids before the checkpoint rather than at the end of the turn", async () => {
+    const h = make_harness(writing_turn);
+    const earlier = make_proposal({ status: "applied" });
+    const later = make_proposal();
+    h.mutations.proposals.hydrate([earlier, later]);
+    h.git.create_checkpoint.mockImplementation(() => {
+      expect(h.mutations.ops.is_pending(PROPOSAL_MUTATION_OP)).toBe(true);
+      h.mutations.proposals.set_status(later.id, "applied");
+      return Promise.resolve({ status: "created", sha: "anchor-sha" });
+    });
+
+    await h.runner.run_turn(provider, "organize my notes", "acp");
+
+    expect(
+      h.proposals.produce.mock.calls[0]?.[0].origin.anchor_applied_ids,
+    ).toEqual([earlier.id]);
+    expect(h.mutations.ops.is_pending(PROPOSAL_MUTATION_OP)).toBe(false);
+  });
+
+  it("refuses to capture an anchor during another proposal mutation", async () => {
+    const h = make_harness(writing_turn);
+    h.mutations.ops.start(PROPOSAL_MUTATION_OP, 1);
+    const result = await h.runner.run_turn(
+      provider,
+      "organize my notes",
+      "acp",
+    );
+    expect(result.status).toBe("error");
+    expect(h.git.create_checkpoint).not.toHaveBeenCalled();
+    expect(h.mutations.ops.is_pending(PROPOSAL_MUTATION_OP)).toBe(true);
   });
 
   // Producing proposals rolls the notes back, so the vault refresh and the
@@ -670,6 +724,7 @@ describe("AgentRunner end-of-turn proposals", () => {
       vi.fn(),
       proposals,
       () => Promise.resolve(disk_mtime),
+      { proposals: new AssistantProposalStore(), ops: new OpStore() },
     );
 
     await runner.run_turn(provider, "organize my notes", "acp");
@@ -723,6 +778,7 @@ describe("AgentRunner end-of-turn proposals", () => {
       vi.fn(),
       proposals,
       () => Promise.reject(new Error("note vanished")),
+      { proposals: new AssistantProposalStore(), ops: new OpStore() },
     );
 
     const result = await runner.run_turn(provider, "organize my notes", "acp");

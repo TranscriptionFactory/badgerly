@@ -32,6 +32,15 @@ export class AssistantProposalStore {
     this.proposals.filter((proposal) => proposal.status === "pending"),
   );
 
+  // What a turn revert can act on or has acted on. In-memory only: terminal
+  // statuses are never persisted, so this is empty after a restart.
+  readonly applied_history: Proposal[] = $derived(
+    this.proposals.filter(
+      (proposal) =>
+        proposal.status === "applied" || proposal.status === "reverted",
+    ),
+  );
+
   get(id: ProposalId): Proposal | null {
     return this.proposals.find((proposal) => proposal.id === id) ?? null;
   }

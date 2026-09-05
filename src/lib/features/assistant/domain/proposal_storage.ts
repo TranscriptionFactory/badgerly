@@ -67,6 +67,15 @@ function parse_entry(raw: unknown): Proposal | null {
   if (typeof raw.origin.session_id !== "string") return null;
   const run_id = raw.origin.run_id ?? null;
   if (run_id !== null && typeof run_id !== "string") return null;
+  const anchor = raw.origin.anchor ?? null;
+  if (anchor !== null && typeof anchor !== "string") return null;
+  const anchor_applied_ids = raw.origin.anchor_applied_ids;
+  if (
+    anchor_applied_ids !== undefined &&
+    (!Array.isArray(anchor_applied_ids) ||
+      !anchor_applied_ids.every((id) => typeof id === "string"))
+  )
+    return null;
   if (!valid_hunks(raw.hunks)) return null;
 
   return raw as Proposal;

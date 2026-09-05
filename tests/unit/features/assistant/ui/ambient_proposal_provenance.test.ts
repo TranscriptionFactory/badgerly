@@ -36,11 +36,14 @@ function render(proposals: Parameters<typeof make_proposal>[0][]) {
     target,
     props: {
       proposals: proposals.map((overrides) => make_proposal(overrides)),
+      applied_history: [],
       session_summaries: [],
       on_accept_proposal: vi.fn(),
       on_accept_all_pending: vi.fn(),
       on_reject_proposal: vi.fn(),
       on_toggle_hunk: vi.fn(),
+      on_revert_turn: vi.fn(),
+      on_revert_session: vi.fn(),
     },
   });
   flushSync();
@@ -127,11 +130,14 @@ describe("ambient proposals in the review centre", () => {
         proposals: [
           make_proposal({ origin: { session_id: "s1", run_id: null } }),
         ],
+        applied_history: [],
         session_summaries: [make_session({ id: "s1", title: "Ranking notes" })],
         on_accept_proposal: vi.fn(),
         on_accept_all_pending: vi.fn(),
         on_reject_proposal: vi.fn(),
         on_toggle_hunk: vi.fn(),
+        on_revert_turn: vi.fn(),
+        on_revert_session: vi.fn(),
       },
     });
     flushSync();

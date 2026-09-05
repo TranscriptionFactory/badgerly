@@ -128,6 +128,7 @@
   {:else if active_tab?.kind === "assistant_proposals"}
     <AssistantProposalsTabView
       proposals={stores.assistant_proposals.pending}
+      applied_history={stores.assistant_proposals.applied_history}
       session_summaries={stores.assistant_sessions.summaries}
       on_accept_proposal={(id) =>
         void action_registry.execute(ACTION_IDS.assistant_accept_proposal, id)}
@@ -144,6 +145,18 @@
           id,
           hunk_id,
           selected,
+        )}
+      on_revert_turn={(turn_id, confirmed) =>
+        void action_registry.execute(
+          ACTION_IDS.assistant_revert_turn,
+          turn_id,
+          confirmed,
+        )}
+      on_revert_session={(session_id, confirmed) =>
+        void action_registry.execute(
+          ACTION_IDS.assistant_revert_session,
+          session_id,
+          confirmed,
         )}
     />
   {:else if active_tab?.kind === "document" && document_viewer_state}

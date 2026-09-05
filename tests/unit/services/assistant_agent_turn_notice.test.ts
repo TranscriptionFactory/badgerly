@@ -1,3 +1,5 @@
+import { OpStore } from "$lib/app/orchestration/op_store.svelte";
+import { AssistantProposalStore } from "$lib/features/assistant/state/assistant_proposal_store.svelte";
 import { describe, expect, it, vi } from "vitest";
 import { AgentRunner } from "$lib/features/assistant";
 import { AssistantChatStore } from "$lib/features/assistant";
@@ -80,6 +82,7 @@ async function run_turn_with_report(result: AgentTurnProposalReport) {
     vi.fn(),
     { produce },
     vi.fn(() => Promise.resolve(1_000)),
+    { proposals: new AssistantProposalStore(), ops: new OpStore() },
   );
 
   await runner.run_turn(provider, "organize my notes", "acp");

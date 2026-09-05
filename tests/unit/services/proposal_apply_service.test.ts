@@ -1,3 +1,4 @@
+import { OpStore } from "$lib/app/orchestration/op_store.svelte";
 import { describe, expect, it, vi } from "vitest";
 import {
   AssistantProposalStore,
@@ -59,13 +60,15 @@ function make_harness(outcome: ProposalCheckpointOutcome = "created") {
       () => true,
     ),
   };
+  const ops = new OpStore();
   const service = new ProposalApplyService({
     proposals,
+    ops,
     notes,
     git,
     documents,
   });
-  return { proposals, notes, git, documents, service };
+  return { ops, proposals, notes, git, documents, service };
 }
 
 function pending(content: string, overrides: Partial<Proposal> = {}) {

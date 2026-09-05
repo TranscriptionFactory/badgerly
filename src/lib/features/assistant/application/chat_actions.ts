@@ -117,6 +117,7 @@ export function register_chat_actions(
     sync_changed_notes,
     agent_proposals,
     read_note_mtime,
+    { proposals: assistant_proposals, ops: stores.op },
   );
 
   function get_providers(): AiProviderConfig[] {

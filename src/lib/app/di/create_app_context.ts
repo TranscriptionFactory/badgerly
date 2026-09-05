@@ -61,6 +61,7 @@ import {
   DocumentEditService,
   ProposalApplyService,
   ProposalPersistenceService,
+  ProposalRevertService,
   create_assistant_transport_tauri_adapter,
   register_assistant_actions,
   register_assistant_edit_actions,
@@ -1401,10 +1402,19 @@ export function create_app_context(input: {
   };
 
   const proposal_apply = new ProposalApplyService({
+    ops: stores.op,
     proposals: stores.assistant_proposals,
     notes: proposal_notes,
     git: proposal_git,
     documents: assistant_documents,
+  });
+
+  const proposal_revert = new ProposalRevertService({
+    ops: stores.op,
+    proposals: stores.assistant_proposals,
+    notes: proposal_notes,
+    git: git_service,
+    checkpoint: proposal_git,
   });
 
   const document_edit_service = new DocumentEditService(assistant_kernel);
@@ -1425,6 +1435,7 @@ export function create_app_context(input: {
     assistant_sessions: stores.assistant_sessions,
     assistant_proposals: stores.assistant_proposals,
     proposal_apply,
+    proposal_revert,
     chat_store: stores.assistant_chat,
     active_document_path,
   });

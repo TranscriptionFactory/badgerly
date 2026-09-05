@@ -146,3 +146,50 @@ describe("parse_stored", () => {
     expect(parsed).toHaveLength(PROPOSAL_STORAGE_CAP);
   });
 });
+
+describe("parse_stored — turn anchor", () => {
+  it("round-trips a pending proposal's origin.anchor", () => {
+    const proposal = make_proposal({
+      origin: {
+        session_id: "s1",
+        run_id: "run-1",
+        anchor: "sha-1",
+        anchor_applied_ids: ["earlier-apply"],
+      },
+    });
+
+    const parsed = parse_stored(
+      JSON.parse(JSON.stringify(to_stored([proposal], SAVED_AT))),
+    );
+
+    expect(parsed[0]?.origin.anchor).toBe("sha-1");
+    expect(parsed[0]?.origin.anchor_applied_ids).toEqual(["earlier-apply"]);
+  });
+
+  it("reads an entry without an anchor as null, and drops one whose anchor is not a string", () => {
+    const stored = to_stored([make_proposal()], SAVED_AT);
+    const without = stored.proposals[0] as { origin: object };
+    const numeric = {
+      ...without,
+      origin: { ...without.origin, anchor: 42 },
+    };
+
+    expect(
+      parse_stored({ ...stored, proposals: [without] })[0]?.origin.anchor ??
+        null,
+    ).toBeNull();
+    expect(parse_stored({ ...stored, proposals: [numeric] })).toEqual([]);
+  });
+});
+
+it.each([null, "proposal-1", [42]])(
+  "drops invalid anchor applied-id snapshots: %j",
+  (anchor_applied_ids) => {
+    const proposal = make_proposal();
+    const stored = to_stored([proposal], SAVED_AT);
+    stored.proposals = [
+      { ...proposal, origin: { ...proposal.origin, anchor_applied_ids } },
+    ];
+    expect(parse_stored(stored)).toEqual([]);
+  },
+);

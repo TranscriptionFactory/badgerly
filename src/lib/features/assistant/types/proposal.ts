@@ -55,13 +55,29 @@ export type ProposalHunk = {
 export type ProposalOrigin = {
   session_id: string;
   run_id: RunId | null;
+  // The checkpoint commit the producing turn anchored to — the state a turn
+  // revert restores its notes to. Optional rather than nullable-required
+  // because producers outside the agent turn (ambient, inline edits) have no
+  // anchor and predate the field; absent reads as null, and a turn without one
+  // cannot be reverted.
+  anchor?: string | null;
+  // Captured before the checkpoint: an earlier turn applied later is not in it.
+  anchor_applied_ids?: ProposalId[];
 };
 
 // `stale` is terminal-on-detection, not a fourth pending state: it means the
 // note moved under the proposal and the hunks can no longer be trusted to
 // apply where they were computed. Staleness is checked AT APPLY (R4), not
 // polled — a proposal may sit `pending` over a note that has already drifted.
-export type ProposalStatus = "pending" | "applied" | "rejected" | "stale";
+// `reverted` is where an applied proposal lands after a turn revert restored
+// its note to the turn's anchor; like the other terminal statuses it is never
+// persisted.
+export type ProposalStatus =
+  | "pending"
+  | "applied"
+  | "rejected"
+  | "stale"
+  | "reverted";
 
 // The discriminated write target. A note proposal applies to a vault note on
 // disk; a document proposal stages into an open document buffer (the tab is
@@ -103,3 +119,5 @@ export function to_proposal_summary(proposal: Proposal): ProposalSummary {
     status: proposal.status,
   };
 }
+
+export const PROPOSAL_MUTATION_OP = "assistant.proposal_mutation";

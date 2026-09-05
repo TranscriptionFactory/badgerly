@@ -350,3 +350,22 @@ export { default as AssistantNoticeCard } from "$lib/features/assistant/ui/assis
 export type { MemoryIndexPort } from "$lib/features/assistant/ports";
 export { memory_notes_query } from "$lib/features/assistant/domain/memory_notes_query";
 export type { AmbientLinkFacts } from "$lib/features/assistant/domain/ambient_producers";
+export {
+  ProposalRevertService,
+  type ProposalRevertDeps,
+  type ProposalRevertGit,
+  type ProposalRevertOptions,
+  type ProposalRevertOutcome,
+} from "$lib/features/assistant/application/proposal_revert_service";
+export {
+  describe_turn_revert,
+  group_proposal_turns,
+  plan_session_revert,
+  plan_turn_revert,
+  turn_revert_block_reason,
+  NO_ANCHOR_REASON,
+  type ProposalTurn,
+  type ProposalTurnStatus,
+  type ReadyTurnRevertPlan,
+  type TurnRevertPlan,
+} from "$lib/features/assistant/domain/proposal_turns";

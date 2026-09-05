@@ -11,10 +11,16 @@ import {
 } from "$lib/features/assistant";
 import { TabStore } from "$lib/features/tab/state/tab_store.svelte";
 import { UIStore } from "$lib/app/orchestration/ui_store.svelte";
-import type { ProposalApplyOutcome } from "$lib/features/assistant";
+import type {
+  ProposalApplyOutcome,
+  ProposalRevertOutcome,
+  ReadyTurnRevertPlan,
+} from "$lib/features/assistant";
+import { plan_turn_revert } from "$lib/features/assistant";
 import {
   make_proposal,
   make_proposal_hunk,
+  make_turn_proposal,
 } from "../helpers/assistant_proposal_fixtures";
 
 vi.mock("svelte-sonner", () => ({
@@ -41,6 +47,7 @@ function make_outcome(
 
 type HarnessOptions = {
   outcome?: ProposalApplyOutcome;
+  revert_outcome?: ProposalRevertOutcome;
   open_note?: { path: string; is_dirty: boolean; markdown?: string } | null;
   disk_markdown?: string;
 };
@@ -54,6 +61,13 @@ function create_harness(options: HarnessOptions = {}) {
   const proposal_apply = {
     apply_batch: vi.fn().mockResolvedValue(options.outcome ?? make_outcome()),
     reject_batch: vi.fn().mockResolvedValue(undefined),
+  };
+  const revert_outcome: ProposalRevertOutcome = options.revert_outcome ?? {
+    status: "nothing",
+  };
+  const proposal_revert = {
+    revert_turn: vi.fn().mockResolvedValue(revert_outcome),
+    revert_session: vi.fn().mockResolvedValue(revert_outcome),
   };
   const editor = {
     open_note: options.open_note
@@ -96,12 +110,141 @@ function create_harness(options: HarnessOptions = {}) {
     assistant_sessions: sessions,
     assistant_proposals: proposals,
     proposal_apply: proposal_apply as never,
+    proposal_revert: proposal_revert as never,
     chat_store: new AssistantChatStore(sessions),
     active_document_path: () => null,
   });
 
-  return { registry, proposals, proposal_apply, runs, services, editor };
+  return {
+    registry,
+    proposals,
+    proposal_apply,
+    proposal_revert,
+    runs,
+    services,
+    editor,
+  };
 }
+
+function ready_plan(): ReadyTurnRevertPlan {
+  const plan = plan_turn_revert(
+    [
+      make_turn_proposal({
+        run_id: "run-2",
+        created_at: 200,
+        note_path: "a.md",
+      }),
+      make_turn_proposal({
+        run_id: "run-3",
+        created_at: 300,
+        note_path: "c.md",
+      }),
+    ],
+    "run-2",
+  );
+  if (plan.status !== "ready") throw new Error(plan.status);
+  return plan;
+}
+
+describe("register_assistant_actions — revert actions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("assistant_revert_turn: reverts, syncs the restored notes, and stays silent on success", async () => {
+    const { registry, proposal_revert, services } = create_harness({
+      open_note: { path: "a.md", is_dirty: false },
+      revert_outcome: {
+        status: "reverted",
+        plan: ready_plan(),
+        restored_note_paths: ["a.md"],
+        failed: [],
+      },
+    });
+
+    await registry.execute(ACTION_IDS.assistant_revert_turn, "run-2", true);
+
+    expect(proposal_revert.revert_turn).toHaveBeenCalledWith("run-2", {
+      confirmed: true,
+    });
+    expect(services.note.open_note).toHaveBeenCalledWith("a.md", false, {
+      force_reload: true,
+      cleanup_if_missing: true,
+    });
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.warning).not.toHaveBeenCalled();
+  });
+
+  it("assistant_revert_turn: reports a refusal reason without touching notes", async () => {
+    const { registry, services } = create_harness({
+      open_note: { path: "a.md", is_dirty: false },
+      revert_outcome: { status: "refused", reason: "no checkpoint" },
+    });
+
+    await registry.execute(ACTION_IDS.assistant_revert_turn, "run-2");
+
+    expect(toast.error).toHaveBeenCalledWith("Could not revert", {
+      description: "no checkpoint",
+    });
+    expect(services.note.open_note).not.toHaveBeenCalled();
+  });
+
+  it("assistant_revert_turn: passes confirmed=false by default and surfaces a pending confirmation", async () => {
+    const { registry, proposal_revert } = create_harness({
+      revert_outcome: { status: "needs_confirmation", plan: ready_plan() },
+    });
+
+    await registry.execute(ACTION_IDS.assistant_revert_turn, "run-2");
+
+    expect(proposal_revert.revert_turn).toHaveBeenCalledWith("run-2", {
+      confirmed: false,
+    });
+    expect(toast.warning).toHaveBeenCalledWith(
+      "This revert needs confirmation",
+      { description: expect.stringContaining("also undoes turn 2") as string },
+    );
+  });
+
+  it("assistant_revert_turn: reports notes that could not be restored", async () => {
+    const { registry } = create_harness({
+      revert_outcome: {
+        status: "reverted",
+        plan: ready_plan(),
+        restored_note_paths: ["a.md"],
+        failed: [{ note_path: "c.md", error: "file not found at commit" }],
+      },
+    });
+
+    await registry.execute(ACTION_IDS.assistant_revert_turn, "run-2", true);
+
+    expect(toast.error).toHaveBeenCalledWith("Could not restore one note", {
+      description: "file not found at commit",
+    });
+  });
+
+  it("assistant_revert_turn: is a no-op when the turn id is missing", async () => {
+    const { registry, proposal_revert } = create_harness();
+
+    await registry.execute(ACTION_IDS.assistant_revert_turn);
+
+    expect(proposal_revert.revert_turn).not.toHaveBeenCalled();
+  });
+
+  it("assistant_revert_session: no-op when the session has no applied proposal", async () => {
+    const { registry, proposal_revert, services } = create_harness({
+      revert_outcome: { status: "nothing" },
+    });
+
+    await registry.execute(ACTION_IDS.assistant_revert_session, "session-1");
+
+    expect(proposal_revert.revert_session).toHaveBeenCalledWith("session-1", {
+      confirmed: false,
+    });
+    expect(services.note.open_note).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.warning).not.toHaveBeenCalled();
+  });
+});
 
 describe("register_assistant_actions — assistant_clear_runs", () => {
   const spec = {
@@ -495,6 +638,10 @@ describe("assistant.open_panel (pin 5)", () => {
       proposal_apply: {
         apply_batch: vi.fn(),
         reject_batch: vi.fn(),
+      } as never,
+      proposal_revert: {
+        revert_turn: vi.fn(),
+        revert_session: vi.fn(),
       } as never,
       chat_store,
       active_document_path: () => options?.active_document ?? null,

@@ -19,33 +19,45 @@ import {
   make_proposal,
   make_proposal_hunk,
   make_proposal_line,
+  make_turn_proposal,
 } from "../../../helpers/assistant_proposal_fixtures";
+import { create_replaceable_props } from "../../../helpers/reactive_props.svelte";
 import { make_session } from "../../../helpers/assistant_session_fixtures";
 
 function render(options: {
   proposals: Proposal[];
+  applied_history?: Proposal[];
   session_summaries?: ReturnType<typeof make_session>[];
   on_accept_proposal?: (id: string) => void;
   on_accept_all_pending?: (ids: string[]) => void;
   on_reject_proposal?: (id: string) => void;
   on_toggle_hunk?: (id: string, hunk_id: string, selected: boolean) => void;
+  on_revert_turn?: (turn_id: string, confirmed: boolean) => void;
+  on_revert_session?: (session_id: string, confirmed: boolean) => void;
 }) {
   const target = document.createElement("div");
   document.body.appendChild(target);
+  const reactive = create_replaceable_props({
+    proposals: options.proposals,
+    applied_history: options.applied_history ?? [],
+    session_summaries: options.session_summaries ?? [],
+    on_accept_proposal: options.on_accept_proposal ?? vi.fn(),
+    on_accept_all_pending: options.on_accept_all_pending ?? vi.fn(),
+    on_reject_proposal: options.on_reject_proposal ?? vi.fn(),
+    on_toggle_hunk: options.on_toggle_hunk ?? vi.fn(),
+    on_revert_turn: options.on_revert_turn ?? vi.fn(),
+    on_revert_session: options.on_revert_session ?? vi.fn(),
+  });
   const app = mount(AssistantProposalsTabView, {
     target,
-    props: {
-      proposals: options.proposals,
-      session_summaries: options.session_summaries ?? [],
-      on_accept_proposal: options.on_accept_proposal ?? vi.fn(),
-      on_accept_all_pending: options.on_accept_all_pending ?? vi.fn(),
-      on_reject_proposal: options.on_reject_proposal ?? vi.fn(),
-      on_toggle_hunk: options.on_toggle_hunk ?? vi.fn(),
-    },
+    props: reactive.props,
   });
   flushSync();
   return {
     target,
+    replace(patch: Partial<typeof reactive.props>) {
+      reactive.replace(patch);
+    },
     cleanup() {
       void unmount(app);
       target.remove();
@@ -184,11 +196,14 @@ describe("assistant_proposals_tab_view day grouping", () => {
       target,
       props: {
         proposals,
+        applied_history: [],
         session_summaries: [make_session({ id: "s1", title: "Ranking" })],
         on_accept_proposal: vi.fn(),
         on_accept_all_pending: vi.fn(),
         on_reject_proposal: vi.fn(),
         on_toggle_hunk: vi.fn(),
+        on_revert_turn: vi.fn(),
+        on_revert_session: vi.fn(),
         now: () => NOON,
       },
     });
@@ -433,5 +448,359 @@ describe("assistant_proposals_tab_view dispatch", () => {
     );
 
     view.cleanup();
+  });
+});
+
+describe("assistant_proposals_tab_view turn history", () => {
+  const applied_history = [
+    make_turn_proposal({ run_id: "run-1", created_at: 100, note_path: "a.md" }),
+    make_turn_proposal({ run_id: "run-2", created_at: 200, note_path: "b.md" }),
+    make_turn_proposal({ run_id: "run-3", created_at: 300, note_path: "c.md" }),
+  ];
+
+  function turn_rows(target: HTMLElement) {
+    return [
+      ...target.querySelectorAll<HTMLElement>(
+        '[data-testid="assistant-turn-row"]',
+      ),
+    ];
+  }
+
+  function revert_button(row: HTMLElement | undefined) {
+    if (!row) throw new Error("Expected a turn row");
+    return row.querySelector<HTMLButtonElement>(
+      '[data-testid="assistant-revert-turn"]',
+    );
+  }
+
+  it("proposals tab shows the revert control on applied turns and a reverted state after", () => {
+    const view = render({
+      proposals: [],
+      applied_history: [
+        make_turn_proposal({
+          run_id: "run-1",
+          created_at: 100,
+          note_path: "a.md",
+          status: "reverted",
+        }),
+        ...applied_history.slice(1, 2),
+      ],
+      session_summaries: [make_session({ id: "session-1", title: "Ranking" })],
+    });
+
+    const rows = turn_rows(view.target);
+    expect(rows.map((row) => row.dataset.turnStatus)).toEqual([
+      "reverted",
+      "applied",
+    ]);
+    expect(revert_button(rows[0])).toBeNull();
+    expect(revert_button(rows[1])?.disabled).toBe(false);
+    expect(
+      view.target.querySelector(
+        '[data-testid="assistant-turn-history-provenance"]',
+      )?.textContent,
+    ).toContain("Ranking");
+    expect(
+      view.target.querySelector('[data-testid="empty-message"]'),
+    ).not.toBeNull();
+
+    view.cleanup();
+  });
+
+  it("renders no history section when nothing was applied", () => {
+    const view = render({ proposals: [make_proposal()] });
+
+    expect(
+      view.target.querySelector('[data-testid="assistant-turn-history"]'),
+    ).toBeNull();
+
+    view.cleanup();
+  });
+
+  it("disables the revert control with a reason when the turn's anchor is null", () => {
+    const on_revert_turn = vi.fn();
+    const view = render({
+      proposals: [],
+      applied_history: [
+        make_turn_proposal({
+          run_id: "run-1",
+          created_at: 100,
+          note_path: "a.md",
+          anchor: null,
+        }),
+      ],
+      on_revert_turn,
+    });
+
+    const button = revert_button(turn_rows(view.target)[0]);
+    if (!button) throw new Error("Expected a revert button");
+    expect(button.disabled).toBe(true);
+    expect(
+      view.target.querySelector('[data-testid="assistant-revert-turn-reason"]')
+        ?.textContent,
+    ).toContain("No checkpoint was recorded");
+    button.click();
+    expect(on_revert_turn).not.toHaveBeenCalled();
+
+    view.cleanup();
+  });
+
+  it("dispatches an unconfirmed revert straight away for the newest applied turn", () => {
+    const on_revert_turn = vi.fn();
+    const view = render({ proposals: [], applied_history, on_revert_turn });
+
+    revert_button(turn_rows(view.target)[2])?.click();
+    flushSync();
+
+    expect(on_revert_turn).toHaveBeenCalledWith("run-3", false);
+    expect(
+      view.target.querySelector('[data-testid="assistant-revert-confirm"]'),
+    ).toBeNull();
+
+    view.cleanup();
+  });
+
+  it("asks for confirmation naming the later turns before dispatching the revert", () => {
+    const on_revert_turn = vi.fn();
+    const view = render({ proposals: [], applied_history, on_revert_turn });
+
+    revert_button(turn_rows(view.target)[1])?.click();
+    flushSync();
+
+    expect(on_revert_turn).not.toHaveBeenCalled();
+    const confirm = view.target.querySelector(
+      '[data-testid="assistant-revert-confirm"]',
+    );
+    expect(confirm?.textContent).toContain(
+      "Reverting turn 2 also undoes turn 3",
+    );
+    expect(confirm?.textContent).toContain("any edits you made after applying");
+
+    if (!confirm) throw new Error("Expected revert confirmation");
+    (
+      confirm.querySelector(
+        '[data-testid="assistant-revert-confirm-accept"]',
+      ) as HTMLButtonElement
+    ).click();
+    flushSync();
+
+    expect(on_revert_turn).toHaveBeenCalledWith("run-2", true);
+    expect(
+      view.target.querySelector('[data-testid="assistant-revert-confirm"]'),
+    ).toBeNull();
+
+    view.cleanup();
+  });
+
+  function click(target: HTMLElement, test_id: string) {
+    const button = target.querySelector<HTMLButtonElement>(
+      `[data-testid="${test_id}"]`,
+    );
+    if (!button) throw new Error(`Expected button ${test_id}`);
+    button.click();
+    flushSync();
+  }
+
+  it.each(["turn", "session"])(
+    "refreshes stale %s confirmation after accepting another pending turn",
+    (kind) => {
+      const later = make_turn_proposal({
+        run_id: "run-3",
+        created_at: 300,
+        note_path: "c.md",
+        status: "pending",
+      });
+      const on_revert_turn = vi.fn();
+      const on_revert_session = vi.fn();
+      const on_accept_proposal = vi.fn(() => {
+        view.replace({
+          proposals: [],
+          applied_history: [
+            ...applied_history.slice(0, 2),
+            { ...later, status: "applied" },
+          ],
+        });
+      });
+      const view = render({
+        proposals: [later],
+        applied_history: applied_history.slice(0, 2),
+        on_accept_proposal,
+        on_revert_turn,
+        on_revert_session,
+      });
+      click(view.target, `assistant-revert-${kind}`);
+      expect(
+        view.target.querySelector(
+          '[data-testid="assistant-revert-confirm-accept"]',
+        )?.textContent,
+      ).toContain("Revert 2 turns");
+
+      click(view.target, "assistant-proposal-accept-all");
+      expect(on_accept_proposal).toHaveBeenCalledWith(later.id);
+      click(view.target, "assistant-revert-confirm-accept");
+
+      expect(on_revert_turn).not.toHaveBeenCalled();
+      expect(on_revert_session).not.toHaveBeenCalled();
+      expect(
+        view.target.querySelector('[data-testid="assistant-revert-confirm"]')
+          ?.textContent,
+      ).toContain("turn 3");
+      expect(
+        view.target.querySelector('[data-testid="assistant-revert-confirm"]')
+          ?.textContent,
+      ).toContain("c.md");
+      click(view.target, "assistant-revert-confirm-accept");
+      if (kind === "turn")
+        expect(on_revert_turn).toHaveBeenCalledExactlyOnceWith("run-1", true);
+      else
+        expect(on_revert_session).toHaveBeenCalledExactlyOnceWith(
+          "session-1",
+          true,
+        );
+      view.cleanup();
+    },
+  );
+
+  it.each(["anchor", "proposal id", "note path"])(
+    "requires renewed confirmation when the %s changes",
+    (field) => {
+      const on_revert_turn = vi.fn();
+      const view = render({ proposals: [], applied_history, on_revert_turn });
+      click(view.target, "assistant-revert-turn");
+      const changed = applied_history.map((proposal, index) => {
+        if (index !== 0) return proposal;
+        if (field === "anchor")
+          return {
+            ...proposal,
+            origin: { ...proposal.origin, anchor: "new-anchor" },
+          };
+        if (field === "proposal id")
+          return { ...proposal, id: "replacement-proposal" };
+        return {
+          ...proposal,
+          target: { kind: "note" as const, note_path: "renamed.md" },
+        };
+      });
+      view.replace({ applied_history: changed });
+      flushSync();
+
+      click(view.target, "assistant-revert-confirm-accept");
+      expect(on_revert_turn).not.toHaveBeenCalled();
+      click(view.target, "assistant-revert-confirm-accept");
+      expect(on_revert_turn).toHaveBeenCalledExactlyOnceWith("run-1", true);
+      view.cleanup();
+    },
+  );
+
+  it("refreshes a session confirmation when its target changes to a single remaining turn", () => {
+    const on_revert_session = vi.fn();
+    const view = render({
+      proposals: [],
+      applied_history: applied_history.slice(0, 2),
+      on_revert_session,
+    });
+    click(view.target, "assistant-revert-session");
+    view.replace({
+      applied_history: applied_history
+        .slice(0, 2)
+        .map((proposal, index) =>
+          index === 0 ? { ...proposal, status: "reverted" } : proposal,
+        ),
+    });
+    flushSync();
+
+    click(view.target, "assistant-revert-confirm-accept");
+    expect(on_revert_session).not.toHaveBeenCalled();
+    expect(
+      view.target
+        .querySelector('[data-testid="assistant-revert-confirm-accept"]')
+        ?.textContent?.trim(),
+    ).toBe("Revert 1 turn");
+    click(view.target, "assistant-revert-confirm-accept");
+    expect(on_revert_session).toHaveBeenCalledExactlyOnceWith(
+      "session-1",
+      true,
+    );
+    view.cleanup();
+  });
+
+  it("cancels confirmation without dispatch when the target no longer has a valid plan", () => {
+    const on_revert_turn = vi.fn();
+    const view = render({ proposals: [], applied_history, on_revert_turn });
+    click(view.target, "assistant-revert-turn");
+    view.replace({
+      applied_history: applied_history.map((proposal) => ({
+        ...proposal,
+        status: "reverted",
+      })),
+    });
+    flushSync();
+
+    click(view.target, "assistant-revert-confirm-accept");
+    expect(on_revert_turn).not.toHaveBeenCalled();
+    expect(
+      view.target.querySelector('[data-testid="assistant-revert-confirm"]'),
+    ).toBeNull();
+    view.cleanup();
+  });
+
+  it("declining the confirmation dispatches nothing", () => {
+    const on_revert_turn = vi.fn();
+    const view = render({ proposals: [], applied_history, on_revert_turn });
+
+    revert_button(turn_rows(view.target)[0])?.click();
+    flushSync();
+    (
+      view.target.querySelector(
+        '[data-testid="assistant-revert-confirm-cancel"]',
+      ) as HTMLButtonElement
+    ).click();
+    flushSync();
+
+    expect(on_revert_turn).not.toHaveBeenCalled();
+    expect(
+      view.target.querySelector('[data-testid="assistant-revert-confirm"]'),
+    ).toBeNull();
+
+    view.cleanup();
+  });
+
+  it("shows a revert-session control only while a turn in the session is applied, confirming when it spans turns", () => {
+    const on_revert_session = vi.fn();
+    const view = render({ proposals: [], applied_history, on_revert_session });
+
+    const button = view.target.querySelector<HTMLButtonElement>(
+      '[data-testid="assistant-revert-session"]',
+    );
+    expect(button).not.toBeNull();
+    button?.click();
+    flushSync();
+
+    expect(on_revert_session).not.toHaveBeenCalled();
+    expect(
+      view.target.querySelector('[data-testid="assistant-revert-confirm"]')
+        ?.textContent,
+    ).toContain("also undoes turn 2 and turn 3");
+    (
+      view.target.querySelector(
+        '[data-testid="assistant-revert-confirm-accept"]',
+      ) as HTMLButtonElement
+    ).click();
+    flushSync();
+    expect(on_revert_session).toHaveBeenCalledWith("session-1", true);
+
+    view.cleanup();
+
+    const reverted = render({
+      proposals: [],
+      applied_history: applied_history.map((p) => ({
+        ...p,
+        status: "reverted" as const,
+      })),
+    });
+    expect(
+      reverted.target.querySelector('[data-testid="assistant-revert-session"]'),
+    ).toBeNull();
+    reverted.cleanup();
   });
 });
