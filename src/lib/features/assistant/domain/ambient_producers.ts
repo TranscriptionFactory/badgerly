@@ -1,5 +1,8 @@
 import { ACTION_IDS } from "$lib/app/action_registry/action_ids";
-import { format_wiki_target_display } from "$lib/features/editor";
+import {
+  create_ambient_section_anchor_resolver,
+  format_wiki_target_display,
+} from "$lib/features/editor";
 import type { AmbientNotice } from "$lib/features/assistant/types/ambient";
 
 // R5's deterministic producers. The link producers read ONE `NoteLinksSnapshot`
@@ -15,15 +18,15 @@ import type { AmbientNotice } from "$lib/features/assistant/types/ambient";
 // needed from backlinks/outlinks, so their element type is irrelevant here.
 export type AmbientMissingLinkHit = {
   source_heading_id: string;
-  // Rendered heading text of the source block; empty for the preamble, which
-  // has no heading in the document and so degrades to a note-level anchor.
-  source_heading: string;
+  source_start_line: number;
+  source_end_line: number;
   target_path: string;
   score: number;
 };
 
 export type AmbientLinkFacts = {
   note_path: string;
+  source_markdown: string;
   backlinks: readonly unknown[];
   outlinks: readonly unknown[];
   orphan_links: readonly { target_path: string; ref_count: number }[];
@@ -133,6 +136,11 @@ export function produce_missing_link_notices(
   facts: AmbientLinkFacts,
   now: number,
 ): AmbientNotice[] {
+  if (facts.missing_links.length === 0 || facts.missing_link_max_notices <= 0)
+    return [];
+  const resolve_section = create_ambient_section_anchor_resolver(
+    facts.source_markdown,
+  );
   const suppressed = new Set(facts.suppressed_targets);
   const seen = new Set<string>();
   const notices: AmbientNotice[] = [];
@@ -142,15 +150,15 @@ export function produce_missing_link_notices(
     if (suppressed.has(hit.target_path) || seen.has(hit.target_path)) continue;
     seen.add(hit.target_path);
 
+    const anchor = resolve_section(hit.source_start_line, hit.source_end_line);
+    if (!anchor) continue;
     const display = format_wiki_target_display(hit.target_path);
     notices.push({
       id: notice_id("missing_link", facts.note_path, hit.target_path),
       kind: "missing_link",
       note_path: facts.note_path,
       target_path: hit.target_path,
-      anchor: hit.source_heading
-        ? { kind: "text", match: hit.source_heading, occurrence: 0 }
-        : { kind: "note" },
+      anchor,
       provenance: SIMILARITY_PROVENANCE,
       body: `A block here is close to ${display}, which this note does not link to. Add a link?`,
       offer: {

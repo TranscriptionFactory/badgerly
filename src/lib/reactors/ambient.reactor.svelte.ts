@@ -33,7 +33,7 @@ export type AmbientReactorInput = {
 };
 
 export type AmbientDecision = {
-  action: "noop" | "clear" | "scan";
+  action: "noop" | "clear" | "hide" | "scan";
   note_path: string | null;
   clear_first: boolean;
   next_state: AmbientReactorState;
@@ -79,7 +79,7 @@ export function resolve_ambient_decision(
     };
   }
 
-  if (!input.enabled || !input.vault_id || !input.note_path) {
+  if (!input.enabled || !input.vault_id) {
     return {
       action: "clear",
       note_path: null,
@@ -88,8 +88,25 @@ export function resolve_ambient_decision(
     };
   }
 
+  const vault_changed = input.vault_id !== state.scanned_vault_id;
+  if (!input.note_path) {
+    return {
+      action: "hide",
+      note_path: null,
+      clear_first: vault_changed,
+      next_state: {
+        ...state,
+        scanned_vault_id: input.vault_id,
+        scanned_note_path: null,
+        last_is_dirty: false,
+      },
+    };
+  }
+
   const next_state: AmbientReactorState = {
     ...state,
+    scanned_vault_id: input.vault_id,
+    scanned_note_path: vault_changed ? null : state.scanned_note_path,
     last_is_dirty: input.is_dirty,
   };
 
@@ -99,12 +116,11 @@ export function resolve_ambient_decision(
     return {
       action: "noop",
       note_path: input.note_path,
-      clear_first: false,
+      clear_first: vault_changed,
       next_state,
     };
   }
 
-  const vault_changed = input.vault_id !== state.scanned_vault_id;
   const note_changed = input.note_path !== state.scanned_note_path;
   const save_completed = state.last_is_dirty;
 
@@ -143,6 +159,7 @@ export function resolve_ambient_decision(
 }
 
 type ScanRequest = {
+  source_markdown: string;
   vault_id: string;
   note_path: string;
   mtime_ms: number;
@@ -239,6 +256,7 @@ export function create_ambient_reactor(
             produce(
               {
                 note_path,
+                source_markdown: request.source_markdown,
                 backlinks: snapshot.backlinks,
                 outlinks: snapshot.outlinks,
                 orphan_links: snapshot.orphan_links,
@@ -275,6 +293,8 @@ export function create_ambient_reactor(
       });
       state = decision.next_state;
 
+      if (decision.clear_first) clear_all();
+
       if (decision.action === "noop") {
         if (
           !ui_store.editor_settings_loaded ||
@@ -294,8 +314,9 @@ export function create_ambient_reactor(
         return;
       }
 
-      if (decision.clear_first) {
-        clear_all();
+      if (decision.action === "hide") {
+        notice_store.clear_notices();
+        return;
       }
 
       const vault_id = vault_store.active_vault_id;
@@ -303,6 +324,7 @@ export function create_ambient_reactor(
 
       scan.schedule(
         {
+          source_markdown: editor_store.open_note?.markdown ?? "",
           vault_id: String(vault_id),
           note_path: decision.note_path,
           mtime_ms: editor_store.open_note?.meta.mtime_ms ?? 0,

@@ -84,6 +84,13 @@ export type AmbientNoticeKind = "stale_link" | "orphan_note" | "missing_link";
 // An anchor that no longer resolves degrades to note-level. It never throws and
 // never silently drops the notice.
 export type AmbientAnchor =
+  | {
+      kind: "block";
+      node_type: string;
+      level: number | null;
+      match: string;
+      occurrence: number;
+    }
   | { kind: "note" }
   | { kind: "text"; match: string; occurrence: number };
 

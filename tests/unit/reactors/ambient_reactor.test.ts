@@ -98,7 +98,8 @@ function search_base(
 function missing_link_hit(target_path: string): MissingLinkHit {
   return {
     source_heading_id: "h-2-results-1",
-    source_heading: "Results",
+    source_start_line: 0,
+    source_end_line: 0,
     target_path,
     score: 0.8,
   };
@@ -528,6 +529,43 @@ describe("ambient reactor — missing links: one Rust call per (note, mtime)", (
     await settle();
     expect(missing_link_ids(h)).toEqual(["new-vault.md"]);
     expect(h.search_spy._calls.find_missing_links).toHaveLength(3);
+    h.unmount();
+  });
+
+  it("preserves cached hits and declines across a no-note interval in the same vault", async () => {
+    const h = make_harness({
+      enabled: true,
+      missing_links: () => Promise.resolve([missing_link_hit(B)]),
+    });
+    await settle();
+    h.notice_store.dismiss(h.notice_store.for_note(NOTE)[0]?.id ?? "");
+    h.editor_store.clear_open_note();
+    await settle();
+    expect(h.notice_store.count).toBe(0);
+    h.editor_store.set_open_note(open_note_state(NOTE));
+    await settle();
+    expect(h.search_spy._calls.find_missing_links).toHaveLength(1);
+    expect(missing_link_ids(h)).toEqual([]);
+    await save_note(h, 5);
+    expect(missing_link_ids(h)).toEqual([B]);
+    h.unmount();
+  });
+
+  it("resets cached hits and declines if the vault changes during a no-note interval", async () => {
+    const h = make_harness({
+      enabled: true,
+      missing_links: () => Promise.resolve([missing_link_hit(B)]),
+    });
+    await settle();
+    h.notice_store.dismiss(h.notice_store.for_note(NOTE)[0]?.id ?? "");
+    h.editor_store.clear_open_note();
+    await settle();
+    h.vault_store.set_vault(create_test_vault({ id: as_vault_id("vault-2") }));
+    await settle();
+    h.editor_store.set_open_note(open_note_state(NOTE));
+    await settle();
+    expect(h.search_spy._calls.find_missing_links).toHaveLength(2);
+    expect(missing_link_ids(h)).toEqual([B]);
     h.unmount();
   });
 

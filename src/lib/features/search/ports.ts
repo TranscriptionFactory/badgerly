@@ -68,7 +68,8 @@ export type RewriteResult = {
 // every other hit type carries.
 export type MissingLinkHit = {
   source_heading_id: string;
-  source_heading: string;
+  source_start_line: number;
+  source_end_line: number;
   target_path: string;
   score: number;
 };

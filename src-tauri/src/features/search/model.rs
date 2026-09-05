@@ -44,7 +44,8 @@ pub struct BlockSectionHit {
 #[derive(Debug, Serialize, Clone, PartialEq, Type)]
 pub struct MissingLinkHit {
     pub source_heading_id: String,
-    pub source_heading: String,
+    pub source_start_line: i64,
+    pub source_end_line: i64,
     pub target_path: String,
     pub score: f32,
 }

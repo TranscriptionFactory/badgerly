@@ -19,10 +19,36 @@ export function resolve_ambient_anchor(
 ): FindMatchRange | null {
   if (anchor.kind === "note") return null;
 
+  if (anchor.kind === "block") {
+    let occurrence = 0;
+    let range: FindMatchRange | null = null;
+    doc.descendants((node, pos) => {
+      if (matches_block(node, anchor) && occurrence++ === anchor.occurrence) {
+        range = {
+          from: pos + 1,
+          to: pos + node.nodeSize - 1,
+          text: node.textContent,
+        };
+      }
+    });
+    return range;
+  }
+
   const matches = find_literal_matches_in_doc(
     doc,
     anchor.match,
     ANCHOR_FIND_OPTIONS,
   );
   return matches[anchor.occurrence] ?? null;
+}
+
+export type BlockAnchor = Extract<AmbientAnchor, { kind: "block" }>;
+
+export function matches_block(node: ProseNode, anchor: BlockAnchor): boolean {
+  return (
+    node.isTextblock &&
+    node.type.name === anchor.node_type &&
+    (node.attrs.level ?? null) === anchor.level &&
+    node.textContent === anchor.match
+  );
 }

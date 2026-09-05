@@ -14,6 +14,7 @@ const NOTE = "notes/ranking-experiments.md";
 function facts(overrides: Partial<AmbientLinkFacts> = {}): AmbientLinkFacts {
   return {
     note_path: NOTE,
+    source_markdown: "## **Results**\nBody",
     backlinks: [],
     outlinks: [],
     orphan_links: [],
@@ -30,7 +31,8 @@ function hit(
 ): AmbientMissingLinkHit {
   return {
     source_heading_id: "h-2-results-1",
-    source_heading: "Results",
+    source_start_line: 0,
+    source_end_line: 1,
     target_path,
     score: 0.8,
     ...overrides,
@@ -254,38 +256,61 @@ describe("produce_missing_link_notices", () => {
     expect(notices[0]).toMatchObject({
       kind: "missing_link",
       note_path: NOTE,
-      anchor: { kind: "text", match: "Results", occurrence: 0 },
+      anchor: { kind: "block", match: "Results", occurrence: 0 },
     });
   });
 
   it("anchors on the heading as rendered, never on markdown syntax", () => {
     const [notice] = produce_missing_link_notices(
-      facts({ missing_links: [hit("b.md", { source_heading: "Results" })] }),
+      facts({ missing_links: [hit("b.md")] }),
       NOW,
     );
 
     expect(notice?.anchor).toEqual({
-      kind: "text",
+      kind: "block",
+      node_type: "heading",
+      level: 2,
       match: "Results",
       occurrence: 0,
     });
     expect(notice?.body).not.toContain("[[");
   });
 
-  it("degrades to a note-level anchor when the source block has no heading", () => {
+  it("anchors to the first rendered block of the preamble", () => {
     const [notice] = produce_missing_link_notices(
       facts({
+        source_markdown: "Preamble text.\n\n## Results",
         missing_links: [
           hit("b.md", {
             source_heading_id: "h-0-preamble-0",
-            source_heading: "",
+            source_start_line: 0,
+            source_end_line: 0,
           }),
         ],
       }),
       NOW,
     );
 
-    expect(notice?.anchor).toEqual({ kind: "note" });
+    expect(notice?.anchor).toEqual({
+      kind: "block",
+      node_type: "paragraph",
+      level: null,
+      match: "Preamble text.",
+      occurrence: 0,
+    });
+  });
+
+  it("does not offer a notice with an unmappable source section", () => {
+    expect(
+      produce_missing_link_notices(
+        facts({
+          missing_links: [
+            hit("b.md", { source_start_line: 20, source_end_line: 30 }),
+          ],
+        }),
+        NOW,
+      ),
+    ).toEqual([]);
   });
 
   it("carries the target path so accept and decline can act on it", () => {
@@ -346,10 +371,7 @@ describe("produce_missing_link_notices", () => {
   it("collapses several hits for the same target into one notice", () => {
     const notices = produce_missing_link_notices(
       facts({
-        missing_links: [
-          hit("b.md", { source_heading: "Results" }),
-          hit("b.md", { source_heading: "Method" }),
-        ],
+        missing_links: [hit("b.md"), hit("b.md")],
       }),
       NOW,
     );

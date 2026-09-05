@@ -74,8 +74,12 @@ export class AssistantNoticeStore {
 
   // Vault switch clears everything — notices are scoped to the vault whose
   // links produced them.
-  clear(): void {
+  clear_notices(): void {
     this.notices = [];
+  }
+
+  clear(): void {
+    this.clear_notices();
     this.suppressed_missing_links.clear();
   }
 }

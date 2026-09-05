@@ -3901,20 +3901,14 @@ pub fn find_missing_links_inner(
             &note_path,
             search_db::BLOCK_EMBED_MIN_WORDS,
             search_db::BLOCK_EMBED_MIN_LINES,
-        )?
-        .into_iter()
-        .map(|(_, heading_id, _, _)| {
-            let heading = section_heading_as_rendered(conn, &note_path, &heading_id)?;
-            Ok((heading_id, heading))
-        })
-        .collect::<Result<Vec<(String, String)>, String>>()?;
+        )?;
         Ok((linked, sections))
     })?;
 
     let fetch = k + MISSING_LINK_OVERFETCH;
     let candidates = with_block_index(&app, &vault_id, |idx| {
         let mut candidates = Vec::new();
-        for (heading_id, heading) in &sections {
+        for (_, heading_id, start_line, end_line) in &sections {
             let key = format!("{note_path}\0{heading_id}");
             let Some(query_vec) = idx.get_vector(&key) else {
                 continue;
@@ -3922,7 +3916,8 @@ pub fn find_missing_links_inner(
             for (target_key, distance) in idx.search(query_vec, fetch) {
                 candidates.push(MissingLinkCandidate {
                     source_heading_id: heading_id.clone(),
-                    source_heading: heading.clone(),
+                    source_start_line: *start_line,
+                    source_end_line: *end_line,
                     target_key,
                     score: 1.0 - distance,
                 });
@@ -3940,25 +3935,10 @@ pub fn find_missing_links_inner(
     ))
 }
 
-// The preamble's stored title is synthetic ("Preamble" or the frontmatter
-// title) and never appears as document text, so it cannot anchor; an empty
-// heading tells the producer to fall back to a note-level anchor.
-fn section_heading_as_rendered(
-    conn: &Connection,
-    note_path: &str,
-    heading_id: &str,
-) -> Result<String, String> {
-    if heading_id == search_db::PREAMBLE_HEADING_ID {
-        return Ok(String::new());
-    }
-    Ok(search_db::get_section(conn, note_path, heading_id)?
-        .map(|(title, _, _)| title)
-        .unwrap_or_default())
-}
-
 struct MissingLinkCandidate {
     source_heading_id: String,
-    source_heading: String,
+    source_start_line: i64,
+    source_end_line: i64,
     target_key: String,
     score: f32,
 }
@@ -3989,7 +3969,8 @@ fn select_missing_link_hits(
                 target_path.to_string(),
                 MissingLinkHit {
                     source_heading_id: candidate.source_heading_id,
-                    source_heading: candidate.source_heading,
+                    source_start_line: candidate.source_start_line,
+                    source_end_line: candidate.source_end_line,
                     target_path: target_path.to_string(),
                     score: candidate.score,
                 },
@@ -4803,7 +4784,8 @@ mod tests {
     fn candidate(source_heading_id: &str, target_key: &str, score: f32) -> MissingLinkCandidate {
         MissingLinkCandidate {
             source_heading_id: source_heading_id.to_string(),
-            source_heading: format!("Heading {source_heading_id}"),
+            source_start_line: 2,
+            source_end_line: 5,
             target_key: target_key.to_string(),
             score,
         }
@@ -4899,7 +4881,8 @@ mod tests {
 
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].source_heading_id, "h2");
-        assert_eq!(hits[0].source_heading, "Heading h2");
+        assert_eq!(hits[0].source_start_line, 2);
+        assert_eq!(hits[0].source_end_line, 5);
         assert!((hits[0].score - 0.9).abs() < f32::EPSILON);
     }
 
