@@ -73,9 +73,21 @@ pub enum ToolKind {
     Other,
 }
 
+/// Carbide MCP tools whose names would mislead the substring heuristic below.
+fn declared_tool_kind(name: &str) -> Option<ToolKind> {
+    Some(match name {
+        "get_note_history" | "read_note_version" => ToolKind::Read,
+        "create_checkpoint" => ToolKind::Execute,
+        _ => return None,
+    })
+}
+
 /// Best-effort kind for tools that don't declare one (native loop, MCP names).
 pub fn infer_tool_kind(name: &str) -> ToolKind {
     let lower = super::harness::strip_mcp_prefix(name).to_ascii_lowercase();
+    if let Some(kind) = declared_tool_kind(&lower) {
+        return kind;
+    }
     if lower.contains("delete") || lower.contains("remove") {
         ToolKind::Delete
     } else if lower.contains("move") || lower.contains("rename") {
