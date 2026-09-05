@@ -1,11 +1,16 @@
 use git2::{
-    build::CheckoutBuilder, DiffFormat, DiffOptions, IndexAddOption, ObjectType, Repository,
-    Signature, Sort, StatusOptions, StatusShow,
+    build::CheckoutBuilder, Delta, DiffFindOptions, DiffFormat, DiffOptions, IndexAddOption,
+    ObjectType, Repository, Signature, Sort, StatusOptions, StatusShow,
 };
 use serde::Serialize;
 use specta::Type;
 use std::path::Path;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+pub(crate) const NOTHING_TO_COMMIT: &str = "nothing to commit";
+const CHECKPOINT_PREFIX: &str = "Checkpoint:";
+const CHECKPOINT_TAG_SLUG_MAX: usize = 40;
+const RENAME_WALK_LIMIT: usize = 10_000;
 
 #[derive(Debug, Clone, Serialize, Type)]
 pub struct GitFileStatus {
@@ -303,7 +308,7 @@ fn ensure_tree_has_changes(
 ) -> Result<(), String> {
     if let Some(parent_commit) = parent {
         if parent_commit.tree_id() == tree_oid {
-            return Err("nothing to commit".to_string());
+            return Err(NOTHING_TO_COMMIT.to_string());
         }
     }
     Ok(())
@@ -462,6 +467,58 @@ pub fn git_create_tag_inner(
     Ok(())
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CheckpointOutcome {
+    Created { sha: String, tag_warning: Option<String> },
+    NothingToCheckpoint,
+}
+
+pub(crate) fn checkpoint_message(description: &str) -> String {
+    format!("{} {}", CHECKPOINT_PREFIX, description)
+}
+
+pub(crate) fn checkpoint_tag_name(description: &str, now_ms: u128) -> String {
+    let mut slug = String::new();
+    let mut pending_dash = false;
+    for ch in description.trim().to_ascii_lowercase().chars() {
+        if ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-') {
+            if pending_dash && !slug.is_empty() {
+                slug.push('-');
+            }
+            pending_dash = false;
+            slug.push(ch);
+        } else {
+            pending_dash = true;
+        }
+    }
+    let slug: String = slug.chars().take(CHECKPOINT_TAG_SLUG_MAX).collect();
+    let base = slug.trim_matches('-');
+    let base = if base.is_empty() { "checkpoint" } else { base };
+    format!("checkpoint-{}-{}", base, now_ms)
+}
+
+// Mirrors GitService.create_checkpoint on the frontend: one commit of the whole
+// tree under the checkpoint prefix, then a tag pointing at it. The commit is the
+// anchor; a failed tag is reported but never turns a landed commit into an error.
+pub(crate) fn git_create_checkpoint_inner(
+    vault_path: String,
+    description: &str,
+) -> Result<CheckpointOutcome, String> {
+    let message = checkpoint_message(description);
+    let sha = match git_stage_and_commit_inner(vault_path.clone(), message.clone(), None) {
+        Ok(sha) => sha,
+        Err(e) if e == NOTHING_TO_COMMIT => return Ok(CheckpointOutcome::NothingToCheckpoint),
+        Err(e) => return Err(e),
+    };
+    let now_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let tag = checkpoint_tag_name(description, now_ms);
+    let tag_warning = git_create_tag_inner(vault_path, tag, message).err();
+    Ok(CheckpointOutcome::Created { sha, tag_warning })
+}
+
 pub(crate) fn collect_git_log(
     vault_path: &str,
     file_path: Option<&str>,
@@ -529,6 +586,117 @@ pub async fn git_log(
             .map_err(|error| format!("failed to join git log task: {}", error))?,
         Err(_) => Err("git log timed out after 10 seconds".to_string()),
     }
+}
+
+// Walks history from HEAD handing `visit` the name the file had at each commit,
+// so a note renamed along the way is followed back to its old path. Rename
+// detection is only attempted where the current name first appears in a
+// commit's tree, since that is the only place a rename can have happened.
+fn walk_path_history<F>(repo: &Repository, path: &str, mut visit: F) -> Result<(), String>
+where
+    F: FnMut(&git2::Commit<'_>, &str) -> bool,
+{
+    match repo.head() {
+        Err(e) if e.code() == git2::ErrorCode::UnbornBranch => return Ok(()),
+        Err(e) => return Err(format!("failed to read HEAD: {}", e)),
+        Ok(_) => {}
+    }
+
+    let mut revwalk = repo
+        .revwalk()
+        .map_err(|e| format!("failed to create revwalk: {}", e))?;
+    revwalk
+        .push_head()
+        .map_err(|e| format!("failed to push HEAD: {}", e))?;
+    revwalk
+        .set_sorting(Sort::TIME | Sort::TOPOLOGICAL)
+        .map_err(|e| format!("failed to set sorting: {}", e))?;
+
+    let mut current = path.to_string();
+    for oid_result in revwalk.take(RENAME_WALK_LIMIT) {
+        let oid = oid_result.map_err(|e| format!("revwalk error: {}", e))?;
+        let commit = repo
+            .find_commit(oid)
+            .map_err(|e| format!("failed to find commit: {}", e))?;
+        if !visit(&commit, &current) {
+            break;
+        }
+        if let Some(old_path) = renamed_from(repo, &commit, &current) {
+            current = old_path;
+        }
+    }
+    Ok(())
+}
+
+fn renamed_from(repo: &Repository, commit: &git2::Commit<'_>, path: &str) -> Option<String> {
+    let parent_tree = commit.parent(0).ok()?.tree().ok()?;
+    let tree = commit.tree().ok()?;
+    let appeared_here =
+        tree.get_path(Path::new(path)).is_ok() && parent_tree.get_path(Path::new(path)).is_err();
+    if !appeared_here {
+        return None;
+    }
+
+    let mut diff = repo
+        .diff_tree_to_tree(Some(&parent_tree), Some(&tree), None)
+        .ok()?;
+    diff.find_similar(Some(DiffFindOptions::new().renames(true)))
+        .ok()?;
+    diff.deltas()
+        .find(|d| d.status() == Delta::Renamed && d.new_file().path() == Some(Path::new(path)))
+        .and_then(|d| d.old_file().path().map(|p| p.to_string_lossy().into_owned()))
+}
+
+pub(crate) fn collect_file_history(
+    vault_path: &str,
+    file_path: &str,
+    limit: usize,
+) -> Result<Vec<GitCommit>, String> {
+    let repo = open_repo(vault_path)?;
+    let mut commits = Vec::new();
+    walk_path_history(&repo, file_path, |commit, path_here| {
+        if commit_touches_file(&repo, commit, path_here) {
+            commits.push(to_git_commit(commit.clone()));
+        }
+        commits.len() < limit
+    })?;
+    Ok(commits)
+}
+
+// The name `file_path` had at `commit_ref`. A ref outside HEAD's ancestry has no
+// rename trail to follow, so the path is returned as given.
+pub(crate) fn path_at_ref(
+    repo: &Repository,
+    file_path: &str,
+    commit_ref: &str,
+) -> Result<String, String> {
+    let target = repo
+        .revparse_single(commit_ref)
+        .map_err(|e| format!("failed to find commit {}: {}", commit_ref, e))?
+        .peel_to_commit()
+        .map_err(|e| format!("failed to peel to commit: {}", e))?
+        .id();
+
+    let mut resolved = file_path.to_string();
+    let mut reached = false;
+    walk_path_history(repo, file_path, |commit, path_here| {
+        if commit.id() == target {
+            resolved = path_here.to_string();
+            reached = true;
+        }
+        !reached
+    })?;
+    Ok(resolved)
+}
+
+pub(crate) fn git_show_file_following_renames(
+    vault_path: &str,
+    file_path: &str,
+    commit_ref: &str,
+) -> Result<String, String> {
+    let repo = open_repo(vault_path)?;
+    let path_then = path_at_ref(&repo, file_path, commit_ref)?;
+    read_blob_at_ref(&repo, &path_then, commit_ref)
 }
 
 fn commit_touches_file(repo: &Repository, commit: &git2::Commit, path: &str) -> bool {
@@ -815,10 +983,13 @@ pub fn git_show_file_at_commit_inner(
     commit_hash: String,
 ) -> Result<String, String> {
     let repo = open_repo(&vault_path)?;
+    read_blob_at_ref(&repo, &file_path, &commit_hash)
+}
 
+fn read_blob_at_ref(repo: &Repository, file_path: &str, commit_ref: &str) -> Result<String, String> {
     let obj = repo
-        .revparse_single(&commit_hash)
-        .map_err(|e| format!("failed to find commit {}: {}", commit_hash, e))?;
+        .revparse_single(commit_ref)
+        .map_err(|e| format!("failed to find commit {}: {}", commit_ref, e))?;
     let commit = obj
         .peel_to_commit()
         .map_err(|e| format!("failed to peel to commit: {}", e))?;
@@ -827,7 +998,7 @@ pub fn git_show_file_at_commit_inner(
         .map_err(|e| format!("failed to get tree: {}", e))?;
 
     let entry = tree
-        .get_path(Path::new(&file_path))
+        .get_path(Path::new(file_path))
         .map_err(|e| format!("file not found at commit: {}", e))?;
 
     let blob = repo
@@ -1927,5 +2098,153 @@ mod tests {
         let second_commit = repo.find_commit(git2::Oid::from_str(&second).unwrap()).unwrap();
         assert_eq!(second_commit.parent(0).unwrap().id().to_string(), first);
         assert_eq!(head_hash(&root), second);
+    }
+
+    fn commit_file(dir: &TempDir, root: &str, name: &str, content: &str, message: &str) -> String {
+        fs::write(dir.path().join(name), content).unwrap();
+        git_stage_and_commit_inner(root.to_string(), message.to_string(), None).unwrap()
+    }
+
+    fn rename_and_commit(dir: &TempDir, root: &str, from: &str, to: &str) -> String {
+        fs::rename(dir.path().join(from), dir.path().join(to)).unwrap();
+        git_stage_and_commit_inner(root.to_string(), format!("rename {from} to {to}"), None)
+            .unwrap()
+    }
+
+    fn history_messages(root: &str, path: &str, limit: usize) -> Vec<String> {
+        collect_file_history(root, path, limit)
+            .unwrap()
+            .into_iter()
+            .map(|c| c.message.trim().to_string())
+            .collect()
+    }
+
+    fn renamed_note_vault() -> (TempDir, String, String, String) {
+        let (dir, root) = init_vault(&[("old.md", "v1\n")]);
+        let pre_rename = commit_file(&dir, &root, "old.md", "v2\n", "edit old");
+        let rename = rename_and_commit(&dir, &root, "old.md", "new.md");
+        commit_file(&dir, &root, "new.md", "v3\n", "edit new");
+        (dir, root, pre_rename, rename)
+    }
+
+    #[test]
+    fn file_history_returns_only_commits_touching_the_path_newest_first() {
+        let (dir, root) = init_vault(&[("a.md", "a1\n"), ("b.md", "b1\n")]);
+        commit_file(&dir, &root, "a.md", "a2\n", "a2");
+        commit_file(&dir, &root, "b.md", "b2\n", "b2");
+        commit_file(&dir, &root, "a.md", "a3\n", "a3");
+
+        let messages = history_messages(&root, "a.md", 10);
+
+        assert_eq!(messages.len(), 3, "{messages:?}");
+        assert_eq!(messages[0], "a3");
+        assert_eq!(messages[1], "a2");
+        assert!(!messages.contains(&"b2".to_string()));
+    }
+
+    #[test]
+    fn file_history_is_capped_at_limit() {
+        let (dir, root) = init_vault(&[("a.md", "a1\n")]);
+        commit_file(&dir, &root, "a.md", "a2\n", "a2");
+        commit_file(&dir, &root, "a.md", "a3\n", "a3");
+
+        let messages = history_messages(&root, "a.md", 2);
+
+        assert_eq!(messages, vec!["a3".to_string(), "a2".to_string()]);
+    }
+
+    #[test]
+    fn file_history_follows_a_rename_back_to_the_old_path() {
+        let (_dir, root, _pre_rename, _rename) = renamed_note_vault();
+
+        let messages = history_messages(&root, "new.md", 10);
+
+        assert_eq!(messages.len(), 4, "{messages:?}");
+        assert_eq!(messages[0], "edit new");
+        assert_eq!(messages[1], "rename old.md to new.md");
+        assert_eq!(messages[2], "edit old");
+    }
+
+    #[test]
+    fn path_at_ref_resolves_through_a_rename_to_the_old_name() {
+        let (_dir, root, pre_rename, rename) = renamed_note_vault();
+        let repo = open_repo(&root).unwrap();
+
+        assert_eq!(path_at_ref(&repo, "new.md", &pre_rename).unwrap(), "old.md");
+        assert_eq!(path_at_ref(&repo, "new.md", &rename).unwrap(), "new.md");
+    }
+
+    #[test]
+    fn path_at_ref_is_unchanged_when_never_renamed() {
+        let (dir, root) = init_vault(&[("a.md", "a1\n")]);
+        let first = head_hash(&root);
+        commit_file(&dir, &root, "a.md", "a2\n", "a2");
+        let repo = open_repo(&root).unwrap();
+
+        assert_eq!(path_at_ref(&repo, "a.md", &first).unwrap(), "a.md");
+    }
+
+    #[test]
+    fn show_file_following_renames_reads_old_content_at_pre_rename_ref() {
+        let (_dir, root, pre_rename, _rename) = renamed_note_vault();
+
+        let content = git_show_file_following_renames(&root, "new.md", &pre_rename).unwrap();
+
+        assert_eq!(content, "v2\n");
+    }
+
+    #[test]
+    fn show_file_following_renames_reports_unknown_ref_as_error() {
+        let (_dir, root) = init_vault(&[("a.md", "a1\n")]);
+
+        let err = git_show_file_following_renames(&root, "a.md", "no-such-ref").unwrap_err();
+
+        assert!(err.contains("failed to find commit"), "{err}");
+    }
+
+    #[test]
+    fn checkpoint_commits_everything_with_the_checkpoint_prefix_and_tags_it() {
+        let (dir, root) = init_vault(&[("a.md", "a1\n")]);
+        fs::write(dir.path().join("a.md"), "dirty\n").unwrap();
+        fs::write(dir.path().join("untracked.md"), "new\n").unwrap();
+
+        let outcome = git_create_checkpoint_inner(root.clone(), "agent: before edit").unwrap();
+
+        let CheckpointOutcome::Created { sha, tag_warning } = outcome else {
+            panic!("expected a created checkpoint, got {outcome:?}");
+        };
+        assert_eq!(tag_warning, None);
+        assert_eq!(head_hash(&root), sha);
+        let repo = open_repo(&root).unwrap();
+        let head = repo.head().unwrap().peel_to_commit().unwrap();
+        assert_eq!(head.message().unwrap(), "Checkpoint: agent: before edit");
+        assert!(head.tree().unwrap().get_path(Path::new("untracked.md")).is_ok());
+        let tags = repo.tag_names(Some("checkpoint-agent-before-edit-*")).unwrap();
+        assert_eq!(tags.len(), 1);
+    }
+
+    #[test]
+    fn checkpoint_reports_nothing_to_checkpoint_on_a_clean_tree() {
+        let (_dir, root) = init_vault(&[("a.md", "a1\n")]);
+        let before = head_hash(&root);
+
+        let outcome = git_create_checkpoint_inner(root.clone(), "agent: noop").unwrap();
+
+        assert_eq!(outcome, CheckpointOutcome::NothingToCheckpoint);
+        assert_eq!(head_hash(&root), before);
+    }
+
+    #[test]
+    fn checkpoint_tag_name_is_slugged_from_the_description() {
+        assert_eq!(
+            checkpoint_tag_name("Agent: Before Edit!!", 42),
+            "checkpoint-agent-before-edit-42"
+        );
+        assert_eq!(checkpoint_tag_name("   ", 7), "checkpoint-checkpoint-7");
+        let long = "x".repeat(60);
+        assert_eq!(
+            checkpoint_tag_name(&long, 1),
+            format!("checkpoint-{}-1", "x".repeat(40))
+        );
     }
 }
