@@ -39,6 +39,16 @@ pub struct BlockSectionHit {
     pub distance: f32,
 }
 
+/// `score` is cosine similarity (`1 - index distance`), so higher is closer —
+/// the opposite polarity of every `distance` field in this file.
+#[derive(Debug, Serialize, Clone, PartialEq, Type)]
+pub struct MissingLinkHit {
+    pub source_heading_id: String,
+    pub source_heading: String,
+    pub target_path: String,
+    pub score: f32,
+}
+
 #[derive(Debug, Serialize, Clone, PartialEq, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum HitSource {

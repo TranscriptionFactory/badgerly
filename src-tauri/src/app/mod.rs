@@ -262,6 +262,7 @@ pub fn run() {
             features::search::service::semantic_search_batch,
             features::search::service::find_similar_notes,
             features::search::service::find_similar_blocks,
+            features::search::service::find_missing_links,
             features::search::service::search_blocks,
             features::search::service::hybrid_search,
             features::search::service::get_embedding_status,
