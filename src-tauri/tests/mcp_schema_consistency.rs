@@ -11,7 +11,9 @@ use crate::features::mcp::tools::git::{
     GitLogArgs, RenameNoteArgs, VaultArgs as GitVaultArgs,
 };
 use crate::features::mcp::tools::graph::{PathArgs, QueryByPropertyArgs, VaultArgs as GraphVaultArgs};
-use crate::features::mcp::tools::notes::{EditNoteArgs, NoteContentArgs};
+use crate::features::mcp::tools::notes::{
+    EditNoteArgs, ListMemoriesArgs, NoteContentArgs, SaveMemoryArgs,
+};
 use crate::features::mcp::tools::rag::{RagQueryArgs, RagStatusArgs};
 use crate::features::mcp::tools::references::{ListReferencesArgs, SearchReferencesArgs};
 use crate::features::mcp::tools::search::SearchNotesArgs;
@@ -88,6 +90,8 @@ fn check(def: &ToolDefinition) {
         "update_note" => check_tool::<WriteNoteArgs>(def),
         "edit_note" => check_tool::<EditNoteArgs>(def),
         "append_note" | "prepend_note" => check_tool::<NoteContentArgs>(def),
+        "list_memories" => check_tool::<ListMemoriesArgs>(def),
+        "save_memory" => check_tool::<SaveMemoryArgs>(def),
         "search_notes" => check_tool::<SearchNotesArgs>(def),
         "reindex" => check_tool::<VaultIdArgs>(def),
         "list_vaults" => assert!(

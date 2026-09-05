@@ -1,6 +1,7 @@
 import { RetrievalService } from "$lib/features/rag";
 import {
   AssistantChatService,
+  type MemoryIndexPort,
   type RetrievalPort,
   type RunStarter,
 } from "$lib/features/assistant";
@@ -21,6 +22,10 @@ export function create_chat_seam(input: {
   run_starter: RunStarter;
   tag?: unknown;
   bases?: unknown;
+  // Stands in for the DI root's literal over BasesPort.query; the memory
+  // source still retrieves the paths it reports through the real
+  // RetrievalService. Defaults to a vault with no memories.
+  memory_index?: MemoryIndexPort;
   vault_path?: string;
   timeout_seconds?: number;
   // Pass a bare VaultStore to exercise the no-vault path.
@@ -54,9 +59,14 @@ export function create_chat_seam(input: {
     check_readiness: () => retrieval_service.check_readiness(),
   };
 
+  const memory_index: MemoryIndexPort = input.memory_index ?? {
+    list_memory_paths: () => Promise.resolve([]),
+  };
+
   return {
     chat: new AssistantChatService(
       retrieval,
+      memory_index,
       input.run_starter,
       () =>
         input.timeout_seconds ??

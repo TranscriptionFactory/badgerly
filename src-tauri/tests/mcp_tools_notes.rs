@@ -3,14 +3,20 @@ use crate::features::mcp::tools::notes;
 #[test]
 fn tool_definitions_count() {
     let defs = notes::tool_definitions();
-    assert_eq!(defs.len(), 9);
+    assert_eq!(defs.len(), 11);
 }
 
 #[test]
 fn most_tools_require_vault_id_except_active_vault_fallback_tools() {
-    // append_note, prepend_note, and edit_note resolve vault_id from the active
-    // vault when omitted, so they declare it optional.
-    let optional_vault = ["append_note", "prepend_note", "edit_note"];
+    // append_note, prepend_note, edit_note and the memory tools resolve
+    // vault_id from the active vault when omitted, so they declare it optional.
+    let optional_vault = [
+        "append_note",
+        "prepend_note",
+        "edit_note",
+        "list_memories",
+        "save_memory",
+    ];
     let defs = notes::tool_definitions();
     for def in &defs {
         let requires = def.input_schema.required.contains(&"vault_id".to_string());

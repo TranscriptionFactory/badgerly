@@ -5,12 +5,13 @@ use futures_util::{stream, Stream};
 use serde_json::Value;
 use tokio::sync::oneshot;
 
-use crate::features::ai::agent_stream::{AgentEvent, ToolSelector};
+use crate::features::ai::agent_stream::{AgentEvent, ToolKind, ToolSelector};
 use crate::features::ai::permissions::{ParkOutcome, PermissionRequestSpec};
 use crate::features::ai::agent_stream::PermissionOptionKind;
 use crate::features::ai::native_agent::{
-    allowed_tools, evict_history, run_native_turn, truncate_tool_result, ModelClient, NativeGate,
-    HISTORY_MAX_CHARS, HISTORY_MAX_MESSAGES, MAX_ITERATIONS, TOOL_RESULT_MAX_CHARS,
+    allowed_tools, build_system_prompt, evict_history, run_native_turn, truncate_tool_result,
+    ModelClient, NativeGate, HISTORY_MAX_CHARS, HISTORY_MAX_MESSAGES, MAX_ITERATIONS,
+    TOOL_RESULT_MAX_CHARS,
 };
 use crate::features::ai::stream::{AiMessage, AiMessageContent, AiStreamEvent, AiToolCall};
 use crate::features::mcp::shared_ops::{apply_edit, OpError};
@@ -824,4 +825,94 @@ async fn replay_history_reaches_model_system_first() {
     assert_eq!(content_text(&first[3]), "search result");
     assert_eq!(first[3].tool_call_id.as_deref(), Some("c1"));
     assert_eq!(content_text(&first[4]), "turn two question");
+}
+
+#[tokio::test]
+async fn save_memory_is_gated_as_an_edit_and_prompts_unless_auto_approved() {
+    let (client, _seen) = scripted(vec![
+        call_turn("c1", "save_memory", r#"{"title":"Deploy region","body":"eu-west"}"#),
+        call_turn("c2", "list_memories", "{}"),
+        text_turn("ok"),
+    ]);
+    let dispatched = Arc::new(Mutex::new(Vec::<String>::new()));
+    let log = dispatched.clone();
+    let dispatch = move |name: &str, _args: Option<&Value>| {
+        log.lock().unwrap().push(name.to_string());
+        ToolResult::text("result".into())
+    };
+    let gated = Arc::new(Mutex::new(Vec::<(String, ToolKind, bool)>::new()));
+    let seen_specs = gated.clone();
+    let (_tx, rx) = oneshot::channel();
+
+    let events = drive_gated(
+        client,
+        vec![tool_def("list_memories", false), tool_def("save_memory", true)],
+        ToolSelector::Full,
+        dispatch,
+        rx,
+        move |spec| {
+            seen_specs
+                .lock()
+                .unwrap()
+                .push((spec.name.clone(), spec.kind, spec.mutating));
+            if spec.kind != ToolKind::Edit {
+                return NativeGate::Allow;
+            }
+            NativeGate::Prompt {
+                request_id: "perm-memory".to_string(),
+                wait: Box::pin(async {
+                    ParkOutcome::Selected {
+                        option_id: "reject-once".to_string(),
+                        kind: PermissionOptionKind::RejectOnce,
+                        auto: false,
+                    }
+                }),
+            }
+        },
+    )
+    .await;
+
+    assert_eq!(
+        gated.lock().unwrap().as_slice(),
+        [
+            ("save_memory".to_string(), ToolKind::Edit, true),
+            ("list_memories".to_string(), ToolKind::Read, false),
+        ]
+    );
+    assert_eq!(dispatched.lock().unwrap().as_slice(), ["list_memories"]);
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, AgentEvent::ToolEnd { ok: false, name, .. } if name == "save_memory")));
+    assert!(matches!(events.last(), Some(AgentEvent::Done { .. })));
+}
+
+#[test]
+fn system_prompt_points_the_loop_at_the_memory_tools() {
+    let full = build_system_prompt("/vault", &ToolSelector::Full);
+    assert!(full.contains("list_memories"));
+    assert!(full.contains("save_memory"));
+
+    let read_only = build_system_prompt(
+        "/vault",
+        &ToolSelector::Only {
+            names: vec!["list_memories".into()],
+        },
+    );
+    assert!(read_only.contains("list_memories"));
+    assert!(!read_only.contains("save_memory"));
+
+    let no_memory = build_system_prompt(
+        "/vault",
+        &ToolSelector::Only {
+            names: vec!["search_notes".into()],
+        },
+    );
+    assert!(!no_memory.contains("list_memories"));
+}
+
+#[test]
+fn save_only_memory_prompt_does_not_advertise_list_memories() {
+    let prompt = build_system_prompt("/vault", &ToolSelector::Only { names: vec!["save_memory".into()] });
+    assert!(prompt.contains("save_memory"));
+    assert!(!prompt.contains("list_memories"));
 }

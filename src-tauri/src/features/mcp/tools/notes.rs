@@ -1,13 +1,26 @@
 use std::collections::HashMap;
+use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::AppHandle;
 
-use crate::features::mcp::shared_ops::{self, CreateResult, VAULT_ID_OPTIONAL_DESC};
+use crate::features::mcp::shared_ops::{self, CreateResult, OpError, VAULT_ID_OPTIONAL_DESC};
 use crate::features::mcp::tools::{op_err_to_tool_result, parse_args, prop};
 use crate::features::mcp::types::{InputSchema, PropertySchema, ToolDefinition, ToolResult};
 use crate::features::notes::service::file_meta;
+use crate::features::search::db as search_db;
+use crate::features::search::model::{
+    BaseFilter, BaseNoteRow, BaseQuery, BaseQueryResults, BaseSort,
+};
+use crate::features::search::service as search_service;
+use crate::features::vault_settings::service::get_vault_setting_value;
+
+pub(crate) const DEFAULT_MEMORY_FOLDER: &str = "Memory";
+const MEMORY_PROPERTY: &str = "memory";
+const MEMORY_LIST_DEFAULT: usize = 50;
+const MEMORY_LIST_MAX: usize = 200;
+const MEMORY_LOOKUP_LIMIT: usize = 10_000;
 
 #[derive(Default, Serialize, Deserialize)]
 pub(crate) struct NoteContentArgs {
@@ -39,6 +52,8 @@ pub fn tool_definitions() -> Vec<ToolDefinition> {
         append_note_def(),
         prepend_note_def(),
         ensure_frontmatter_def(),
+        list_memories_def(),
+        save_memory_def(),
     ]
 }
 
@@ -53,6 +68,8 @@ pub fn dispatch(app: &AppHandle, name: &str, arguments: Option<&Value>) -> Optio
         "append_note" => Some(handle_append_note(app, arguments)),
         "prepend_note" => Some(handle_prepend_note(app, arguments)),
         "ensure_frontmatter" => Some(handle_ensure_frontmatter(app, arguments)),
+        "list_memories" => Some(handle_list_memories(app, arguments)),
+        "save_memory" => Some(handle_save_memory(app, arguments)),
         _ => None,
     }
 }
@@ -463,6 +480,312 @@ fn handle_ensure_frontmatter(app: &AppHandle, arguments: Option<&Value>) -> Tool
 
     match shared_ops::ensure_frontmatter(app, &args.vault_id, &args.path) {
         Ok(path) => ToolResult::text(format!("Frontmatter ensured: {}", path)),
+        Err(e) => op_err_to_tool_result(e),
+    }
+}
+
+#[derive(Default, Serialize, Deserialize)]
+pub(crate) struct ListMemoriesArgs {
+    #[serde(default)]
+    pub vault_id: Option<String>,
+    #[serde(default)]
+    pub limit: Option<usize>,
+}
+
+#[derive(Default, Serialize, Deserialize)]
+pub(crate) struct SaveMemoryArgs {
+    #[serde(default)]
+    pub vault_id: Option<String>,
+    pub title: String,
+    pub body: String,
+    #[serde(default)]
+    pub source_session: Option<String>,
+}
+
+fn list_memories_def() -> ToolDefinition {
+    let mut properties = HashMap::new();
+    properties.insert("vault_id".into(), prop("string", VAULT_ID_OPTIONAL_DESC));
+    properties.insert(
+        "limit".into(),
+        PropertySchema {
+            prop_type: "integer".into(),
+            description: Some("Optional. Maximum number of memories to return (default: 50, max: 200)".into()),
+            enum_values: None,
+            default: Some(Value::Number(MEMORY_LIST_DEFAULT.into())),
+        },
+    );
+
+    ToolDefinition {
+        name: "list_memories".into(),
+        mutating: false,
+        description: "List the memories saved for this vault: every note with `memory: true` frontmatter, wherever it lives, newest first. Returns tab-separated lines of path, title, and modification time in ms since the epoch. Use read_note to read one in full.".into(),
+        input_schema: InputSchema {
+            schema_type: "object".into(),
+            properties,
+            required: vec![],
+        },
+    }
+}
+
+fn save_memory_def() -> ToolDefinition {
+    let mut properties = HashMap::new();
+    properties.insert("vault_id".into(), prop("string", VAULT_ID_OPTIONAL_DESC));
+    properties.insert(
+        "title".into(),
+        prop("string", "Short, stable name for the memory. Saving again with the same title updates that memory instead of creating another."),
+    );
+    properties.insert(
+        "body".into(),
+        prop("string", "The fact to remember, as markdown."),
+    );
+    properties.insert(
+        "source_session".into(),
+        prop("string", "Optional. Identifier of the session this memory came from."),
+    );
+
+    ToolDefinition {
+        name: "save_memory".into(),
+        mutating: true,
+        description: "Remember a durable fact for future sessions by writing a note with `memory: true` frontmatter into the vault's memory folder. A memory with the same title is updated in place. Returns the saved path.".into(),
+        input_schema: InputSchema {
+            schema_type: "object".into(),
+            properties,
+            required: vec!["title".into(), "body".into()],
+        },
+    }
+}
+
+pub(crate) fn memory_query(limit: usize) -> BaseQuery {
+    BaseQuery {
+        filters: vec![BaseFilter {
+            property: MEMORY_PROPERTY.into(),
+            operator: "eq".into(),
+            value: "true".into(),
+        }],
+        sort: vec![BaseSort {
+            property: "mtime_ms".into(),
+            descending: true,
+        }],
+        limit,
+        offset: 0,
+    }
+}
+
+pub(crate) fn memory_folder_from_setting(editor_settings: Option<&Value>) -> String {
+    editor_settings
+        .and_then(|settings| settings.get("memory_folder"))
+        .and_then(Value::as_str)
+        .map(|folder| folder.trim().trim_matches('/').to_string())
+        .filter(|folder| !folder.is_empty())
+        .unwrap_or_else(|| DEFAULT_MEMORY_FOLDER.to_string())
+}
+
+fn memory_folder(app: &AppHandle, vault_id: &str) -> String {
+    let setting = get_vault_setting_value(app, vault_id, "editor")
+        .ok()
+        .flatten();
+    memory_folder_from_setting(setting.as_ref())
+}
+
+pub(crate) fn memory_slug(title: &str) -> String {
+    let mut out = String::with_capacity(title.len());
+    let mut prev_dash = false;
+    for ch in title.to_lowercase().chars() {
+        if ch.is_ascii_alphanumeric() {
+            out.push(ch);
+            prev_dash = false;
+        } else if !prev_dash {
+            out.push('-');
+            prev_dash = true;
+        }
+    }
+    out.trim_matches('-').to_string()
+}
+
+pub(crate) fn memory_note_path(folder: &str, title: &str) -> String {
+    let slug = memory_slug(title);
+    let name = if slug.is_empty() { "memory" } else { slug.as_str() };
+    format!("{}/{}.md", folder.trim_matches('/'), name)
+}
+
+fn yaml_quote(value: &str) -> String {
+    serde_json::to_string(value).expect("strings serialize to JSON")
+}
+
+pub(crate) fn render_memory_note(title: &str, body: &str, source_session: Option<&str>) -> String {
+    let mut out = String::new();
+    out.push_str("---\n");
+    out.push_str(&format!("{MEMORY_PROPERTY}: true\n"));
+    out.push_str(&format!("title: {}\n", yaml_quote(title)));
+    if let Some(session) = source_session.map(str::trim).filter(|s| !s.is_empty()) {
+        out.push_str(&format!("source_session: {}\n", yaml_quote(session)));
+    }
+    out.push_str("---\n\n");
+    out.push_str(body.trim_end());
+    out.push('\n');
+    out
+}
+
+pub(crate) fn memory_title(row: &BaseNoteRow) -> String {
+    row.properties
+        .get("title")
+        .map(|property| property.value.clone())
+        .filter(|title| !title.trim().is_empty())
+        .unwrap_or_else(|| row.note.title.clone())
+}
+
+pub(crate) fn find_memory_by_title<'a>(rows: &'a [BaseNoteRow], title: &str) -> Option<&'a BaseNoteRow> {
+    let wanted = title.trim().to_lowercase();
+    rows.iter()
+        .find(|row| memory_title(row).trim().to_lowercase() == wanted)
+}
+
+pub(crate) fn format_memory_lines(rows: &[BaseNoteRow]) -> String {
+    rows.iter()
+        .map(|row| format!("{}\t{}\t{}", row.note.path, memory_title(row), row.note.mtime_ms))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn query_memories(app: &AppHandle, vault_id: &str, limit: usize) -> Result<BaseQueryResults, String> {
+    search_service::with_read_conn(app, vault_id, |conn| {
+        search_db::query_bases(conn, memory_query(limit))
+    })
+}
+
+fn handle_list_memories(app: &AppHandle, arguments: Option<&Value>) -> ToolResult {
+    let args: ListMemoriesArgs = match parse_args(arguments) {
+        Ok(a) => a,
+        Err(e) => return e,
+    };
+
+    let vault_id = match shared_ops::resolve_vault_id(app, args.vault_id) {
+        Ok(v) => v,
+        Err(e) => return op_err_to_tool_result(e),
+    };
+    let limit = args.limit.unwrap_or(MEMORY_LIST_DEFAULT).min(MEMORY_LIST_MAX);
+
+    match query_memories(app, &vault_id, limit) {
+        Ok(results) if results.rows.is_empty() => ToolResult::text("No memories saved yet.".into()),
+        Ok(results) => ToolResult::text(format!(
+            "{} memories (of {} total)\n{}",
+            results.rows.len(),
+            results.total,
+            format_memory_lines(&results.rows)
+        )),
+        Err(e) => ToolResult::error(e),
+    }
+}
+
+pub(crate) fn verify_memory_target(path: &str, content: &str, title: &str) -> Result<(), OpError> {
+    let conflict = || OpError::Conflict(format!("{} is not a verified memory with the same title", path));
+    let mut lines = content.lines();
+    if lines.next() != Some("---") {
+        return Err(conflict());
+    }
+    let mut memory = false;
+    let mut found_title = None;
+    let mut closed = false;
+    for line in lines {
+        if line == "---" {
+            closed = true;
+            break;
+        }
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        // Index extraction is intentionally permissive; it is not proof of file identity.
+        if line.starts_with(char::is_whitespace) {
+            return Err(conflict());
+        }
+        let (key, value) = line.split_once(':').ok_or_else(conflict)?;
+        let key = key.trim();
+        if key.is_empty() || !key.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-') {
+            return Err(conflict());
+        }
+        let value = value.trim();
+        let decoded = if value.starts_with('"') {
+            serde_json::from_str::<String>(value).map_err(|_| conflict())?
+        } else if !value.is_empty() && value.chars().all(|ch| ch.is_alphanumeric() || " -_./".contains(ch)) {
+            value.to_string()
+        } else {
+            return Err(conflict());
+        };
+        match key {
+            "memory" => {
+                if memory || value != "true" {
+                    return Err(conflict());
+                }
+                memory = true;
+            }
+            "title" => {
+                if found_title.is_some() {
+                    return Err(conflict());
+                }
+                found_title = Some(decoded);
+            }
+            _ => {}
+        }
+    }
+    let actual_title = found_title.or_else(|| {
+        Path::new(path).file_stem().and_then(|stem| stem.to_str()).map(str::to_string)
+    });
+    if closed && memory && actual_title.is_some_and(|actual| actual.trim().to_lowercase() == title.trim().to_lowercase()) {
+        Ok(())
+    } else {
+        Err(conflict())
+    }
+}
+
+fn handle_save_memory(app: &AppHandle, arguments: Option<&Value>) -> ToolResult {
+    let args: SaveMemoryArgs = match parse_args(arguments) {
+        Ok(a) => a,
+        Err(e) => return e,
+    };
+    let title = args.title.trim();
+    if title.is_empty() {
+        return ToolResult::error("title must not be empty".into());
+    }
+
+    let vault_id = match shared_ops::resolve_vault_id(app, args.vault_id) {
+        Ok(v) => v,
+        Err(e) => return op_err_to_tool_result(e),
+    };
+
+    let results = match query_memories(app, &vault_id, MEMORY_LOOKUP_LIMIT) {
+        Ok(results) => results,
+        Err(error) => return ToolResult::error(error),
+    };
+    let existing = find_memory_by_title(&results.rows, title).map(|row| row.note.path.clone());
+    let path = existing.clone().unwrap_or_else(|| memory_note_path(&memory_folder(app, &vault_id), title));
+    let content = render_memory_note(title, &args.body, args.source_session.as_deref());
+
+    let written = match shared_ops::read_note(app, &vault_id, &path) {
+        Ok((_, current)) => verify_memory_target(&path, &current, title)
+            .and_then(|()| shared_ops::write_note(app, &vault_id, &path, &content))
+            .map(|path| (path, true)),
+        Err(OpError::NotFound(_)) if existing.is_none() => shared_ops::create_note(
+            app,
+            &shared_ops::CreateNoteArgs {
+                vault_id: vault_id.clone(),
+                path,
+                content,
+                overwrite: false,
+            },
+        )
+        .map(|result| match result {
+            CreateResult::Created(meta) => (meta.path, false),
+            CreateResult::Overwritten(path) => (path, true),
+        }),
+        Err(error) => Err(error),
+    };
+
+    match written {
+        Ok((path, updated)) => {
+            let _ = search_service::index_upsert_note_inner(app.clone(), vault_id, path.clone());
+            let verb = if updated { "Updated memory" } else { "Saved memory" };
+            ToolResult::text(format!("{}: {}", verb, path))
+        }
         Err(e) => op_err_to_tool_result(e),
     }
 }

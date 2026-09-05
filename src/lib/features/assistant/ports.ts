@@ -77,6 +77,15 @@ export interface RetrievalPort {
   check_readiness(): Promise<RetrievalReadiness>;
 }
 
+// Memory is a frontmatter contract (`memory: true`), not a folder, so the
+// lookup is a property query rather than a path prefix. Returns only paths:
+// the memory source then runs them through RetrievalPort as a note scope, so
+// hybrid search, the read bound and the budget stay the ones every other
+// source uses. Same object-literal arrangement as RetrievalPort above.
+export interface MemoryIndexPort {
+  list_memory_paths(): Promise<string[]>;
+}
+
 // C2 contract. Both ports are declared structurally rather than imported from
 // `note`/`git` — the assistant slice must stay free of feature imports so C3's
 // exit-gate greps never grow, and `agent_runner.ts:18` already sets the

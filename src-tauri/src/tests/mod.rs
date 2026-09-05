@@ -69,6 +69,9 @@ mod mcp_tools_graph_references;
 #[path = "../../tests/mcp_tools_git.rs"]
 mod mcp_tools_git;
 
+#[path = "../../tests/mcp_tools_memory.rs"]
+mod mcp_tools_memory;
+
 #[path = "../../tests/mcp_schema_consistency.rs"]
 mod mcp_schema_consistency;
 #[path = "../../tests/mcp_mutating_parity.rs"]
