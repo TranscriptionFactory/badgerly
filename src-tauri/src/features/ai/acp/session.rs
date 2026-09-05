@@ -156,7 +156,7 @@ async fn run_session(
 
     // Shared with the command loop so turn boundaries can clear per-call
     // bookkeeping a cancelled turn would otherwise strand forever.
-    let translator = Arc::new(Mutex::new(TurnTranslator::new(mutating)));
+    let translator = Arc::new(Mutex::new(TurnTranslator::new(mutating.clone())));
     let notification_translator = translator.clone();
     let notification_sink = sink.clone();
     let permission_sink = sink.clone();
@@ -185,7 +185,7 @@ async fn run_session(
         )
         .on_receive_request(
             async move |request: RequestPermissionRequest, responder, _cx| {
-                let spec = build_request_spec(&handler_agent_id, &request);
+                let spec = build_request_spec(&handler_agent_id, &request, &mutating);
                 let request_id = mint_request_id();
 
                 let answer = match handler_engine.evaluate(&handler_policy, &spec) {
@@ -200,21 +200,9 @@ async fn run_session(
                             .await_decision(request_id.clone(), spec.clone())
                             .await;
                         handler_policy.unpark(&request_id);
-                        // The user said yes to this exact call; the HTTP layer
-                        // must not ask again when the harness makes it. A
-                        // reject is still a Selected outcome, so the kind is
-                        // what decides, not the variant.
-                        if matches!(
-                            outcome,
-                            ParkOutcome::Selected {
-                                kind: PermissionOptionKind::AllowOnce
-                                    | PermissionOptionKind::AllowAlways,
-                                ..
-                            }
-                        ) {
-                            handler_policy.grant_for(&spec);
-                        }
-                        settle_prompt(&permission_sink, &request_id, outcome)
+                        settle_prompt(
+                            &permission_sink, &request_id, &handler_policy, &spec, outcome,
+                        )
                     }
                 };
 
@@ -399,9 +387,11 @@ fn auto_answer(
     selected.map(|option| option.option_id.clone())
 }
 
-fn settle_prompt(
+pub(crate) fn settle_prompt(
     sink: &Arc<Mutex<Option<EventSink>>>,
     request_id: &str,
+    policy: &SessionPolicy,
+    spec: &PermissionRequestSpec,
     outcome: ParkOutcome,
 ) -> Option<String> {
     let (outcome_text, auto, option_id) = match outcome {
@@ -409,11 +399,12 @@ fn settle_prompt(
             option_id,
             kind,
             auto,
-        } => (
-            format!("selected:{}", option_kind_name(kind)),
-            auto,
-            Some(option_id),
-        ),
+        } => {
+            if matches!(kind, PermissionOptionKind::AllowOnce | PermissionOptionKind::AllowAlways) {
+                policy.grant_for(spec);
+            }
+            (format!("selected:{}", option_kind_name(kind)), auto, Some(option_id))
+        },
         ParkOutcome::Cancelled => ("cancelled".to_string(), true, None),
         ParkOutcome::Timeout => ("timeout".to_string(), true, None),
     };

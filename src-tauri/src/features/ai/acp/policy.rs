@@ -5,6 +5,7 @@ use agent_client_protocol::schema::v1::{
 use crate::features::ai::agent_stream::{
     summarize_json, PermissionOptionKind, PermissionOptionSpec, ToolKind,
 };
+use crate::features::ai::harness::MutatingToolSet;
 use crate::features::ai::permissions::PermissionRequestSpec;
 use crate::features::ai::tool_paths::extract_tool_paths;
 
@@ -18,6 +19,7 @@ const INPUT_SUMMARY_CHARS: usize = 200;
 pub fn build_request_spec(
     agent_id: &str,
     request: &RequestPermissionRequest,
+    mutating_tools: &MutatingToolSet,
 ) -> PermissionRequestSpec {
     let tool_call_id = request.tool_call.tool_call_id.to_string();
     let fields = &request.tool_call.fields;
@@ -31,7 +33,8 @@ pub fn build_request_spec(
         .as_ref()
         .map(extract_tool_paths)
         .unwrap_or_default();
-    let mutating = matches!(kind, ToolKind::Edit | ToolKind::Delete | ToolKind::Move);
+    let mutating = mutating_tools.contains(&name)
+        || matches!(kind, ToolKind::Edit | ToolKind::Delete | ToolKind::Move);
 
     PermissionRequestSpec {
         agent_id: agent_id.to_string(),

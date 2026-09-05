@@ -14,6 +14,7 @@ const MUTATING_BUILTIN_TOOLS: [&str; 4] = ["Write", "Edit", "MultiEdit", "Notebo
 
 /// Which tool names write to disk, so the frontend can refresh the vault even
 /// when no path could be resolved from a call's input.
+#[derive(Clone)]
 pub struct MutatingToolSet {
     mcp_names: HashSet<String>,
 }
@@ -30,7 +31,9 @@ impl MutatingToolSet {
     }
 
     pub fn contains(&self, name: &str) -> bool {
-        MUTATING_BUILTIN_TOOLS.contains(&name) || self.mcp_names.contains(name)
+        MUTATING_BUILTIN_TOOLS.contains(&name)
+            || self.mcp_names.contains(name)
+            || self.mcp_names.contains(&format!("{MCP_TOOL_PREFIX}{name}"))
     }
 }
 

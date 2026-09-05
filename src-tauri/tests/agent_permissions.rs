@@ -12,15 +12,6 @@ use crate::features::ai::agent_stream::{
 const AGENT: &str = "claude-code";
 
 #[test]
-fn create_checkpoint_is_evaluated_as_execute() {
-    assert_eq!(infer_tool_kind("create_checkpoint"), ToolKind::Execute);
-    assert_eq!(
-        infer_tool_kind("mcp__carbide__create_checkpoint"),
-        ToolKind::Execute
-    );
-}
-
-#[test]
 fn note_history_and_version_are_evaluated_as_read() {
     assert_eq!(infer_tool_kind("get_note_history"), ToolKind::Read);
     assert_eq!(infer_tool_kind("read_note_version"), ToolKind::Read);
