@@ -164,7 +164,7 @@ fn router_lists_all_twenty_eight_tools() {
     let resp = router.handle_request(&list_req).unwrap();
     let result = resp.result.unwrap();
     let tools = result["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 28);
+    assert_eq!(tools.len(), 30);
 
     let names: Vec<&str> = tools.iter().map(|t| t["name"].as_str().unwrap()).collect();
     assert!(names.contains(&"list_notes"));

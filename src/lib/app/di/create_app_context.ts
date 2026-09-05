@@ -66,7 +66,9 @@ import {
   register_assistant_edit_actions,
   register_assistant_notice_actions,
   register_chat_actions,
+  memory_notes_query,
   type AssistantDocumentPort,
+  type MemoryIndexPort,
   type ProposalCheckpointPort,
   type ProposalNotePort,
   type RetrievalPort,
@@ -895,8 +897,21 @@ export function create_app_context(input: {
     check_readiness: () => retrieval_service.check_readiness(),
   };
 
+  const memory_index: MemoryIndexPort = {
+    list_memory_paths: async () => {
+      const vault = stores.vault.vault;
+      if (!vault) return [];
+      const result = await input.ports.bases.query(
+        vault.id,
+        memory_notes_query(),
+      );
+      return result.rows.map((row) => row.note.path);
+    },
+  };
+
   const assistant_chat_service = new AssistantChatService(
     retrieval,
+    memory_index,
     assistant_kernel,
     () => stores.ui.editor_settings.ai_execution_timeout_seconds,
   );

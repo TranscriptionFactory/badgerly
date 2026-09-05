@@ -121,17 +121,24 @@ fn select_allow_never_answers_with_a_refusal() {
 }
 
 #[test]
-fn checkpoint_kind_and_mutation_override_absent_or_conflicting_acp_kinds() {
+fn declared_kind_and_mutation_override_absent_or_conflicting_acp_kinds() {
     for kind in [None, Some("read"), Some("edit"), Some("execute")] {
-        for name in ["create_checkpoint", "mcp__carbide__create_checkpoint"] {
+        for (name, expected, mutating) in [
+            ("create_checkpoint", ToolKind::Execute, true),
+            ("mcp__carbide__create_checkpoint", ToolKind::Execute, true),
+            ("save_memory", ToolKind::Edit, true),
+            ("mcp__carbide__save_memory", ToolKind::Edit, true),
+            ("list_memories", ToolKind::Read, false),
+            ("mcp__carbide__list_memories", ToolKind::Read, false),
+        ] {
             let request = serde_json::from_value(json!({
                 "sessionId": "sess-1",
                 "toolCall": { "toolCallId": "call-1", "title": name, "kind": kind },
                 "options": all_options(),
             })).unwrap();
             let spec = build_spec("claude", &request);
-            assert_eq!(spec.kind, ToolKind::Execute, "{name}: {kind:?}");
-            assert!(spec.mutating, "{name}: {kind:?}");
+            assert_eq!(spec.kind, expected, "{name}: {kind:?}");
+            assert_eq!(spec.mutating, mutating, "{name}: {kind:?}");
         }
     }
 }

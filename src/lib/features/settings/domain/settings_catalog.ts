@@ -1200,4 +1200,20 @@ export const SETTINGS_REGISTRY: SettingDefinition[] = [
       "template",
     ],
   },
+  {
+    key: "memory_folder",
+    label: "Memory Folder",
+    description:
+      "Folder where the assistant saves new memories. Any note with memory: true frontmatter counts as a memory, wherever it lives.",
+    category: "Files",
+    keywords: [
+      "memory",
+      "memories",
+      "assistant",
+      "remember",
+      "folder",
+      "path",
+      "ai",
+    ],
+  },
 ];

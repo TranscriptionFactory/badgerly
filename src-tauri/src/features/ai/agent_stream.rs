@@ -78,6 +78,8 @@ pub enum ToolKind {
 pub fn declared_tool_kind(name: &str) -> Option<ToolKind> {
     match name {
         "create_checkpoint" => Some(ToolKind::Execute),
+        "save_memory" => Some(ToolKind::Edit),
+        "list_memories" => Some(ToolKind::Read),
         _ => None,
     }
 }

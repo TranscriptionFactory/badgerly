@@ -20,6 +20,7 @@ describe("is_mutating_tool", () => {
     expect(is_mutating_tool("mcp__carbide__ensure_frontmatter")).toBe(true);
     expect(is_mutating_tool("mcp__carbide__rename_note")).toBe(true);
     expect(is_mutating_tool("mcp__carbide__create_checkpoint")).toBe(true);
+    expect(is_mutating_tool("mcp__carbide__save_memory")).toBe(true);
   });
 
   it("ignores read-only carbide MCP tools", () => {
@@ -29,6 +30,7 @@ describe("is_mutating_tool", () => {
     expect(is_mutating_tool("mcp__carbide__git_status")).toBe(false);
     expect(is_mutating_tool("mcp__carbide__get_note_history")).toBe(false);
     expect(is_mutating_tool("mcp__carbide__read_note_version")).toBe(false);
+    expect(is_mutating_tool("mcp__carbide__list_memories")).toBe(false);
   });
 
   it("detects built-in file-writing tools", () => {

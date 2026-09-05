@@ -191,4 +191,11 @@ describe("build_chat_prompt", () => {
     expect(result.user_prompt).toContain("<retrieved_context>");
     expect(result.user_prompt).toContain("<attached_document");
   });
+
+  it("tells the model that retrieved memories are its own saved notes", () => {
+    const { system_prompt } = build_chat_prompt({ question: "q", contexts });
+
+    expect(system_prompt).toContain("memory: true");
+    expect(system_prompt).toContain("earlier sessions");
+  });
 });

@@ -24,6 +24,7 @@ const MUTATING_MCP_TOOLS = new Set([
   "rename_note",
   "reindex",
   "create_checkpoint",
+  "save_memory",
 ]);
 
 const MUTATING_BUILTIN_TOOLS = new Set([

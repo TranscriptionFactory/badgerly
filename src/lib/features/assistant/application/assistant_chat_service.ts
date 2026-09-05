@@ -1,8 +1,12 @@
 import { create_logger } from "$lib/shared/utils/logger";
+import { error_message } from "$lib/shared/utils/error_message";
 import type { AiImagePart } from "$lib/features/ai";
 import type { AiProviderConfig } from "$lib/shared/types/ai_provider_config";
 import type { HitSource } from "$lib/shared/types/search";
-import type { RetrievalPort } from "$lib/features/assistant/ports";
+import type {
+  MemoryIndexPort,
+  RetrievalPort,
+} from "$lib/features/assistant/ports";
 import type {
   RetrievalReadiness,
   RetrievedNote,
@@ -38,8 +42,10 @@ import type { AssistantCitation } from "$lib/features/assistant/types/session";
 const log = create_logger("assistant_chat_service");
 
 const DEFAULT_RETRIEVE_LIMIT = 15;
+const MEMORY_RETRIEVE_LIMIT = 5;
 const MIN_SECTION_SLICE_CHARS = 20;
 const PINNED_SOURCE = "pinned";
+const MEMORY_SOURCE = "memory";
 const RETRIEVED_SOURCE = "retrieved";
 const VAULT_DEDUP_GROUP = "vault";
 
@@ -140,6 +146,7 @@ export type AssistantChatQueryInput = {
 export class AssistantChatService {
   constructor(
     private readonly retrieval: RetrievalPort,
+    private readonly memory_index: MemoryIndexPort,
     private readonly run_starter: RunStarter,
     private readonly execution_timeout_seconds: () => number,
   ) {}
@@ -158,15 +165,18 @@ export class AssistantChatService {
       history: input.history ?? [],
     });
 
-    const outcome = await this.retrieval.retrieve({
-      query: rewrite.query,
-      pinned_titles: mentions,
-      boost_paths: rewrite.boost_paths,
-      ...(input.scope ? { scope: to_retrieval_scope(input.scope) } : {}),
-      ...(input.retrieve_limit === undefined
-        ? {}
-        : { limit: input.retrieve_limit }),
-    });
+    const [outcome, memory_blocks] = await Promise.all([
+      this.retrieval.retrieve({
+        query: rewrite.query,
+        pinned_titles: mentions,
+        boost_paths: rewrite.boost_paths,
+        ...(input.scope ? { scope: to_retrieval_scope(input.scope) } : {}),
+        ...(input.retrieve_limit === undefined
+          ? {}
+          : { limit: input.retrieve_limit }),
+      }),
+      this.retrieve_memories(rewrite.query),
+    ]);
 
     if (outcome.status === "no_vault") {
       yield { type: "error", error: "No active vault" };
@@ -201,7 +211,10 @@ export class AssistantChatService {
       const pinned_blocks = to_blocks(outcome.pinned, true);
       const retrieved_blocks = to_blocks(outcome.retrieved, false);
       if (
-        pinned_blocks.length + retrieved_blocks.length === 0 &&
+        pinned_blocks.length +
+          memory_blocks.length +
+          retrieved_blocks.length ===
+          0 &&
         !input.attachment
       ) {
         yield* this.no_results();
@@ -218,6 +231,12 @@ export class AssistantChatService {
             id: PINNED_SOURCE,
             dedup_group: VAULT_DEDUP_GROUP,
             blocks: pinned_blocks,
+          },
+          {
+            id: MEMORY_SOURCE,
+            dedup_group: VAULT_DEDUP_GROUP,
+            max_blocks: MEMORY_RETRIEVE_LIMIT,
+            blocks: memory_blocks,
           },
           {
             id: RETRIEVED_SOURCE,
@@ -311,6 +330,33 @@ export class AssistantChatService {
       yield { type: "done" };
     } finally {
       handle.stop();
+    }
+  }
+
+  // Memories are ordinary notes, so they come back through the same retrieval
+  // port as everything else — scoped to the paths the index tags `memory: true`.
+  // A memory failure must never cost the user the answer, so it degrades to
+  // "no memories" rather than surfacing as an error.
+  private async retrieve_memories(query: string): Promise<ContextBlock[]> {
+    try {
+      const paths = await this.memory_index.list_memory_paths();
+      if (paths.length === 0) return [];
+
+      const outcome = await this.retrieval.retrieve({
+        query,
+        pinned_titles: [],
+        boost_paths: [],
+        scope: to_retrieval_scope({ notes: paths }),
+        limit: MEMORY_RETRIEVE_LIMIT,
+      });
+      return outcome.status === "hits"
+        ? to_blocks(outcome.retrieved, false)
+        : [];
+    } catch (err) {
+      log.warn("Memory retrieval failed; answering without memories", {
+        error: error_message(err),
+      });
+      return [];
     }
   }
 

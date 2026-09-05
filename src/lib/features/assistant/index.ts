@@ -346,3 +346,6 @@ export { register_assistant_notice_actions } from "$lib/features/assistant/appli
 
 export { default as AssistantNoticeRail } from "$lib/features/assistant/ui/assistant_notice_rail.svelte";
 export { default as AssistantNoticeCard } from "$lib/features/assistant/ui/assistant_notice_card.svelte";
+
+export type { MemoryIndexPort } from "$lib/features/assistant/ports";
+export { memory_notes_query } from "$lib/features/assistant/domain/memory_notes_query";

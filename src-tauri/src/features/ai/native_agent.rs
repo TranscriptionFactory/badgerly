@@ -101,9 +101,19 @@ pub fn build_system_prompt(vault_path: &str, toolset: &ToolSelector) -> String {
         ToolSelector::Full => "read, search, and edit notes",
         ToolSelector::Only { .. } => "read and search notes",
     };
+    let memory = if auth::selector_allows(toolset, "save_memory") && auth::selector_allows(toolset, "list_memories") {
+        "Call list_memories to recall what you saved in earlier sessions and save_memory to keep a durable fact for later. "
+    } else if auth::selector_allows(toolset, "save_memory") {
+        "Call save_memory to keep a durable fact for later. "
+    } else if auth::selector_allows(toolset, "list_memories") {
+        "Call list_memories to recall what you saved in earlier sessions. "
+    } else {
+        ""
+    };
     format!(
         "You are Carbide's vault-scoped assistant operating on the vault at {vault_path}. \
 Use the provided tools to {actions} before answering. \
+{memory}\
 Only act within this vault; do not assume access to anything outside the tool catalog."
     )
 }
