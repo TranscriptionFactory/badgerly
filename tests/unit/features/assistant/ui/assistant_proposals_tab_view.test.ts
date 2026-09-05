@@ -461,7 +461,8 @@ describe("assistant_proposals_tab_view turn history", () => {
     ];
   }
 
-  function revert_button(row: HTMLElement) {
+  function revert_button(row: HTMLElement | undefined) {
+    if (!row) throw new Error("Expected a turn row");
     return row.querySelector<HTMLButtonElement>(
       '[data-testid="assistant-revert-turn"]',
     );
@@ -477,7 +478,7 @@ describe("assistant_proposals_tab_view turn history", () => {
           note_path: "a.md",
           status: "reverted",
         }),
-        applied_history[1]!,
+        ...applied_history.slice(1, 2),
       ],
       session_summaries: [make_session({ id: "session-1", title: "Ranking" })],
     });
@@ -487,8 +488,8 @@ describe("assistant_proposals_tab_view turn history", () => {
       "reverted",
       "applied",
     ]);
-    expect(revert_button(rows[0]!)).toBeNull();
-    expect(revert_button(rows[1]!)?.disabled).toBe(false);
+    expect(revert_button(rows[0])).toBeNull();
+    expect(revert_button(rows[1])?.disabled).toBe(false);
     expect(
       view.target.querySelector(
         '[data-testid="assistant-turn-history-provenance"]',
@@ -526,7 +527,8 @@ describe("assistant_proposals_tab_view turn history", () => {
       on_revert_turn,
     });
 
-    const button = revert_button(turn_rows(view.target)[0]!)!;
+    const button = revert_button(turn_rows(view.target)[0]);
+    if (!button) throw new Error("Expected a revert button");
     expect(button.disabled).toBe(true);
     expect(
       view.target.querySelector('[data-testid="assistant-revert-turn-reason"]')
@@ -542,7 +544,7 @@ describe("assistant_proposals_tab_view turn history", () => {
     const on_revert_turn = vi.fn();
     const view = render({ proposals: [], applied_history, on_revert_turn });
 
-    revert_button(turn_rows(view.target)[2]!)!.click();
+    revert_button(turn_rows(view.target)[2])?.click();
     flushSync();
 
     expect(on_revert_turn).toHaveBeenCalledWith("run-3", false);
@@ -557,7 +559,7 @@ describe("assistant_proposals_tab_view turn history", () => {
     const on_revert_turn = vi.fn();
     const view = render({ proposals: [], applied_history, on_revert_turn });
 
-    revert_button(turn_rows(view.target)[1]!)!.click();
+    revert_button(turn_rows(view.target)[1])?.click();
     flushSync();
 
     expect(on_revert_turn).not.toHaveBeenCalled();
@@ -569,8 +571,9 @@ describe("assistant_proposals_tab_view turn history", () => {
     );
     expect(confirm?.textContent).toContain("any edits you made after applying");
 
+    if (!confirm) throw new Error("Expected revert confirmation");
     (
-      confirm?.querySelector(
+      confirm.querySelector(
         '[data-testid="assistant-revert-confirm-accept"]',
       ) as HTMLButtonElement
     ).click();
@@ -588,7 +591,7 @@ describe("assistant_proposals_tab_view turn history", () => {
     const on_revert_turn = vi.fn();
     const view = render({ proposals: [], applied_history, on_revert_turn });
 
-    revert_button(turn_rows(view.target)[0]!)!.click();
+    revert_button(turn_rows(view.target)[0])?.click();
     flushSync();
     (
       view.target.querySelector(
@@ -613,7 +616,7 @@ describe("assistant_proposals_tab_view turn history", () => {
       '[data-testid="assistant-revert-session"]',
     );
     expect(button).not.toBeNull();
-    button!.click();
+    button?.click();
     flushSync();
 
     expect(on_revert_session).not.toHaveBeenCalled();

@@ -201,7 +201,7 @@ describe("register_assistant_actions — revert actions", () => {
     });
     expect(toast.warning).toHaveBeenCalledWith(
       "This revert needs confirmation",
-      { description: expect.stringContaining("also undoes turn 2") },
+      { description: expect.stringContaining("also undoes turn 2") as string },
     );
   });
 

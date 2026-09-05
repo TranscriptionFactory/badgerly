@@ -20,6 +20,23 @@ const three_turns = [
 ];
 
 describe("group_proposal_turns", () => {
+  it("orders equal timestamps by numeric run sequence, not lexical id", () => {
+    const turns = group_proposal_turns(
+      [10, 2, 1].map((n) =>
+        make_turn_proposal({
+          run_id: `run-${String(n)}`,
+          created_at: 100,
+          note_path: "a.md",
+        }),
+      ),
+    );
+    expect(turns.map((turn) => turn.turn_id)).toEqual([
+      "run-1",
+      "run-2",
+      "run-10",
+    ]);
+  });
+
   it("groups a session's proposals into turns keyed by run_id, ordered by created_at", () => {
     const turns = group_proposal_turns([...three_turns].reverse());
 
@@ -145,9 +162,11 @@ describe("turn_revert_block_reason", () => {
       }),
     ]);
 
-    expect(turn_revert_block_reason(applied!)).toBeNull();
-    expect(turn_revert_block_reason(no_anchor!)).toBe(NO_ANCHOR_REASON);
-    expect(turn_revert_block_reason(reverted!)).toContain("already reverted");
+    if (!applied || !no_anchor || !reverted)
+      throw new Error("Expected three turns");
+    expect(turn_revert_block_reason(applied)).toBeNull();
+    expect(turn_revert_block_reason(no_anchor)).toBe(NO_ANCHOR_REASON);
+    expect(turn_revert_block_reason(reverted)).toContain("already reverted");
   });
 });
 
@@ -171,6 +190,23 @@ describe("plan_turn_revert", () => {
     const plan = plan_turn_revert(three_turns, "run-2");
 
     if (plan.status !== "ready") throw new Error(plan.status);
+    expect(plan.later_turns.map((turn) => turn.ordinal)).toEqual([3]);
+  });
+
+  it("preserves earlier turns when creation timestamps are equal", () => {
+    const proposals = three_turns.map((proposal) => ({
+      ...proposal,
+      created_at: 100,
+    }));
+
+    const plan = plan_turn_revert(proposals, "run-2");
+
+    if (plan.status !== "ready") throw new Error(plan.status);
+    expect(plan.proposals.map((proposal) => proposal.origin.run_id)).toEqual([
+      "run-2",
+      "run-2",
+      "run-3",
+    ]);
     expect(plan.later_turns.map((turn) => turn.ordinal)).toEqual([3]);
   });
 
@@ -294,5 +330,94 @@ describe("describe_turn_revert", () => {
     expect(describe_turn_revert(plan)).toBe(
       "c.md goes back to the checkpoint before turn 3; any edits you made after applying are discarded.",
     );
+  });
+});
+
+describe("restored pending proposal run ids", () => {
+  it("keeps reused run ids in different sessions separate and refuses ambiguous turn actions", () => {
+    const proposals = [
+      make_turn_proposal({
+        run_id: "run-1",
+        created_at: 100,
+        note_path: "old.md",
+        session_id: "old-session",
+      }),
+      make_turn_proposal({
+        run_id: "run-1",
+        created_at: 200,
+        note_path: "new.md",
+        session_id: "new-session",
+      }),
+    ];
+    const turns = group_proposal_turns(proposals);
+    expect(turns.map((turn) => turn.session_id)).toEqual([
+      "old-session",
+      "new-session",
+    ]);
+    expect(turns.map((turn) => turn.proposals.length)).toEqual([1, 1]);
+    expect(plan_turn_revert(proposals, "run-1").status).toBe("refused");
+    expect(plan_session_revert(proposals, "new-session").status).toBe(
+      "refused",
+    );
+  });
+
+  it("refuses distinct turns reusing a run id in the same session, even at the same anchor", () => {
+    const proposals = [
+      make_turn_proposal({
+        run_id: "run-1",
+        created_at: 100,
+        note_path: "old.md",
+        anchor: "same-sha",
+      }),
+      make_turn_proposal({
+        run_id: "run-1",
+        created_at: 200,
+        note_path: "new.md",
+        anchor: "same-sha",
+      }),
+    ];
+    expect(plan_turn_revert(proposals, "run-1").status).toBe("refused");
+  });
+
+  it("refuses a target between two historical turns sharing one run id", () => {
+    const proposals = [
+      make_turn_proposal({
+        run_id: "run-1",
+        created_at: 100,
+        note_path: "old.md",
+      }),
+      make_turn_proposal({
+        run_id: "run-2",
+        created_at: 200,
+        note_path: "target.md",
+      }),
+      make_turn_proposal({
+        run_id: "run-1",
+        created_at: 300,
+        note_path: "new.md",
+      }),
+    ];
+    expect(plan_turn_revert(proposals, "run-2").status).toBe("refused");
+  });
+
+  it("refuses a range containing a later ambiguous run id", () => {
+    const proposals = [
+      make_turn_proposal({
+        run_id: "run-1",
+        created_at: 100,
+        note_path: "a.md",
+      }),
+      make_turn_proposal({
+        run_id: "run-2",
+        created_at: 200,
+        note_path: "old.md",
+      }),
+      make_turn_proposal({
+        run_id: "run-2",
+        created_at: 300,
+        note_path: "new.md",
+      }),
+    ];
+    expect(plan_turn_revert(proposals, "run-1").status).toBe("refused");
   });
 });

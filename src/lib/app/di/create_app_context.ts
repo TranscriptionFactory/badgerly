@@ -1387,6 +1387,7 @@ export function create_app_context(input: {
   };
 
   const proposal_apply = new ProposalApplyService({
+    ops: stores.op,
     proposals: stores.assistant_proposals,
     notes: proposal_notes,
     git: proposal_git,
@@ -1394,6 +1395,7 @@ export function create_app_context(input: {
   });
 
   const proposal_revert = new ProposalRevertService({
+    ops: stores.op,
     proposals: stores.assistant_proposals,
     notes: proposal_notes,
     git: git_service,

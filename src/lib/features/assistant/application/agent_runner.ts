@@ -1,3 +1,6 @@
+import type { OpStore } from "$lib/app/orchestration/op_store.svelte";
+import type { AssistantProposalStore } from "$lib/features/assistant/state/assistant_proposal_store.svelte";
+import { PROPOSAL_MUTATION_OP } from "$lib/features/assistant/types/proposal";
 import { create_logger } from "$lib/shared/utils/logger";
 import { error_message } from "$lib/shared/utils/error_message";
 import { chat_policy } from "$lib/features/ai";
@@ -69,6 +72,10 @@ export class AgentRunner {
     ) => Promise<void> | void,
     private readonly proposals: AgentTurnProposalProducer,
     private readonly read_note_mtime: AgentNoteMtimeReader,
+    private readonly mutations: {
+      proposals: AssistantProposalStore;
+      ops: OpStore;
+    },
   ) {}
 
   get is_running(): boolean {
@@ -89,7 +96,22 @@ export class AgentRunner {
     if (!vault) return this.fail("No active vault");
     if (!session) return this.fail("No active chat session");
 
-    const anchor = await this.checkpoint();
+    if (this.mutations.ops.is_pending(PROPOSAL_MUTATION_OP)) {
+      return this.fail("Another proposal operation is in progress.");
+    }
+    this.mutations.ops.start(PROPOSAL_MUTATION_OP, Date.now());
+    let anchor: string | null;
+    const anchor_applied_ids = this.mutations.proposals.proposals
+      .filter(
+        (proposal) =>
+          proposal.status === "applied" && proposal.target.kind === "note",
+      )
+      .map((proposal) => proposal.id);
+    try {
+      anchor = await this.checkpoint();
+    } finally {
+      this.mutations.ops.reset(PROPOSAL_MUTATION_OP);
+    }
 
     const history = session_messages_to_history(session.messages.slice(0, -1));
     const tool_calls: AgentToolCall[] = [];
@@ -119,7 +141,14 @@ export class AgentRunner {
 
       const run_id = this.handle.id;
       const outcome = await this.handle.outcome;
-      await this.finish_turn(anchor, run_id, session.id, tool_calls, mtimes);
+      await this.finish_turn(
+        anchor,
+        run_id,
+        session.id,
+        tool_calls,
+        mtimes,
+        anchor_applied_ids,
+      );
       if (outcome.status === "error") {
         return { status: "error", message: outcome.error.message };
       }
@@ -133,6 +162,7 @@ export class AgentRunner {
         session.id,
         tool_calls,
         mtimes,
+        anchor_applied_ids,
       );
       return { status: "error", message };
     } finally {
@@ -258,6 +288,7 @@ export class AgentRunner {
     session_id: string,
     tool_calls: AgentToolCall[],
     mtimes: PendingMtimes,
+    anchor_applied_ids: string[],
   ): Promise<void> {
     await this.produce_proposals(
       anchor,
@@ -265,6 +296,7 @@ export class AgentRunner {
       session_id,
       tool_calls,
       mtimes,
+      anchor_applied_ids,
     );
     await this.record_file_changes(tool_calls);
   }
@@ -312,6 +344,7 @@ export class AgentRunner {
     session_id: string,
     tool_calls: AgentToolCall[],
     mtimes: PendingMtimes,
+    anchor_applied_ids: string[],
   ): Promise<void> {
     const vault_path = String(this.vault_store.vault?.path ?? "");
     // Rollback scope, not refresh scope. A denied tool announces its paths
@@ -324,7 +357,7 @@ export class AgentRunner {
     try {
       const report = await this.proposals.produce({
         anchor,
-        origin: { session_id, run_id, anchor },
+        origin: { session_id, run_id, anchor, anchor_applied_ids },
         touched_paths,
         expected_mtimes: await this.resolve_mtimes(mtimes),
       });

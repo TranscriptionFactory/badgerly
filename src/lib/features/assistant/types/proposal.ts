@@ -61,6 +61,8 @@ export type ProposalOrigin = {
   // anchor and predate the field; absent reads as null, and a turn without one
   // cannot be reverted.
   anchor?: string | null;
+  // Captured before the checkpoint: an earlier turn applied later is not in it.
+  anchor_applied_ids?: ProposalId[];
 };
 
 // `stale` is terminal-on-detection, not a fourth pending state: it means the
@@ -117,3 +119,5 @@ export function to_proposal_summary(proposal: Proposal): ProposalSummary {
     status: proposal.status,
   };
 }
+
+export const PROPOSAL_MUTATION_OP = "assistant.proposal_mutation";

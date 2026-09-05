@@ -8,7 +8,11 @@ import type {
   ProposalCheckpointPort,
   ProposalNotePort,
 } from "$lib/features/assistant/ports";
-import type { ProposalId } from "$lib/features/assistant/types/proposal";
+import type { OpStore } from "$lib/app/orchestration/op_store.svelte";
+import {
+  PROPOSAL_MUTATION_OP,
+  type ProposalId,
+} from "$lib/features/assistant/types/proposal";
 
 // Every id lands in exactly one bucket, so a caller can report honestly
 // without re-deriving anything. `stale` is separate from `failed` because it
@@ -36,6 +40,7 @@ export type ProposalApplyOutcome = {
 
 export type ProposalApplyDeps = {
   proposals: AssistantProposalStore;
+  ops: OpStore;
   notes: ProposalNotePort;
   git: ProposalCheckpointPort;
   documents: AssistantDocumentPort;
@@ -58,6 +63,29 @@ export class ProposalApplyService {
   // proposals unusable in every non-git vault — but the outcome rides along
   // so no caller can claim an undo that does not exist.
   async apply_batch(ids: ProposalId[]): Promise<ProposalApplyOutcome> {
+    if (this.deps.ops.is_pending(PROPOSAL_MUTATION_OP)) {
+      return {
+        applied: [],
+        stale: [],
+        written_note_paths: [],
+        checkpoint: null,
+        failed: ids.map((id) => ({
+          id,
+          error: "Another proposal operation is in progress.",
+        })),
+      };
+    }
+    this.deps.ops.start(PROPOSAL_MUTATION_OP, Date.now());
+    try {
+      return await this.apply_unlocked(ids);
+    } finally {
+      this.deps.ops.reset(PROPOSAL_MUTATION_OP);
+    }
+  }
+
+  private async apply_unlocked(
+    ids: ProposalId[],
+  ): Promise<ProposalApplyOutcome> {
     const applied: ProposalId[] = [];
     const stale: ProposalId[] = [];
     const failed: { id: ProposalId; error: string }[] = [];

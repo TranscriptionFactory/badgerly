@@ -150,7 +150,12 @@ describe("parse_stored", () => {
 describe("parse_stored — turn anchor", () => {
   it("round-trips a pending proposal's origin.anchor", () => {
     const proposal = make_proposal({
-      origin: { session_id: "s1", run_id: "run-1", anchor: "sha-1" },
+      origin: {
+        session_id: "s1",
+        run_id: "run-1",
+        anchor: "sha-1",
+        anchor_applied_ids: ["earlier-apply"],
+      },
     });
 
     const parsed = parse_stored(
@@ -158,6 +163,7 @@ describe("parse_stored — turn anchor", () => {
     );
 
     expect(parsed[0]?.origin.anchor).toBe("sha-1");
+    expect(parsed[0]?.origin.anchor_applied_ids).toEqual(["earlier-apply"]);
   });
 
   it("reads an entry without an anchor as null, and drops one whose anchor is not a string", () => {
@@ -175,3 +181,15 @@ describe("parse_stored — turn anchor", () => {
     expect(parse_stored({ ...stored, proposals: [numeric] })).toEqual([]);
   });
 });
+
+it.each([null, "proposal-1", [42]])(
+  "drops invalid anchor applied-id snapshots: %j",
+  (anchor_applied_ids) => {
+    const proposal = make_proposal();
+    const stored = to_stored([proposal], SAVED_AT);
+    stored.proposals = [
+      { ...proposal, origin: { ...proposal.origin, anchor_applied_ids } },
+    ];
+    expect(parse_stored(stored)).toEqual([]);
+  },
+);

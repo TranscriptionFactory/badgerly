@@ -15,6 +15,7 @@ export type ProposalTurn = {
   ordinal: number;
   created_at: number;
   anchor: string | null;
+  ambiguous: boolean;
   status: ProposalTurnStatus;
   proposals: Proposal[];
 };
@@ -44,36 +45,47 @@ export const NO_ANCHOR_REASON =
 export function group_proposal_turns(
   proposals: readonly Proposal[],
 ): ProposalTurn[] {
-  const by_turn = new Map<RunId, ProposalTurn>();
+  const by_turn = new Map<string, ProposalTurn>();
   for (const proposal of proposals) {
     const run_id = proposal.origin.run_id;
     if (run_id === null || proposal.target.kind !== "note") continue;
     if (proposal.status !== "applied" && proposal.status !== "reverted") {
       continue;
     }
-    const turn = by_turn.get(run_id);
+    const key = JSON.stringify([proposal.origin.session_id, run_id]);
+    const turn = by_turn.get(key);
     if (!turn) {
-      by_turn.set(run_id, {
+      by_turn.set(key, {
         turn_id: run_id,
         session_id: proposal.origin.session_id,
         ordinal: 0,
         created_at: proposal.created_at,
         anchor: proposal.origin.anchor ?? null,
+        ambiguous: false,
         status: proposal.status,
         proposals: [proposal],
       });
       continue;
     }
+    turn.ambiguous ||=
+      turn.created_at !== proposal.created_at ||
+      turn.anchor !== (proposal.origin.anchor ?? null);
     turn.proposals.push(proposal);
     turn.created_at = Math.min(turn.created_at, proposal.created_at);
     if (proposal.status === "applied") turn.status = "applied";
   }
 
   const turns = [...by_turn.values()].sort(
-    (a, b) => a.created_at - b.created_at || a.turn_id.localeCompare(b.turn_id),
+    (a, b) =>
+      a.created_at - b.created_at ||
+      a.turn_id.localeCompare(b.turn_id, "en", { numeric: true }),
   );
   const counters = new Map<string, number>();
+  const run_counts = new Map<RunId, number>();
+  for (const turn of turns)
+    run_counts.set(turn.turn_id, (run_counts.get(turn.turn_id) ?? 0) + 1);
   for (const turn of turns) {
+    turn.ambiguous ||= (run_counts.get(turn.turn_id) ?? 0) > 1;
     const ordinal = (counters.get(turn.session_id) ?? 0) + 1;
     counters.set(turn.session_id, ordinal);
     turn.ordinal = ordinal;
@@ -81,7 +93,11 @@ export function group_proposal_turns(
   return turns;
 }
 
+const AMBIGUOUS_TURN_REASON =
+  "This run id belongs to multiple turns; its checkpoint cannot be identified safely.";
+
 export function turn_revert_block_reason(turn: ProposalTurn): string | null {
+  if (turn.ambiguous) return AMBIGUOUS_TURN_REASON;
   if (turn.status === "reverted") return "This turn is already reverted.";
   if (turn.anchor === null) return NO_ANCHOR_REASON;
   return null;
@@ -126,10 +142,17 @@ function plan_from(
     return { status: "refused", reason: reason ?? NO_ANCHOR_REASON };
   }
 
+  if (
+    turns.some(
+      (turn) => turn.session_id === target.session_id && turn.ambiguous,
+    )
+  ) {
+    return { status: "refused", reason: AMBIGUOUS_TURN_REASON };
+  }
   const in_range = turns.filter(
     (turn) =>
       turn.session_id === target.session_id &&
-      turn.created_at >= target.created_at &&
+      turn.ordinal >= target.ordinal &&
       turn.status === "applied",
   );
   const applied = in_range.flatMap((turn) =>

@@ -1,3 +1,4 @@
+import { OpStore } from "$lib/app/orchestration/op_store.svelte";
 import { describe, expect, it, vi } from "vitest";
 import {
   AssistantProposalStore,
@@ -16,6 +17,11 @@ function make_harness(
     make_turn_proposal({ run_id: "run-2", created_at: 200, note_path: "b.md" }),
     make_turn_proposal({ run_id: "run-3", created_at: 300, note_path: "c.md" }),
   ]);
+  for (const proposal of proposals.proposals) {
+    proposal.origin.anchor_applied_ids = proposals.proposals
+      .filter((earlier) => earlier.created_at < proposal.created_at)
+      .map((earlier) => earlier.id);
+  }
   const disk = new Map<string, string>([
     ["a.md", "a after turn 2 and user edits"],
     ["b.md", "b after turn 2"],
@@ -38,8 +44,10 @@ function make_harness(
   const checkpoint = {
     create_checkpoint: vi.fn(() => Promise.resolve(checkpoint_outcome)),
   };
+  const ops = new OpStore();
   const service = new ProposalRevertService({
     proposals,
+    ops,
     notes,
     git,
     checkpoint,
@@ -48,10 +56,98 @@ function make_harness(
     proposals.proposals
       .filter((p) => p.origin.run_id === run_id)
       .map((p) => p.status);
-  return { proposals, notes, git, checkpoint, service, disk, status_of };
+  return { ops, proposals, notes, git, checkpoint, service, disk, status_of };
 }
 
 describe("ProposalRevertService.revert_turn", () => {
+  it.each([undefined, []])(
+    "refuses overlapping preserved edits absent from the anchor snapshot: %j",
+    async (snapshot) => {
+      const h = make_harness();
+      for (const proposal of h.proposals.proposals) {
+        if (proposal.origin.run_id !== "run-2") continue;
+        if (snapshot === undefined) delete proposal.origin.anchor_applied_ids;
+        else proposal.origin.anchor_applied_ids = snapshot;
+      }
+      const before = [...h.disk];
+
+      const outcome = await h.service.revert_turn("run-2", { confirmed: true });
+
+      expect(outcome.status).toBe("refused");
+      expect([...h.disk]).toEqual(before);
+      expect(h.checkpoint.create_checkpoint).not.toHaveBeenCalled();
+      expect(h.status_of("run-1")).toEqual(["applied"]);
+      expect(h.status_of("run-2")).toEqual(["applied", "applied"]);
+    },
+  );
+
+  it("refuses overlapping edits from another session when the anchor predates them", async () => {
+    const h = make_harness();
+    h.proposals.add(
+      make_turn_proposal({
+        run_id: "run-other",
+        created_at: 400,
+        note_path: "a.md",
+        session_id: "other",
+      }),
+    );
+
+    const outcome = await h.service.revert_turn("run-2", { confirmed: true });
+
+    expect(outcome.status).toBe("refused");
+    expect(h.notes.write_note).not.toHaveBeenCalled();
+  });
+
+  it("refuses overlapping reverts and permits a later retry", async () => {
+    const h = make_harness();
+    let release = () => {};
+    h.git.get_file_at_commit.mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          release = () => {
+            resolve("c.md@anchor-run-3");
+          };
+        }),
+    );
+    const first = h.service.revert_turn("run-3", { confirmed: true });
+    await vi.waitFor(() => {
+      expect(h.git.get_file_at_commit).toHaveBeenCalledTimes(1);
+    });
+
+    const second = await h.service.revert_turn("run-2", { confirmed: true });
+    expect(second).toEqual({
+      status: "refused",
+      reason: "Another proposal operation is in progress.",
+    });
+    expect(h.status_of("run-2")).toEqual(["applied", "applied"]);
+    release();
+    expect((await first).status).toBe("reverted");
+    expect(
+      (await h.service.revert_turn("run-2", { confirmed: true })).status,
+    ).toBe("reverted");
+  });
+
+  it("releases the mutation gate after a thrown checkpoint error", async () => {
+    const h = make_harness();
+    h.checkpoint.create_checkpoint.mockRejectedValueOnce(
+      new Error("checkpoint error"),
+    );
+    await expect(
+      h.service.revert_turn("run-3", { confirmed: true }),
+    ).rejects.toThrow("checkpoint error");
+    expect(
+      (await h.service.revert_turn("run-3", { confirmed: true })).status,
+    ).toBe("reverted");
+  });
+
+  it("refuses a revert when its recovery checkpoint is unavailable", async () => {
+    const h = make_harness("unavailable");
+    expect(
+      (await h.service.revert_turn("run-3", { confirmed: true })).status,
+    ).toBe("refused");
+    expect(h.notes.write_note).not.toHaveBeenCalled();
+  });
+
   it("apply three turns, revert turn 2 → turns 2 and 3 undone, turn 1 intact, git port called once per touched path with turn 2's anchor", async () => {
     const h = make_harness();
 
@@ -237,9 +333,11 @@ describe("ProposalRevertService.revert_session", () => {
       confirmed: true,
     });
     expect(outcome.status).toBe("reverted");
-    expect(
-      h.git.get_file_at_commit.mock.calls.map(([, anchor]) => anchor),
-    ).toEqual(["anchor-run-1", "anchor-run-1", "anchor-run-1"]);
+    expect(h.git.get_file_at_commit.mock.calls.map((call) => call[1])).toEqual([
+      "anchor-run-1",
+      "anchor-run-1",
+      "anchor-run-1",
+    ]);
     expect(h.proposals.applied_history.map((p) => p.status)).toEqual([
       "reverted",
       "reverted",

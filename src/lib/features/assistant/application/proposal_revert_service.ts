@@ -10,7 +10,11 @@ import type {
   ProposalCheckpointPort,
   ProposalNotePort,
 } from "$lib/features/assistant/ports";
-import { proposal_path } from "$lib/features/assistant/types/proposal";
+import type { OpStore } from "$lib/app/orchestration/op_store.svelte";
+import {
+  PROPOSAL_MUTATION_OP,
+  proposal_path,
+} from "$lib/features/assistant/types/proposal";
 import type { RunId } from "$lib/features/assistant/types/run";
 
 // Structural, following AgentProposalGit in agent_proposal_service.ts. The
@@ -25,6 +29,7 @@ export type ProposalRevertGit = {
 
 export type ProposalRevertDeps = {
   proposals: AssistantProposalStore;
+  ops: OpStore;
   notes: ProposalNotePort;
   git: ProposalRevertGit;
   checkpoint: ProposalCheckpointPort;
@@ -80,10 +85,46 @@ export class ProposalRevertService {
       return { status: "needs_confirmation", plan };
     }
 
+    if (this.deps.ops.is_pending(PROPOSAL_MUTATION_OP)) {
+      return {
+        status: "refused",
+        reason: "Another proposal operation is in progress.",
+      };
+    }
+    this.deps.ops.start(PROPOSAL_MUTATION_OP, Date.now());
+    try {
+      return await this.restore_plan(plan);
+    } finally {
+      this.deps.ops.reset(PROPOSAL_MUTATION_OP);
+    }
+  }
+
+  private async restore_plan(
+    plan: ReadyTurnRevertPlan,
+  ): Promise<ProposalRevertOutcome> {
+    const reverting = new Set(plan.proposals.map((proposal) => proposal.id));
+    const at_anchor = new Set(
+      plan.target.proposals[0]?.origin.anchor_applied_ids ?? [],
+    );
+    const unsafe = this.deps.proposals.proposals.find(
+      (proposal) =>
+        proposal.status === "applied" &&
+        proposal.target.kind === "note" &&
+        plan.note_paths.includes(proposal.target.note_path) &&
+        !reverting.has(proposal.id) &&
+        !at_anchor.has(proposal.id),
+    );
+    if (unsafe) {
+      return {
+        status: "refused",
+        reason: `Cannot revert: the checkpoint does not include preserved edits to ${proposal_path(unsafe.target)}.`,
+      };
+    }
+
     const checkpoint = await this.deps.checkpoint.create_checkpoint(
       `before reverting turn ${String(plan.target.ordinal)}`,
     );
-    if (checkpoint === "failed") {
+    if (checkpoint === "failed" || checkpoint === "unavailable") {
       return {
         status: "refused",
         reason: "checkpoint failed; nothing reverted",
