@@ -64,6 +64,16 @@ export type RewriteResult = {
   changed: boolean;
 };
 
+// `score` is a cosine similarity (higher is closer), unlike the `distance`
+// every other hit type carries.
+export type MissingLinkHit = {
+  source_heading_id: string;
+  source_start_line: number;
+  source_end_line: number;
+  target_path: string;
+  score: number;
+};
+
 export interface SearchPort {
   search_notes(
     vault_id: VaultId,
@@ -111,6 +121,12 @@ export interface SearchPort {
     exclude_already_linked?: boolean,
     include_linked_sources?: boolean,
   ): Promise<SemanticSearchHit[]>;
+  find_missing_links(
+    vault_id: VaultId,
+    note_path: string,
+    k?: number,
+    min_score?: number,
+  ): Promise<MissingLinkHit[]>;
   semantic_search(
     vault_id: VaultId,
     query: string,

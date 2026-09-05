@@ -349,3 +349,4 @@ export { default as AssistantNoticeCard } from "$lib/features/assistant/ui/assis
 
 export type { MemoryIndexPort } from "$lib/features/assistant/ports";
 export { memory_notes_query } from "$lib/features/assistant/domain/memory_notes_query";
+export type { AmbientLinkFacts } from "$lib/features/assistant/domain/ambient_producers";

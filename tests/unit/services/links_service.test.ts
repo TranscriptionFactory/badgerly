@@ -496,6 +496,7 @@ function make_search_port(
       is_embedding: false,
     }),
     find_similar_notes: vi.fn().mockResolvedValue([]),
+    find_missing_links: vi.fn().mockResolvedValue([]),
     semantic_search_batch: vi.fn().mockResolvedValue([]),
     rebuild_embeddings: vi.fn().mockResolvedValue(undefined),
     get_note_stats: vi.fn().mockResolvedValue({}),
@@ -514,6 +515,7 @@ describe("LinksService.load_suggested_links", () => {
   it("excludes linked sources when the setting is off", async () => {
     const search_port = make_search_port({
       find_similar_notes: vi.fn().mockResolvedValue([]),
+      find_missing_links: vi.fn().mockResolvedValue([]),
     });
 
     const vault_store = new VaultStore();

@@ -17,6 +17,9 @@ export function build_notice_draft_text(
   notice: AmbientNotice,
   markdown: string,
 ): string | null {
+  if (notice.kind === "missing_link") {
+    return build_append_link_draft(notice, markdown);
+  }
   if (notice.kind !== "stale_link") return null;
   if (notice.anchor.kind !== "text") return null;
 
@@ -34,4 +37,28 @@ export function build_notice_draft_text(
   );
 
   return changed ? draft : null;
+}
+
+// Appends `[[target]]` on its own line after one blank line. The buffer may
+// have gained the link since the scan, in which case there is nothing to
+// propose.
+function build_append_link_draft(
+  notice: AmbientNotice,
+  markdown: string,
+): string | null {
+  if (!notice.target_path) return null;
+
+  const target = format_wiki_target_display(notice.target_path);
+  if (links_to(markdown, target)) return null;
+
+  const body = markdown.replace(/\s+$/, "");
+  return body ? `${body}\n\n[[${target}]]\n` : `[[${target}]]\n`;
+}
+
+function links_to(markdown: string, target: string): boolean {
+  for (const [, raw] of markdown.matchAll(WIKI_LINK_RE)) {
+    const path = raw?.split("#")[0] ?? "";
+    if (format_wiki_target_display(path) === target) return true;
+  }
+  return false;
 }

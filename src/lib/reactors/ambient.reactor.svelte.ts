@@ -1,10 +1,11 @@
 import { create_debounced_task_controller } from "$lib/reactors/debounced_task";
 import type {
+  AmbientLinkFacts,
   AmbientNotice,
   AssistantNoticeStore,
 } from "$lib/features/assistant";
 import type { EditorStore } from "$lib/features/editor";
-import type { SearchPort } from "$lib/features/search";
+import type { MissingLinkHit, SearchPort } from "$lib/features/search";
 import type { UIStore } from "$lib/app";
 import type { VaultStore } from "$lib/features/vault";
 import type { VaultId } from "$lib/shared/types/ids";
@@ -15,6 +16,9 @@ export type AmbientReactorState = {
   scanned_vault_id: string | null;
   scanned_note_path: string | null;
   last_is_dirty: boolean;
+  mtime_ms: number;
+  max_notices: number;
+  min_score: number;
 };
 
 export type AmbientReactorInput = {
@@ -23,27 +27,24 @@ export type AmbientReactorInput = {
   vault_id: string | null;
   note_path: string | null;
   is_dirty: boolean;
+  mtime_ms: number;
+  max_notices: number;
+  min_score: number;
 };
 
 export type AmbientDecision = {
-  action: "noop" | "clear" | "scan";
+  action: "noop" | "clear" | "hide" | "scan";
   note_path: string | null;
   clear_first: boolean;
   next_state: AmbientReactorState;
 };
 
-// Structurally typed rather than imported from
-// `assistant/domain/ambient_producers`: the layering lint bans cross-feature
-// deep imports, and `assistant/index.ts` is E2-banned for this lane, so the
-// producer arrives as a dependency instead. `produce_ambient_notices` satisfies
-// this shape. WIRING.md names it as the value to pass at the mount site.
+// The producer arrives as a dependency rather than being imported here: the
+// layering lint bans cross-feature deep imports, and keeping the reactor
+// ignorant of which producers exist is what lets the tests swap one in.
+// `produce_ambient_notices` is the value passed at the mount site.
 export type AmbientProducer = (
-  facts: {
-    note_path: string;
-    backlinks: readonly unknown[];
-    outlinks: readonly unknown[];
-    orphan_links: readonly { target_path: string; ref_count: number }[];
-  },
+  facts: AmbientLinkFacts,
   now: number,
 ) => AmbientNotice[];
 
@@ -51,6 +52,9 @@ export const INITIAL_AMBIENT_STATE: AmbientReactorState = {
   scanned_vault_id: null,
   scanned_note_path: null,
   last_is_dirty: false,
+  mtime_ms: 0,
+  max_notices: 3,
+  min_score: 0.6,
 };
 
 // Pure so the trigger policy is testable in the cheap `node` environment,
@@ -75,7 +79,7 @@ export function resolve_ambient_decision(
     };
   }
 
-  if (!input.enabled || !input.vault_id || !input.note_path) {
+  if (!input.enabled || !input.vault_id) {
     return {
       action: "clear",
       note_path: null,
@@ -84,9 +88,25 @@ export function resolve_ambient_decision(
     };
   }
 
+  const vault_changed = input.vault_id !== state.scanned_vault_id;
+  if (!input.note_path) {
+    return {
+      action: "hide",
+      note_path: null,
+      clear_first: vault_changed,
+      next_state: {
+        ...state,
+        scanned_vault_id: input.vault_id,
+        scanned_note_path: null,
+        last_is_dirty: false,
+      },
+    };
+  }
+
   const next_state: AmbientReactorState = {
-    scanned_vault_id: state.scanned_vault_id,
-    scanned_note_path: state.scanned_note_path,
+    ...state,
+    scanned_vault_id: input.vault_id,
+    scanned_note_path: vault_changed ? null : state.scanned_note_path,
     last_is_dirty: input.is_dirty,
   };
 
@@ -96,16 +116,25 @@ export function resolve_ambient_decision(
     return {
       action: "noop",
       note_path: input.note_path,
-      clear_first: false,
+      clear_first: vault_changed,
       next_state,
     };
   }
 
-  const vault_changed = input.vault_id !== state.scanned_vault_id;
   const note_changed = input.note_path !== state.scanned_note_path;
   const save_completed = state.last_is_dirty;
 
-  if (!vault_changed && !note_changed && !save_completed) {
+  const scan_input_changed =
+    input.mtime_ms !== state.mtime_ms ||
+    input.max_notices !== state.max_notices ||
+    input.min_score !== state.min_score;
+
+  if (
+    !vault_changed &&
+    !note_changed &&
+    !save_completed &&
+    !scan_input_changed
+  ) {
     return {
       action: "noop",
       note_path: input.note_path,
@@ -114,6 +143,9 @@ export function resolve_ambient_decision(
     };
   }
 
+  next_state.mtime_ms = input.mtime_ms;
+  next_state.max_notices = input.max_notices;
+  next_state.min_score = input.min_score;
   next_state.scanned_vault_id = input.vault_id;
   next_state.scanned_note_path = input.note_path;
 
@@ -125,6 +157,22 @@ export function resolve_ambient_decision(
     next_state,
   };
 }
+
+type ScanRequest = {
+  source_markdown: string;
+  vault_id: string;
+  note_path: string;
+  mtime_ms: number;
+  max_notices: number;
+  min_score: number;
+};
+
+type MissingLinkCacheEntry = {
+  mtime_ms: number;
+  max_notices: number;
+  min_score: number;
+  hits: MissingLinkHit[];
+};
 
 export function create_ambient_reactor(
   ui_store: UIStore,
@@ -139,25 +187,86 @@ export function create_ambient_reactor(
   // Guards against a snapshot landing after the note moved on; the reply would
   // otherwise be written against whatever note is open by then.
   let generation = 0;
+  // Block similarity is the expensive half of a scan, so it is fetched once per
+  // (note, mtime) and replayed from here on every revisit until the note is
+  // saved again. A new mtime also lifts the user's declines for that note.
+  const missing_link_cache = new Map<string, MissingLinkCacheEntry>();
 
-  const scan = create_debounced_task_controller<{
-    vault_id: string;
-    note_path: string;
-  }>({
-    run: ({ vault_id, note_path }) => {
+  function clear_all() {
+    notice_store.clear();
+    missing_link_cache.clear();
+  }
+
+  function load_missing_links(
+    { vault_id, note_path, mtime_ms, max_notices, min_score }: ScanRequest,
+    scan_generation: number,
+  ): Promise<MissingLinkHit[]> {
+    const cached = missing_link_cache.get(note_path);
+    if (cached && cached.mtime_ms !== mtime_ms) {
+      notice_store.lift_missing_link_suppressions(note_path);
+    }
+    if (max_notices <= 0) return Promise.resolve([]);
+    if (
+      cached &&
+      cached.mtime_ms === mtime_ms &&
+      cached.max_notices === max_notices &&
+      cached.min_score === min_score
+    ) {
+      return Promise.resolve(cached.hits);
+    }
+
+    return search_port
+      .find_missing_links(
+        vault_id as VaultId,
+        note_path,
+        max_notices,
+        min_score,
+      )
+      .then((hits) => {
+        if (scan_generation === generation) {
+          missing_link_cache.set(note_path, {
+            mtime_ms,
+            max_notices,
+            min_score,
+            hits,
+          });
+        }
+        return hits;
+      })
+      .catch(() => []);
+  }
+
+  const scan = create_debounced_task_controller<ScanRequest>({
+    run: (request) => {
       const scan_generation = generation;
-      void search_port
-        .get_note_links_snapshot(vault_id as VaultId, note_path)
-        .then((snapshot) => {
+      const { vault_id, note_path } = request;
+      void Promise.all([
+        search_port.get_note_links_snapshot(vault_id as VaultId, note_path),
+        load_missing_links(request, scan_generation),
+      ])
+        .then(([snapshot, missing_links]) => {
           if (scan_generation !== generation) return;
+          const linked = new Set<string>(
+            [...snapshot.backlinks, ...snapshot.outlinks].map(
+              (note) => note.path,
+            ),
+          );
           notice_store.replace_for_note(
             note_path,
             produce(
               {
                 note_path,
+                source_markdown: request.source_markdown,
                 backlinks: snapshot.backlinks,
                 outlinks: snapshot.outlinks,
                 orphan_links: snapshot.orphan_links,
+                missing_links: missing_links.filter(
+                  (hit) => !linked.has(hit.target_path),
+                ),
+                suppressed_targets:
+                  notice_store.suppressed_missing_link_targets(note_path),
+                missing_link_max_notices:
+                  ui_store.editor_settings.ambient_missing_link_max_notices,
               },
               now(),
             ),
@@ -178,28 +287,51 @@ export function create_ambient_reactor(
         vault_id: vault_store.active_vault_id,
         note_path: editor_store.open_note?.meta.path ?? null,
         is_dirty: editor_store.open_note?.is_dirty ?? false,
+        mtime_ms: editor_store.open_note?.meta.mtime_ms ?? 0,
+        max_notices: ui_store.editor_settings.ambient_missing_link_max_notices,
+        min_score: ui_store.editor_settings.ambient_missing_link_min_score,
       });
       state = decision.next_state;
 
-      if (decision.action === "noop") return;
+      if (decision.clear_first) clear_all();
+
+      if (decision.action === "noop") {
+        if (
+          !ui_store.editor_settings_loaded ||
+          editor_store.open_note?.is_dirty
+        ) {
+          generation += 1;
+          scan.cancel();
+        }
+        return;
+      }
 
       generation += 1;
       scan.cancel();
 
       if (decision.action === "clear") {
-        notice_store.clear();
+        clear_all();
         return;
       }
 
-      if (decision.clear_first) {
-        notice_store.clear();
+      if (decision.action === "hide") {
+        notice_store.clear_notices();
+        return;
       }
 
       const vault_id = vault_store.active_vault_id;
       if (!vault_id || !decision.note_path) return;
 
       scan.schedule(
-        { vault_id: String(vault_id), note_path: decision.note_path },
+        {
+          source_markdown: editor_store.open_note?.markdown ?? "",
+          vault_id: String(vault_id),
+          note_path: decision.note_path,
+          mtime_ms: editor_store.open_note?.meta.mtime_ms ?? 0,
+          max_notices:
+            ui_store.editor_settings.ambient_missing_link_max_notices,
+          min_score: ui_store.editor_settings.ambient_missing_link_min_score,
+        },
         SCAN_DEBOUNCE_MS,
       );
     });

@@ -76,3 +76,5 @@ export {
   reject_ai_inline,
 } from "$lib/features/editor/adapters/ai_menu_plugin";
 export { resolve_inline_ai_anchor_coords } from "$lib/features/editor/adapters/inline_ai_anchor";
+
+export { create_ambient_section_anchor_resolver } from "$lib/features/editor/adapters/ambient_section_anchor";

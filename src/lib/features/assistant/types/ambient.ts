@@ -42,7 +42,11 @@ export type AmbientNoticeId = string;
 //   i.e. the buffer holds the fix and disk does not. That state is *unpersisted*,
 //   not unrepaired. Reviving this producer requires widening the repair API to
 //   retain paths, which is cross-feature work C3 has not authorised.
-export type AmbientNoticeKind = "stale_link" | "orphan_note";
+//
+// - `missing_link` (Ambient v2): a block of the open note whose content is
+//   close to a block in a note it neither links to nor is linked from. No LLM;
+//   the block index answers it. Accepting proposes appending `[[target]]`.
+export type AmbientNoticeKind = "stale_link" | "orphan_note" | "missing_link";
 
 // Where a notice points inside a note.
 //
@@ -80,6 +84,13 @@ export type AmbientNoticeKind = "stale_link" | "orphan_note";
 // An anchor that no longer resolves degrades to note-level. It never throws and
 // never silently drops the notice.
 export type AmbientAnchor =
+  | {
+      kind: "block";
+      node_type: string;
+      level: number | null;
+      match: string;
+      occurrence: number;
+    }
   | { kind: "note" }
   | { kind: "text"; match: string; occurrence: number };
 
@@ -109,6 +120,10 @@ export type AmbientNotice = {
   id: AmbientNoticeId;
   kind: AmbientNoticeKind;
   note_path: string;
+  // The other note the finding is about, as a vault path. Accept derives its
+  // edit from it and decline suppresses the (note_path, target_path) pair by
+  // it; a whole-note finding (orphan_note) has none.
+  target_path: string | null;
   anchor: AmbientAnchor;
   // The card's uppercase provenance line, e.g. "ambient · link check".
   provenance: string;

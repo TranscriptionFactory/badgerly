@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   produce_ambient_notices,
+  produce_missing_link_notices,
   produce_orphan_note_notices,
   produce_stale_link_notices,
   type AmbientLinkFacts,
+  type AmbientMissingLinkHit,
 } from "$lib/features/assistant/domain/ambient_producers";
 
 const NOW = 1_700_000_000_000;
@@ -12,9 +14,27 @@ const NOTE = "notes/ranking-experiments.md";
 function facts(overrides: Partial<AmbientLinkFacts> = {}): AmbientLinkFacts {
   return {
     note_path: NOTE,
+    source_markdown: "## **Results**\nBody",
     backlinks: [],
     outlinks: [],
     orphan_links: [],
+    missing_links: [],
+    suppressed_targets: [],
+    missing_link_max_notices: 3,
+    ...overrides,
+  };
+}
+
+function hit(
+  target_path: string,
+  overrides: Partial<AmbientMissingLinkHit> = {},
+): AmbientMissingLinkHit {
+  return {
+    source_heading_id: "h-2-results-1",
+    source_start_line: 0,
+    source_end_line: 1,
+    target_path,
+    score: 0.8,
     ...overrides,
   };
 }
@@ -225,10 +245,159 @@ describe("produce_orphan_note_notices", () => {
   });
 });
 
+describe("produce_missing_link_notices", () => {
+  it("emits exactly one missing_link notice anchored to the source block", () => {
+    const notices = produce_missing_link_notices(
+      facts({ missing_links: [hit("notes/fusion-weights.md")] }),
+      NOW,
+    );
+
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toMatchObject({
+      kind: "missing_link",
+      note_path: NOTE,
+      anchor: { kind: "block", match: "Results", occurrence: 0 },
+    });
+  });
+
+  it("anchors on the heading as rendered, never on markdown syntax", () => {
+    const [notice] = produce_missing_link_notices(
+      facts({ missing_links: [hit("b.md")] }),
+      NOW,
+    );
+
+    expect(notice?.anchor).toEqual({
+      kind: "block",
+      node_type: "heading",
+      level: 2,
+      match: "Results",
+      occurrence: 0,
+    });
+    expect(notice?.body).not.toContain("[[");
+  });
+
+  it("anchors to the first rendered block of the preamble", () => {
+    const [notice] = produce_missing_link_notices(
+      facts({
+        source_markdown: "Preamble text.\n\n## Results",
+        missing_links: [
+          hit("b.md", {
+            source_heading_id: "h-0-preamble-0",
+            source_start_line: 0,
+            source_end_line: 0,
+          }),
+        ],
+      }),
+      NOW,
+    );
+
+    expect(notice?.anchor).toEqual({
+      kind: "block",
+      node_type: "paragraph",
+      level: null,
+      match: "Preamble text.",
+      occurrence: 0,
+    });
+  });
+
+  it("does not offer a notice with an unmappable source section", () => {
+    expect(
+      produce_missing_link_notices(
+        facts({
+          missing_links: [
+            hit("b.md", { source_start_line: 20, source_end_line: 30 }),
+          ],
+        }),
+        NOW,
+      ),
+    ).toEqual([]);
+  });
+
+  it("carries the target path so accept and decline can act on it", () => {
+    const [notice] = produce_missing_link_notices(
+      facts({ missing_links: [hit("notes/fusion-weights.md")] }),
+      NOW,
+    );
+
+    expect(notice?.target_path).toBe("notes/fusion-weights.md");
+    expect(notice?.body).toContain("notes/fusion-weights");
+  });
+
+  it("offers the accept action with an add-link label", () => {
+    const [notice] = produce_missing_link_notices(
+      facts({ missing_links: [hit("b.md")] }),
+      NOW,
+    );
+
+    expect(notice?.offer).toEqual({
+      action_id: "assistant.accept_notice",
+      label: "Add link",
+    });
+  });
+
+  it("drops a suppressed (source, target) pair", () => {
+    const notices = produce_missing_link_notices(
+      facts({
+        missing_links: [hit("declined.md"), hit("fresh.md")],
+        suppressed_targets: ["declined.md"],
+      }),
+      NOW,
+    );
+
+    expect(notices.map((n) => n.target_path)).toEqual(["fresh.md"]);
+  });
+
+  it("never exceeds max_notices, keeping the best-first order", () => {
+    const notices = produce_missing_link_notices(
+      facts({
+        missing_links: [hit("a.md"), hit("b.md"), hit("c.md"), hit("d.md")],
+        missing_link_max_notices: 2,
+      }),
+      NOW,
+    );
+
+    expect(notices.map((n) => n.target_path)).toEqual(["a.md", "b.md"]);
+  });
+
+  it("emits nothing when max_notices is 0", () => {
+    expect(
+      produce_missing_link_notices(
+        facts({ missing_links: [hit("a.md")], missing_link_max_notices: 0 }),
+        NOW,
+      ),
+    ).toEqual([]);
+  });
+
+  it("collapses several hits for the same target into one notice", () => {
+    const notices = produce_missing_link_notices(
+      facts({
+        missing_links: [hit("b.md"), hit("b.md")],
+      }),
+      NOW,
+    );
+
+    expect(notices).toHaveLength(1);
+    expect(notices[0]?.anchor).toMatchObject({ match: "Results" });
+  });
+
+  it("produces stable ids across rescans", () => {
+    const once = produce_missing_link_notices(
+      facts({ missing_links: [hit("b.md")] }),
+      NOW,
+    );
+    const twice = produce_missing_link_notices(
+      facts({ missing_links: [hit("b.md", { score: 0.71 })] }),
+      NOW + 7,
+    );
+
+    expect(once[0]?.id).toBe(twice[0]?.id);
+  });
+});
+
 describe("produce_ambient_notices", () => {
-  // D5 — both producers are fed by ONE snapshot; this is what removes the
+  // D5 — the link producers are fed by ONE snapshot; this is what removes the
   // vault-graph dependency the plan assumed was necessary.
-  it("returns both kinds from a single snapshot", () => {
+  it("returns both link kinds from a single snapshot", () => {
     const notices = produce_ambient_notices(
       facts({
         outlinks: [{}],
@@ -238,6 +407,23 @@ describe("produce_ambient_notices", () => {
     );
 
     expect(notices.map((n) => n.kind)).toEqual(["stale_link", "orphan_note"]);
+  });
+
+  it("returns all three kinds from one facts object", () => {
+    const notices = produce_ambient_notices(
+      facts({
+        outlinks: [{}],
+        orphan_links: [{ target_path: "gone", ref_count: 1 }],
+        missing_links: [hit("b.md")],
+      }),
+      NOW,
+    );
+
+    expect(notices.map((n) => n.kind)).toEqual([
+      "stale_link",
+      "orphan_note",
+      "missing_link",
+    ]);
   });
 
   it("returns nothing for a well-linked note", () => {

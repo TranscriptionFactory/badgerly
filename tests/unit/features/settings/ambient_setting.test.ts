@@ -58,3 +58,44 @@ describe("ambient notices opt-in", () => {
     expect(entry?.keywords).toContain("notices");
   });
 });
+
+const MISSING_LINK_KEYS = [
+  "ambient_missing_link_min_score",
+  "ambient_missing_link_max_notices",
+] as const;
+
+describe("ambient missing-link settings", () => {
+  it("default to a 0.6 similarity floor and 3 notices", () => {
+    expect(DEFAULT_EDITOR_SETTINGS.ambient_missing_link_min_score).toBe(0.6);
+    expect(DEFAULT_EDITOR_SETTINGS.ambient_missing_link_max_notices).toBe(3);
+  });
+
+  // Same ruling as the toggle they refine: ambient scans a vault's index, so
+  // its knobs are per-vault too.
+  it.each(MISSING_LINK_KEYS)("%s is vault-scoped", (key) => {
+    expect(omit_global_only_keys({ [key]: 1 })).toHaveProperty(key, 1);
+    expect(GLOBAL_ONLY_SETTING_KEYS).not.toContain(key);
+  });
+
+  it.each(MISSING_LINK_KEYS)("%s is discoverable under AI", (key) => {
+    const entry = SETTINGS_REGISTRY.find((setting) => setting.key === key);
+
+    expect(entry?.category).toBe("AI");
+    expect(entry?.keywords).toContain("missing");
+    expect(entry?.keywords).toContain("link");
+  });
+
+  // The score is a similarity, the opposite polarity of the inline-AI
+  // "Max Context Distance"; the label must say so and must not be mistaken
+  // for either existing threshold.
+  it("labels the score as a similarity distinct from both existing thresholds", () => {
+    const entry = SETTINGS_REGISTRY.find(
+      (setting) => setting.key === "ambient_missing_link_min_score",
+    );
+
+    expect(entry?.label).toMatch(/similarity/i);
+    expect(entry?.description).toMatch(/higher keeps fewer/i);
+    expect(entry?.label).not.toBe("Max Context Distance");
+    expect(entry?.label).not.toBe("Min Semantic Similarity");
+  });
+});

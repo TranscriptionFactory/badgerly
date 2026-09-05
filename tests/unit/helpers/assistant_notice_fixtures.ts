@@ -25,6 +25,7 @@ export function make_ambient_notice(
     // form and would have resolved to nothing in the visual editor — caught by
     // AU-061 in phase 1.
     anchor: { kind: "text", match: "fusion-weights", occurrence: 0 },
+    target_path: "fusion-weights",
     provenance: "ambient · link check",
     body: "This note links to fusion-weights, which no longer exists. Repair it?",
     offer: { action_id: "assistant.accept_notice", label: "Repair link" },
@@ -54,6 +55,12 @@ export function make_ambient_notices(count: number): AmbientNotice[] {
 export type SearchPortSpy = SearchPort & {
   _calls: {
     get_note_links_snapshot: { vault_id: string; note_path: string }[];
+    find_missing_links: {
+      vault_id: string;
+      note_path: string;
+      k: number | undefined;
+      min_score: number | undefined;
+    }[];
   };
 };
 
@@ -68,6 +75,12 @@ export function create_search_port_spy(base: SearchPort): SearchPortSpy {
         vault_id: string;
         note_path: string;
       }[],
+      find_missing_links: [] as {
+        vault_id: string;
+        note_path: string;
+        k: number | undefined;
+        min_score: number | undefined;
+      }[],
     },
   } as SearchPortSpy;
 
@@ -77,6 +90,16 @@ export function create_search_port_spy(base: SearchPort): SearchPortSpy {
       note_path,
     });
     return base.get_note_links_snapshot(vault_id, note_path);
+  };
+
+  spy.find_missing_links = (vault_id, note_path, k, min_score) => {
+    spy._calls.find_missing_links.push({
+      vault_id: String(vault_id),
+      note_path,
+      k,
+      min_score,
+    });
+    return base.find_missing_links(vault_id, note_path, k, min_score);
   };
 
   return spy;

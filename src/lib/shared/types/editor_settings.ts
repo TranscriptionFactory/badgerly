@@ -189,6 +189,11 @@ export type EditorSettings = {
   // so this toggle does not persist there. Acceptable — ambient needs a vault
   // to have anything to scan.
   ambient_notices_enabled: boolean;
+  // Vault-scoped like the toggle above. Cosine similarity, 0–1, higher is
+  // stricter — NOT a distance like ai_vault_context_similarity_threshold.
+  ambient_missing_link_min_score: number;
+  // 0 disables the missing-link producer without a Rust call.
+  ambient_missing_link_max_notices: number;
   document_pdf_default_zoom: DocumentPdfZoomMode;
   document_pdf_scroll_mode: DocumentPdfScrollMode;
   document_code_wrap: boolean;
@@ -323,6 +328,8 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   ai_rag_history_token_budget: 1500,
   assistant_session_retention_days: 30,
   ambient_notices_enabled: false,
+  ambient_missing_link_min_score: 0.6,
+  ambient_missing_link_max_notices: 3,
   document_pdf_default_zoom: "fit_width",
   document_pdf_scroll_mode: "continuous",
   document_code_wrap: true,

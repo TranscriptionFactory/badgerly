@@ -135,7 +135,22 @@ function convert_inline(parent: AnyMdastNode): PmNode[] {
   return result;
 }
 
-function convert_block(node: AnyMdastNode): PmNode | null {
+function convert_block(
+  node: AnyMdastNode,
+  source_blocks?: Map<number, PmNode>,
+): PmNode | null {
+  const result = build_block(node, source_blocks);
+  const line = (node.position as { start?: { line?: number } } | undefined)
+    ?.start?.line;
+  if (result?.isTextblock && line !== undefined)
+    source_blocks?.set(line - 1, result);
+  return result;
+}
+
+function build_block(
+  node: AnyMdastNode,
+  source_blocks?: Map<number, PmNode>,
+): PmNode | null {
   switch (node.type) {
     case "paragraph": {
       const inline = convert_inline(node);
@@ -154,7 +169,10 @@ function convert_block(node: AnyMdastNode): PmNode | null {
     }
 
     case "blockquote": {
-      const children = convert_blocks(node.children as AnyMdastNode[]);
+      const children = convert_blocks(
+        node.children as AnyMdastNode[],
+        source_blocks,
+      );
       return schema.nodes.blockquote.create(null, children);
     }
 
@@ -180,7 +198,9 @@ function convert_block(node: AnyMdastNode): PmNode | null {
       return schema.nodes.hr.create();
 
     case "list": {
-      const items = (node.children as AnyMdastNode[]).map(convert_list_item);
+      const items = (node.children as AnyMdastNode[]).map((item) =>
+        convert_list_item(item, source_blocks),
+      );
       if (node.ordered) {
         return schema.nodes.ordered_list.create(
           { order: (node.start as number) || 1 },
@@ -208,11 +228,11 @@ function convert_block(node: AnyMdastNode): PmNode | null {
     }
 
     case "details": {
-      return convert_details(node);
+      return convert_details(node, source_blocks);
     }
 
     case "callout": {
-      return convert_callout(node);
+      return convert_callout(node, source_blocks);
     }
 
     case "wikiEmbed": {
@@ -296,7 +316,10 @@ function convert_wiki_embed(node: AnyMdastNode): PmNode | null {
   });
 }
 
-function convert_list_item(node: AnyMdastNode): PmNode {
+function convert_list_item(
+  node: AnyMdastNode,
+  source_blocks?: Map<number, PmNode>,
+): PmNode {
   const checked =
     node.checked !== undefined && node.checked !== null
       ? (node.checked as boolean)
@@ -313,12 +336,12 @@ function convert_list_item(node: AnyMdastNode): PmNode {
     if (!first) {
       pm_children = [schema.nodes.paragraph.create()];
     } else if (first.type === "paragraph" || first.type === "wikiEmbed") {
-      const first_pm = convert_block(first);
+      const first_pm = convert_block(first, source_blocks);
       if (first_pm) pm_children.push(first_pm);
       for (let i = 1; i < children_nodes.length; i++) {
         const child_node = children_nodes[i];
         if (child_node) {
-          const child = convert_block(child_node);
+          const child = convert_block(child_node, source_blocks);
           if (child) pm_children.push(child);
         }
       }
@@ -333,7 +356,7 @@ function convert_list_item(node: AnyMdastNode): PmNode {
       for (let i = 1; i < children_nodes.length; i++) {
         const child_node = children_nodes[i];
         if (child_node) {
-          const child = convert_block(child_node);
+          const child = convert_block(child_node, source_blocks);
           if (child) pm_children.push(child);
         }
       }
@@ -396,7 +419,10 @@ function convert_table(node: AnyMdastNode): PmNode {
   return schema.nodes.table.create({ layout }, pm_rows);
 }
 
-function convert_details(node: AnyMdastNode): PmNode {
+function convert_details(
+  node: AnyMdastNode,
+  source_blocks?: Map<number, PmNode>,
+): PmNode {
   const open = (node.data as { open?: boolean })?.open || false;
   const children = node.children as AnyMdastNode[];
 
@@ -411,7 +437,10 @@ function convert_details(node: AnyMdastNode): PmNode {
 
   let content_children: PmNode[] = [];
   if (content_node) {
-    content_children = convert_blocks(content_node.children as AnyMdastNode[]);
+    content_children = convert_blocks(
+      content_node.children as AnyMdastNode[],
+      source_blocks,
+    );
   }
   if (content_children.length === 0) {
     content_children = [schema.nodes.paragraph.create()];
@@ -425,7 +454,10 @@ function convert_details(node: AnyMdastNode): PmNode {
   return schema.nodes.details_block.create({ open }, [pm_summary, pm_content]);
 }
 
-function convert_callout(node: AnyMdastNode): PmNode {
+function convert_callout(
+  node: AnyMdastNode,
+  source_blocks?: Map<number, PmNode>,
+): PmNode {
   const data =
     (node.data as {
       callout_type?: string;
@@ -447,7 +479,10 @@ function convert_callout(node: AnyMdastNode): PmNode {
 
   let body_children: PmNode[] = [];
   if (body_node) {
-    body_children = convert_blocks(body_node.children as AnyMdastNode[]);
+    body_children = convert_blocks(
+      body_node.children as AnyMdastNode[],
+      source_blocks,
+    );
   }
   if (body_children.length === 0) {
     body_children = [schema.nodes.paragraph.create()];
@@ -467,19 +502,26 @@ function convert_callout(node: AnyMdastNode): PmNode {
   );
 }
 
-function convert_blocks(nodes: AnyMdastNode[]): PmNode[] {
+function convert_blocks(
+  nodes: AnyMdastNode[],
+  source_blocks?: Map<number, PmNode>,
+): PmNode[] {
   const result: PmNode[] = [];
   for (const node of nodes) {
-    const pm = convert_block(node);
+    const pm = convert_block(node, source_blocks);
     if (pm) result.push(pm);
   }
   return result;
 }
 
-export function mdast_to_pm(tree: Root, source = ""): PmNode {
+export function mdast_to_pm(
+  tree: Root,
+  source = "",
+  source_blocks?: Map<number, PmNode>,
+): PmNode {
   current_source = source;
   const children = tree.children as unknown as AnyMdastNode[];
-  const pm_children = convert_blocks(children);
+  const pm_children = convert_blocks(children, source_blocks);
 
   const has_frontmatter =
     pm_children.length > 0 && pm_children[0]?.type.name === "frontmatter";

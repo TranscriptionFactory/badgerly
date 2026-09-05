@@ -661,6 +661,7 @@ export function create_mock_search_port(): SearchPort {
     resolve_note_link: () => Promise.resolve(null),
     resolve_wiki_link: () => Promise.resolve(null),
     find_similar_notes: () => Promise.resolve([]),
+    find_missing_links: () => Promise.resolve([]),
     semantic_search: () => Promise.resolve([]),
     hybrid_search: () => Promise.resolve([]),
     search_blocks: () => Promise.resolve([]),

@@ -35,3 +35,4 @@ export type {
   OmnibarAskStatus,
   OmnibarAskView,
 } from "$lib/features/search/types/omnibar_ask";
+export type { MissingLinkHit } from "$lib/features/search/ports";

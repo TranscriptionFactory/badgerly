@@ -118,3 +118,55 @@ describe("AssistantNoticeStore mutators", () => {
     expect(store.notices).not.toBe(before_clear);
   });
 });
+
+describe("AssistantNoticeStore missing-link suppression", () => {
+  function missing_link(note_path: string, target_path: string) {
+    return make_ambient_notice({
+      kind: "missing_link",
+      note_path,
+      target_path,
+    });
+  }
+
+  it("dismissing a missing_link notice suppresses its (source, target) pair", () => {
+    const notice = missing_link(A, B);
+    const store = store_with(notice);
+
+    store.dismiss(notice.id);
+
+    expect(store.suppressed_missing_link_targets(A)).toEqual([B]);
+    expect(store.suppressed_missing_link_targets(B)).toEqual([]);
+  });
+
+  it("dismissing a stale_link notice suppresses nothing", () => {
+    const notice = make_ambient_notice({ note_path: A, kind: "stale_link" });
+    const store = store_with(notice);
+
+    store.dismiss(notice.id);
+
+    expect(store.suppressed_missing_link_targets(A)).toEqual([]);
+  });
+
+  it("lifting suppressions for a note forgets only that note's pairs", () => {
+    const from_a = missing_link(A, B);
+    const from_b = missing_link(B, A);
+    const store = store_with(from_a, from_b);
+    store.dismiss(from_a.id);
+    store.dismiss(from_b.id);
+
+    store.lift_missing_link_suppressions(A);
+
+    expect(store.suppressed_missing_link_targets(A)).toEqual([]);
+    expect(store.suppressed_missing_link_targets(B)).toEqual([A]);
+  });
+
+  it("clear forgets suppressions too", () => {
+    const notice = missing_link(A, B);
+    const store = store_with(notice);
+    store.dismiss(notice.id);
+
+    store.clear();
+
+    expect(store.suppressed_missing_link_targets(A)).toEqual([]);
+  });
+});

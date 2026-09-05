@@ -8,7 +8,7 @@ use crate::features::search::embeddings::{
 use crate::features::search::hnsw_index::{SharedVectorIndex, VectorIndex};
 use crate::features::search::model::{
     BatchSemanticEdge, BlockSearchHit, BlockSectionHit, DateRange, EmbeddingStatus,
-    HybridSearchHit, IndexNoteMeta, SearchHit, SearchScope, SemanticSearchHit,
+    HybridSearchHit, IndexNoteMeta, MissingLinkHit, SearchHit, SearchScope, SemanticSearchHit,
 };
 use crate::features::search::{hybrid, vector_db};
 use crate::features::settings::service as settings_service;
@@ -18,7 +18,7 @@ use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::cell::RefCell;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender};
@@ -3850,6 +3850,145 @@ pub fn find_similar_blocks_inner(
     Ok(results)
 }
 
+const MISSING_LINK_DEFAULT_K: usize = 3;
+const MISSING_LINK_MAX_K: usize = 20;
+const MISSING_LINK_DEFAULT_MIN_SCORE: f32 = 0.6;
+// Neighbours from the same note and from already-linked notes are filtered
+// after the index search, so each block over-fetches to keep `k` fillable.
+const MISSING_LINK_OVERFETCH: usize = 20;
+
+#[tauri::command]
+#[specta::specta]
+pub async fn find_missing_links(
+    app: AppHandle,
+    vault_id: String,
+    note_path: String,
+    k: Option<usize>,
+    min_score: Option<f32>,
+) -> Result<Vec<MissingLinkHit>, String> {
+    crate::shared::blocking::blocking("find_missing_links", move || {
+        find_missing_links_inner(app, vault_id, note_path, k, min_score)
+    })
+    .await
+}
+
+/// Blocks of `note_path` whose nearest indexed neighbours live in notes that
+/// neither link to nor are linked from `note_path`. One hit per target note,
+/// best block pair wins; `min_score` is a cosine similarity, higher is stricter.
+pub fn find_missing_links_inner(
+    app: AppHandle,
+    vault_id: String,
+    note_path: String,
+    k: Option<usize>,
+    min_score: Option<f32>,
+) -> Result<Vec<MissingLinkHit>, String> {
+    let k = k.unwrap_or(MISSING_LINK_DEFAULT_K).min(MISSING_LINK_MAX_K);
+    if k == 0 {
+        return Ok(vec![]);
+    }
+    let min_score = min_score.unwrap_or(MISSING_LINK_DEFAULT_MIN_SCORE);
+
+    let (linked, sections) = with_read_conn(&app, &vault_id, |conn| {
+        let mut linked = HashSet::new();
+        for note in search_db::get_backlinks(conn, &note_path)? {
+            linked.insert(note.path);
+        }
+        for note in search_db::get_outlinks(conn, &note_path)? {
+            linked.insert(note.path);
+        }
+        let sections = search_db::get_embeddable_sections_for_note(
+            conn,
+            &note_path,
+            search_db::BLOCK_EMBED_MIN_WORDS,
+            search_db::BLOCK_EMBED_MIN_LINES,
+        )?;
+        Ok((linked, sections))
+    })?;
+
+    let fetch = k + MISSING_LINK_OVERFETCH;
+    let candidates = with_block_index(&app, &vault_id, |idx| {
+        let mut candidates = Vec::new();
+        for (_, heading_id, start_line, end_line) in &sections {
+            let key = format!("{note_path}\0{heading_id}");
+            let Some(query_vec) = idx.get_vector(&key) else {
+                continue;
+            };
+            for (target_key, distance) in idx.search(query_vec, fetch) {
+                candidates.push(MissingLinkCandidate {
+                    source_heading_id: heading_id.clone(),
+                    source_start_line: *start_line,
+                    source_end_line: *end_line,
+                    target_key,
+                    score: 1.0 - distance,
+                });
+            }
+        }
+        candidates
+    })?;
+
+    Ok(select_missing_link_hits(
+        candidates,
+        &note_path,
+        &linked,
+        k,
+        min_score,
+    ))
+}
+
+struct MissingLinkCandidate {
+    source_heading_id: String,
+    source_start_line: i64,
+    source_end_line: i64,
+    target_key: String,
+    score: f32,
+}
+
+fn select_missing_link_hits(
+    candidates: Vec<MissingLinkCandidate>,
+    note_path: &str,
+    linked: &HashSet<String>,
+    k: usize,
+    min_score: f32,
+) -> Vec<MissingLinkHit> {
+    let mut best_per_target: HashMap<String, MissingLinkHit> = HashMap::new();
+    for candidate in candidates {
+        let Some((target_path, _)) = candidate.target_key.split_once('\0') else {
+            continue;
+        };
+        if target_path == note_path
+            || linked.contains(target_path)
+            || candidate.score < min_score
+        {
+            continue;
+        }
+        let beats_existing = best_per_target
+            .get(target_path)
+            .is_none_or(|existing| candidate.score > existing.score);
+        if beats_existing {
+            best_per_target.insert(
+                target_path.to_string(),
+                MissingLinkHit {
+                    source_heading_id: candidate.source_heading_id,
+                    source_start_line: candidate.source_start_line,
+                    source_end_line: candidate.source_end_line,
+                    target_path: target_path.to_string(),
+                    score: candidate.score,
+                },
+            );
+        }
+    }
+
+    let mut hits: Vec<MissingLinkHit> = best_per_target.into_values().collect();
+    hits.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.target_path.cmp(&b.target_path))
+    });
+    hits.truncate(k);
+    hits
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn search_blocks(
@@ -4640,6 +4779,128 @@ mod tests {
         let out = finalize_suggestions(fts, 5, 2, || Ok(fuzzy)).unwrap();
 
         assert_eq!(paths(&out), vec!["b.md", "c.md"]);
+    }
+
+    fn candidate(source_heading_id: &str, target_key: &str, score: f32) -> MissingLinkCandidate {
+        MissingLinkCandidate {
+            source_heading_id: source_heading_id.to_string(),
+            source_start_line: 2,
+            source_end_line: 5,
+            target_key: target_key.to_string(),
+            score,
+        }
+    }
+
+    fn linked(paths: &[&str]) -> HashSet<String> {
+        paths.iter().map(|p| p.to_string()).collect()
+    }
+
+    fn targets(hits: &[MissingLinkHit]) -> Vec<&str> {
+        hits.iter().map(|h| h.target_path.as_str()).collect()
+    }
+
+    #[test]
+    fn select_missing_link_hits_excludes_self_note() {
+        let hits = select_missing_link_hits(
+            vec![
+                candidate("h1", "a.md\0h2", 0.99),
+                candidate("h1", "b.md\0h1", 0.8),
+            ],
+            "a.md",
+            &linked(&[]),
+            5,
+            0.0,
+        );
+
+        assert_eq!(targets(&hits), vec!["b.md"]);
+    }
+
+    #[test]
+    fn select_missing_link_hits_excludes_linked_targets() {
+        let hits = select_missing_link_hits(
+            vec![
+                candidate("h1", "outlinked.md\0h1", 0.95),
+                candidate("h1", "backlinked.md\0h1", 0.9),
+                candidate("h1", "stranger.md\0h1", 0.7),
+            ],
+            "a.md",
+            &linked(&["outlinked.md", "backlinked.md"]),
+            5,
+            0.0,
+        );
+
+        assert_eq!(targets(&hits), vec!["stranger.md"]);
+    }
+
+    #[test]
+    fn select_missing_link_hits_respects_min_score() {
+        let hits = select_missing_link_hits(
+            vec![
+                candidate("h1", "b.md\0h1", 0.61),
+                candidate("h1", "c.md\0h1", 0.59),
+            ],
+            "a.md",
+            &linked(&[]),
+            5,
+            0.6,
+        );
+
+        assert_eq!(targets(&hits), vec!["b.md"]);
+    }
+
+    #[test]
+    fn select_missing_link_hits_respects_k() {
+        let hits = select_missing_link_hits(
+            vec![
+                candidate("h1", "b.md\0h1", 0.9),
+                candidate("h1", "c.md\0h1", 0.8),
+                candidate("h2", "d.md\0h1", 0.7),
+            ],
+            "a.md",
+            &linked(&[]),
+            2,
+            0.0,
+        );
+
+        assert_eq!(targets(&hits), vec!["b.md", "c.md"]);
+    }
+
+    #[test]
+    fn select_missing_link_hits_keeps_best_hit_per_target_note() {
+        let hits = select_missing_link_hits(
+            vec![
+                candidate("h1", "b.md\0intro", 0.7),
+                candidate("h2", "b.md\0results", 0.9),
+                candidate("h3", "b.md\0outro", 0.8),
+            ],
+            "a.md",
+            &linked(&[]),
+            5,
+            0.0,
+        );
+
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].source_heading_id, "h2");
+        assert_eq!(hits[0].source_start_line, 2);
+        assert_eq!(hits[0].source_end_line, 5);
+        assert!((hits[0].score - 0.9).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn select_missing_link_hits_orders_by_score_desc_then_path() {
+        let hits = select_missing_link_hits(
+            vec![
+                candidate("h1", "c.md\0h1", 0.8),
+                candidate("h1", "b.md\0h1", 0.8),
+                candidate("h1", "d.md\0h1", 0.95),
+            ],
+            "a.md",
+            &linked(&[]),
+            5,
+            0.0,
+        );
+
+        assert_eq!(targets(&hits), vec!["d.md", "b.md", "c.md"]);
     }
 
     #[test]

@@ -1762,6 +1762,69 @@
               />
             </div>
 
+            <div class="SettingsDialog__row">
+              <div class="SettingsDialog__label-group">
+                <span class="SettingsDialog__label"
+                  >Missing Link Min Similarity</span
+                >
+                <span class="SettingsDialog__description"
+                  >Only suggest a link when a block of the open note is at least
+                  this similar (0–1) to a block in a note it does not link to.
+                  Higher keeps fewer, closer matches.</span
+                >
+              </div>
+              <Select.Root
+                type="single"
+                value={String(editor_settings.ambient_missing_link_min_score)}
+                onValueChange={(v: string | undefined) => {
+                  if (v) update("ambient_missing_link_min_score", Number(v));
+                }}
+                disabled={!editor_settings.ambient_notices_enabled}
+              >
+                <Select.Trigger class="w-28">
+                  <span data-slot="select-value">
+                    {editor_settings.ambient_missing_link_min_score}
+                  </span>
+                </Select.Trigger>
+                <Select.Content>
+                  {#each [0.5, 0.6, 0.7, 0.8] as n (n)}
+                    <Select.Item value={String(n)}>{n}</Select.Item>
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+            </div>
+
+            <div class="SettingsDialog__row">
+              <div class="SettingsDialog__label-group">
+                <span class="SettingsDialog__label"
+                  >Missing Link Suggestions</span
+                >
+                <span class="SettingsDialog__description"
+                  >Maximum missing-link suggestions offered for the open note. 0
+                  turns the finding off.</span
+                >
+              </div>
+              <Select.Root
+                type="single"
+                value={String(editor_settings.ambient_missing_link_max_notices)}
+                onValueChange={(v: string | undefined) => {
+                  if (v) update("ambient_missing_link_max_notices", Number(v));
+                }}
+                disabled={!editor_settings.ambient_notices_enabled}
+              >
+                <Select.Trigger class="w-28">
+                  <span data-slot="select-value">
+                    {editor_settings.ambient_missing_link_max_notices}
+                  </span>
+                </Select.Trigger>
+                <Select.Content>
+                  {#each [0, 1, 2, 3, 5] as n (n)}
+                    <Select.Item value={String(n)}>{n}</Select.Item>
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+            </div>
+
             <div class="space-y-2">
               <div class="flex items-center justify-between">
                 <div class="SettingsDialog__label-group">

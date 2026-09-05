@@ -1,6 +1,7 @@
 import type {
   HeadingMatch,
   LocalNoteLinksSnapshot,
+  MissingLinkHit,
   NoteLinksSnapshot,
   NoteStats,
   RewriteResult,
@@ -319,6 +320,20 @@ export function create_search_tauri_adapter(): SearchPort {
         note: to_note_meta(hit.note),
         distance: hit.distance,
       }));
+    },
+
+    find_missing_links(
+      vault_id: VaultId,
+      note_path: string,
+      k = 3,
+      min_score = 0.6,
+    ): Promise<MissingLinkHit[]> {
+      return invoke_search<MissingLinkHit[]>("find_missing_links", {
+        vaultId: vault_id,
+        notePath: note_path,
+        k,
+        minScore: min_score,
+      });
     },
 
     async semantic_search(

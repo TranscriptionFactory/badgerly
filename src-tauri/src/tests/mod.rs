@@ -160,6 +160,7 @@ mod specta_export {
                 crate::features::search::service::index_rename_note,
                 crate::features::search::service::semantic_search,
                 crate::features::search::service::find_similar_notes,
+                crate::features::search::service::find_missing_links,
                 crate::features::search::service::semantic_search_batch,
                 crate::features::search::service::search_blocks,
                 crate::features::search::service::hybrid_search,
