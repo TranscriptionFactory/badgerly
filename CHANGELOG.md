@@ -1,5 +1,19 @@
 # carbide
 
+## 2.35.0
+
+### Minor Changes
+
+- d0cea70: Agents can now inspect a note's commit history, read an older version of it (following renames), and create a checkpoint commit before a risky edit via the new `get_note_history`, `read_note_version`, and `create_checkpoint` MCP tools.
+- e7e3085: Ambient notices can now spot a block of the open note that closely matches a block in a note it does not link to, and offer to append a `[[link]]`; declining hides that pair until the note is saved again.
+- 611a56c: Applied agent-turn proposals can now be reverted from the Proposals tab, per turn or for a whole session, restoring the touched notes to the checkpoint taken before that turn.
+- c6e91ef: Link to assistant sessions with `[[◈ session title]]` or `[[◈ session ID]]`. Type `[[◈` for autocomplete, which inserts an ID-based link that survives renaming. Missing or ambiguous sessions appear as broken links without creating notes. Saved memories record their source session as a wiki link.
+- de60d4c: Validate structured note edits before acceptance, rebase non-overlapping changes, and report conflicting spans. Preserve native edit operations and flag best-effort agent-write conversions. Review renames with backlink repair as checked multi-file mutations, with archival, mutation-aware undo.
+- 24e6388: Run the assistant unattended: a note added to a configured trigger folder, or an explicit "run now", starts an agent turn whose edits arrive as proposals for review. Unattended runs are refused any tool that writes directly, get their own iteration budget with a hard backend cap, and report what they did in the review center under their own provenance group.
+- 7f25a66: The assistant now remembers across sessions: any note with `memory: true` frontmatter is a memory. Matching memories join the chat context through the same retrieval and budget as other notes, and the native agent loop gets `list_memories` and `save_memory` tools (saves go to the new Memory Folder setting, default `Memory/`, and a repeated title updates the existing memory instead of creating a second note).
+
+  Memory saves return a conflict instead of replacing an occupied note unless its current frontmatter verifies the same memory title.
+
 ## 2.34.7
 
 ### Patch Changes
