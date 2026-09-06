@@ -17,7 +17,7 @@ export async function load_assistant_sessions(
 ): Promise<void> {
   const loaded = await session_service.load_all_sessions(vault_id);
   if (!is_current()) return;
-  sessions.hydrate(loaded);
+  sessions.hydrate(loaded, vault_id);
   prune_stale_sessions(sessions, session_service, vault_id, retention_days);
   chat_store.reset_view_state();
 }

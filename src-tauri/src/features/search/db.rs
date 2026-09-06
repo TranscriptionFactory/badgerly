@@ -808,6 +808,10 @@ fn extract_links(markdown: &str, headings: &[ExtractedHeading]) -> Vec<Extracted
                 None => (inner.trim(), inner.trim().to_string()),
             };
 
+            if target_part.starts_with('◈') {
+                continue;
+            }
+
             let (target, anchor) = match target_part.split_once('#') {
                 Some((t, a)) => (t, Some(a.to_string())),
                 None => (target_part, None),
@@ -841,6 +845,9 @@ fn extract_links(markdown: &str, headings: &[ExtractedHeading]) -> Vec<Extracted
             }
 
             let decoded = simple_percent_decode(raw_url);
+            if decoded.trim_start().starts_with('◈') {
+                continue;
+            }
             let cleaned = decoded.split('#').next().unwrap_or(&decoded);
             let cleaned = cleaned.split('?').next().unwrap_or(cleaned);
 
@@ -6495,3 +6502,7 @@ pub fn count_bases_many(
 
     Ok(counts)
 }
+
+#[cfg(test)]
+#[path = "../../../tests/session_links.rs"]
+mod session_links_tests;

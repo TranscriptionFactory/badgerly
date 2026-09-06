@@ -540,7 +540,7 @@ fn save_memory_def() -> ToolDefinition {
     );
     properties.insert(
         "source_session".into(),
-        prop("string", "Optional. Identifier of the session this memory came from."),
+        prop("string", "Optional. Session ID this memory came from; saved as a [[◈ ID]] link. Supply the ID, not wiki markup."),
     );
 
     ToolDefinition {
@@ -612,18 +612,22 @@ fn yaml_quote(value: &str) -> String {
     serde_json::to_string(value).expect("strings serialize to JSON")
 }
 
-pub(crate) fn render_memory_note(title: &str, body: &str, source_session: Option<&str>) -> String {
+pub(crate) fn render_memory_note(title: &str, body: &str, source_session: Option<&str>) -> Result<String, String> {
+    let source_session = source_session.map(str::trim).filter(|s| !s.is_empty());
+    if source_session.is_some_and(|session| session.starts_with('◈') || session.chars().any(|c| c.is_control() || matches!(c, '[' | ']' | '|'))) {
+        return Err("source_session must be a session ID without wiki markup or control characters".into());
+    }
     let mut out = String::new();
     out.push_str("---\n");
     out.push_str(&format!("{MEMORY_PROPERTY}: true\n"));
     out.push_str(&format!("title: {}\n", yaml_quote(title)));
-    if let Some(session) = source_session.map(str::trim).filter(|s| !s.is_empty()) {
-        out.push_str(&format!("source_session: {}\n", yaml_quote(session)));
+    if let Some(session) = source_session {
+        out.push_str(&format!("source_session: {}\n", yaml_quote(&format!("[[◈ {session}]]"))));
     }
     out.push_str("---\n\n");
     out.push_str(body.trim_end());
     out.push('\n');
-    out
+    Ok(out)
 }
 
 pub(crate) fn memory_title(row: &BaseNoteRow) -> String {
@@ -747,6 +751,11 @@ fn handle_save_memory(app: &AppHandle, arguments: Option<&Value>) -> ToolResult 
         return ToolResult::error("title must not be empty".into());
     }
 
+    let content = match render_memory_note(title, &args.body, args.source_session.as_deref()) {
+        Ok(content) => content,
+        Err(error) => return ToolResult::error(error),
+    };
+
     let vault_id = match shared_ops::resolve_vault_id(app, args.vault_id) {
         Ok(v) => v,
         Err(e) => return op_err_to_tool_result(e),
@@ -758,7 +767,6 @@ fn handle_save_memory(app: &AppHandle, arguments: Option<&Value>) -> ToolResult 
     };
     let existing = find_memory_by_title(&results.rows, title).map(|row| row.note.path.clone());
     let path = existing.clone().unwrap_or_else(|| memory_note_path(&memory_folder(app, &vault_id), title));
-    let content = render_memory_note(title, &args.body, args.source_session.as_deref());
 
     let written = match shared_ops::read_note(app, &vault_id, &path) {
         Ok((_, current)) => verify_memory_target(&path, &current, title)

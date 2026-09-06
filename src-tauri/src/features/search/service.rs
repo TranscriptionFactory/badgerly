@@ -4472,6 +4472,9 @@ fn resolve_relative_path(base_dir: &str, target: &str) -> Option<String> {
 #[tauri::command]
 #[specta::specta]
 pub fn resolve_note_link(source_path: String, raw_target: String) -> Option<String> {
+    if raw_target.trim_start().starts_with('◈') {
+        return None;
+    }
     let trimmed = strip_link_suffix(&raw_target);
     let base_dir = if trimmed.starts_with('/') {
         ""
@@ -4494,6 +4497,9 @@ pub fn resolve_note_link(source_path: String, raw_target: String) -> Option<Stri
 #[tauri::command]
 #[specta::specta]
 pub fn resolve_wiki_link(source_path: String, raw_target: String) -> Option<String> {
+    if raw_target.trim_start().starts_with('◈') {
+        return None;
+    }
     let cleaned = strip_link_suffix(&raw_target).trim_start_matches('/');
     if cleaned.is_empty() {
         return None;
@@ -4645,6 +4651,9 @@ pub fn rewrite_note_links(
 }
 
 fn resolve_wiki_link_target(target: &str, source_path: &str) -> Option<String> {
+    if target.trim_start().starts_with('◈') {
+        return None;
+    }
     let cleaned = target.trim_start_matches('/');
     if cleaned.is_empty() {
         return None;

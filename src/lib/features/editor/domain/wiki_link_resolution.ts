@@ -1,3 +1,4 @@
+import { is_session_link } from "$lib/features/assistant";
 import { to_wiki_link_slug } from "$lib/shared/utils/wiki_link_slug";
 
 function slug_lookup(
@@ -56,7 +57,7 @@ export function resolve_wiki_link_target(
   note_paths: ReadonlySet<string>,
 ): string | undefined {
   const trimmed = target.trim();
-  if (!trimmed) return undefined;
+  if (!trimmed || is_session_link(trimmed)) return undefined;
   if (note_paths.has(trimmed)) return trimmed;
   const via_slug = slug_lookup(trimmed, note_paths);
   if (via_slug) return via_slug;
@@ -125,7 +126,7 @@ export function is_resolved_wiki_link_target(
   note_paths: ReadonlySet<string>,
 ): boolean {
   const trimmed = target.trim();
-  if (!trimmed) return false;
+  if (!trimmed || is_session_link(trimmed)) return false;
   if (note_paths.has(trimmed)) return true;
   if (
     wiki_link_resolution_candidates(trimmed).some((candidate) =>

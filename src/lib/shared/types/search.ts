@@ -61,7 +61,16 @@ export type PlannedWikiSuggestion = {
   score: number;
 };
 
-export type WikiSuggestion = ExistingWikiSuggestion | PlannedWikiSuggestion;
+export type SessionWikiSuggestion = {
+  kind: "session";
+  id: string;
+  title: string;
+};
+
+export type WikiSuggestion =
+  | ExistingWikiSuggestion
+  | PlannedWikiSuggestion
+  | SessionWikiSuggestion;
 
 export type InFileMatch = {
   line: number;

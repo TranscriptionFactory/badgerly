@@ -39,6 +39,7 @@ export type AssistantSessionPatch = Partial<
 // session.
 export class AssistantSessionStore {
   sessions = $state<AssistantSession[]>([]);
+  vault_id = $state<string | null>(null);
 
   // Injectable clock (AU-005 precedent) — create/touch/prune timestamps come
   // from here so tests never sleep.
@@ -131,7 +132,8 @@ export class AssistantSessionStore {
 
   // Stored timestamps survive verbatim: re-stamping on load would move every
   // session to "now" on each vault open and destroy recency ordering.
-  hydrate(sessions: AssistantSession[]): void {
+  hydrate(sessions: AssistantSession[], vault_id: string | null = null): void {
+    this.vault_id = vault_id;
     this.sessions = [...sessions];
   }
 

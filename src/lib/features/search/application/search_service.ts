@@ -51,6 +51,12 @@ import {
   type AccessHistory,
 } from "$lib/features/search/domain/omnibar_ranking";
 
+import {
+  is_session_link,
+  resolve_session_link,
+  type SessionLinkTarget,
+} from "$lib/features/assistant";
+
 const log = create_logger("search_service");
 const WIKI_SUGGEST_LIMIT = 15;
 const WIKI_SUGGEST_EXISTING_RESERVE = 10;
@@ -183,6 +189,9 @@ export class SearchService {
     private readonly tags_port?: TagPort,
     private readonly bases_port?: BasesPort,
     private readonly get_access_history?: () => AccessHistory,
+    private readonly get_session_links: (
+      vault_id: VaultId,
+    ) => readonly SessionLinkTarget[] = () => [],
   ) {}
 
   private get_active_vault_id(): VaultId | null {
@@ -299,6 +308,13 @@ export class SearchService {
     }
   }
 
+  resolve_session_link(target: string): SessionLinkTarget | null {
+    const vault_id = this.get_active_vault_id();
+    return vault_id
+      ? resolve_session_link(target, this.get_session_links(vault_id))
+      : null;
+  }
+
   async suggest_wiki_links(query: string): Promise<WikiSuggestionsResult> {
     const revision = ++this.active_wiki_suggest_revision;
     const trimmed = query.trim();
@@ -306,6 +322,23 @@ export class SearchService {
 
     const vault_id = this.get_active_vault_id();
     if (!vault_id) return { status: "skipped", results: [] };
+
+    if (is_session_link(trimmed)) {
+      const term = trimmed.slice(1).trim().toLowerCase();
+      const results = this.get_session_links(vault_id)
+        .filter(
+          (session) =>
+            session.title.toLowerCase().includes(term) ||
+            session.id.toLowerCase().includes(term),
+        )
+        .slice(0, WIKI_SUGGEST_LIMIT)
+        .map((session) => ({
+          kind: "session" as const,
+          id: session.id,
+          title: session.title,
+        }));
+      return { status: "success", results };
+    }
 
     try {
       const [existing_suggestions, planned_targets] = await Promise.all([
