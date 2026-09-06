@@ -20,6 +20,7 @@
 //! depend on the index for write decisions should follow the same pattern
 //! rather than blocking on a full reindex.
 
+use crate::shared::storage::format_epoch_ms_as_date;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -534,7 +535,7 @@ pub fn edit_note(
     old_string: &str,
     new_string: &str,
     replace_all: bool,
-) -> Result<(String, usize), OpError> {
+) -> Result<(String, usize, Vec<crate::features::notes::edit_operation::NativeEditOperation>), OpError> {
     let (_, abs) = resolve_read_path(app, vault_id, path)?;
     let existing = std::fs::read_to_string(&abs)
         .map_err(|e| OpError::NotFound(format!("Failed to read note: {}", e)))?;
@@ -546,8 +547,9 @@ pub fn edit_note(
     };
     let updated = apply_edit(&existing, old_string, new_string, replace_all)?;
 
+    let operations = crate::features::notes::edit_operation::replacement_operations(path, &existing, old_string, new_string, replace_all).map_err(OpError::BadRequest)?;
     io_utils::atomic_write(&abs, updated.as_bytes()).map_err(OpError::Internal)?;
-    Ok((path.to_string(), replacements))
+    Ok((path.to_string(), replacements, operations))
 }
 
 pub fn move_note(
@@ -843,38 +845,6 @@ pub struct NoteMetadataResult {
     )>,
 }
 
-fn format_epoch_ms_as_date(ms: i64) -> String {
-    let secs = ms / 1000;
-    let days = secs / 86400;
-    let mut y = 1970i32;
-    let mut remaining = days;
-
-    loop {
-        let days_in_year = if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) { 366 } else { 365 };
-        if remaining < days_in_year {
-            break;
-        }
-        remaining -= days_in_year;
-        y += 1;
-    }
-
-    let leap = y % 4 == 0 && (y % 100 != 0 || y % 400 == 0);
-    let month_days = [
-        31,
-        if leap { 29 } else { 28 },
-        31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
-    ];
-    let mut m = 0usize;
-    for &md in &month_days {
-        if remaining < md {
-            break;
-        }
-        remaining -= md;
-        m += 1;
-    }
-
-    format!("{:04}-{:02}-{:02}", y, m + 1, remaining + 1)
-}
 
 fn find_frontmatter_end(content: &str) -> Option<usize> {
     if !content.starts_with("---") {

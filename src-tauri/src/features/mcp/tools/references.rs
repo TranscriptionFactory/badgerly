@@ -26,6 +26,7 @@ fn list_references_def() -> ToolDefinition {
     properties.insert(
         "limit".into(),
         PropertySchema {
+        schema: Default::default(),
             prop_type: "integer".into(),
             description: Some("Optional. Maximum number of results to return (default: 50, max: 200)".into()),
             enum_values: None,

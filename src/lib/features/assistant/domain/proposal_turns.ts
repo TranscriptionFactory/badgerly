@@ -1,7 +1,5 @@
-import {
-  proposal_path,
-  type Proposal,
-} from "$lib/features/assistant/types/proposal";
+import { proposal_mutation_paths } from "$lib/features/assistant/types/proposal";
+import { type Proposal } from "$lib/features/assistant/types/proposal";
 import type { RunId } from "$lib/features/assistant/types/run";
 
 export type ProposalTurnStatus = "applied" | "reverted";
@@ -165,9 +163,7 @@ function plan_from(
     later_turns: in_range.filter((turn) => turn.turn_id !== target.turn_id),
     anchor: target.anchor,
     proposals: applied,
-    note_paths: [
-      ...new Set(applied.map((proposal) => proposal_path(proposal.target))),
-    ],
+    note_paths: [...new Set(applied.flatMap(proposal_mutation_paths))],
   };
 }
 

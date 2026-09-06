@@ -110,6 +110,7 @@ fn query_notes_by_property_def() -> ToolDefinition {
     properties.insert(
         "operator".into(),
         PropertySchema {
+        schema: Default::default(),
             prop_type: "string".into(),
             description: Some("Optional. Comparison operator: eq (equal), neq (not equal), contains (substring match), gt (greater than), gte (greater or equal), lt (less than), lte (less or equal). Default: eq.".into()),
             enum_values: Some(vec![
@@ -127,6 +128,7 @@ fn query_notes_by_property_def() -> ToolDefinition {
     properties.insert(
         "limit".into(),
         PropertySchema {
+        schema: Default::default(),
             prop_type: "integer".into(),
             description: Some("Optional. Maximum number of results to return (default: 50, max: 200)".into()),
             enum_values: None,

@@ -52,6 +52,18 @@
     >
   </div>
 
+  {#if proposal.conversion === "best_effort"}
+    <p class="mt-2 text-xs text-muted-foreground">
+      Best-effort conversion from agent file writes. Review carefully.
+    </p>
+  {/if}
+  {#if proposal.conflict}
+    <p class="mt-2 text-xs text-destructive">
+      Conflicting span {proposal.conflict.start}–{proposal.conflict.end}: {proposal
+        .conflict.reason}
+    </p>
+  {/if}
+
   <button
     type="button"
     class="mt-2 flex w-full items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
@@ -87,6 +99,7 @@
       type="button"
       class="rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
       data-testid="assistant-proposal-accept-all"
+      disabled={proposal.status !== "pending"}
       onclick={() => on_accept_all(proposal.id)}
     >
       Accept all

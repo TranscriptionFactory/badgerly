@@ -1,3 +1,4 @@
+import { apply_proposal_hunks } from "$lib/features/assistant/domain/apply_proposal_hunks";
 import type { GitDiff } from "$lib/features/git";
 import {
   compute_note_revision,
@@ -102,15 +103,49 @@ export function build_turn_proposals(
 ): Proposal[] {
   return inputs.map(({ file, base_content }) => {
     const id = proposal_id(origin, created_at, file.note_path);
-    return {
+    const hunks = file.hunks.map((hunk, index) =>
+      to_proposal_hunk(hunk, id, index),
+    );
+    const base_revision = compute_note_revision(base_content);
+    const proposal: Proposal = {
       id,
       target: { kind: "note" as const, note_path: file.note_path },
-      base_revision: compute_note_revision(base_content),
-      hunks: file.hunks.map((hunk, index) => to_proposal_hunk(hunk, id, index)),
+      base_revision,
+      base_content,
+      conversion: "best_effort",
+      operations: hunks.map((hunk) => {
+        const next = apply_proposal_hunks(base_content, [hunk]);
+        let start = 0;
+        while (
+          start < Math.min(base_content.length, next.length) &&
+          base_content[start] === next[start]
+        )
+          start++;
+        let end = base_content.length;
+        let next_end = next.length;
+        while (
+          end > start &&
+          next_end > start &&
+          base_content[end - 1] === next[next_end - 1]
+        ) {
+          end--;
+          next_end--;
+        }
+        return {
+          kind: "replace_span" as const,
+          base_revision,
+          hunk_id: hunk.id,
+          start,
+          end,
+          text: next.slice(start, next_end),
+        };
+      }),
+      hunks,
       origin,
       status: "pending",
       created_at,
     };
+    return proposal;
   });
 }
 

@@ -201,6 +201,10 @@ pub enum AgentEvent {
         result_summary: Option<String>,
         paths: Vec<String>,
         mutating: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        edit_operations: Option<Vec<crate::features::notes::edit_operation::NativeEditOperation>>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        proposals: Option<Vec<crate::features::notes::edit_operation::NativeProposal>>,
     },
     #[serde(rename = "permission_request")]
     PermissionRequest {

@@ -369,3 +369,18 @@ export {
   type ReadyTurnRevertPlan,
   type TurnRevertPlan,
 } from "$lib/features/assistant/domain/proposal_turns";
+
+export type {
+  EditOperation,
+  OperationConflict,
+  ProposalMutation,
+} from "./types/edit_operation";
+export type { ProposalMutationPort } from "./ports";
+export { proposal_mutation_paths } from "./types/proposal";
+export { create_proposal_mutation_tauri_adapter } from "./adapters/proposal_mutation_tauri_adapter";
+export {
+  operation_hunks,
+  validate_edit_operations,
+  apply_edit_operations,
+} from "./domain/edit_operations";
+export { build_native_proposal } from "./domain/native_proposals";

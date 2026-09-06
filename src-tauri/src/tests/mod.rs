@@ -139,6 +139,9 @@ mod specta_export {
                 crate::features::notes::service::move_items,
                 crate::features::notes::service::delete_folder,
                 crate::features::notes::service::list_folder_contents,
+                crate::features::notes::proposal_mutations::prepare_proposal_rename,
+                crate::features::notes::proposal_mutations::apply_proposal_mutations,
+                crate::features::notes::proposal_mutations::prepare_proposal_restore,
                 crate::features::notes::service::clear_folder_cache,
                 crate::features::notes::service::get_folder_stats,
                 crate::features::notes::service::read_vault_file,
@@ -343,3 +346,6 @@ crate::features::clip::capture::clip_capture_cancel,
 
 #[path = "../../tests/git_history.rs"]
 mod git_history;
+
+#[path = "../../tests/proposal_mutations.rs"]
+mod proposal_mutations;

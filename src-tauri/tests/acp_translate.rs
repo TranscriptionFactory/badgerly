@@ -299,11 +299,15 @@ fn completion_emits_tool_end_with_the_accumulated_union() {
         result_summary,
         paths,
         mutating,
+        edit_operations,
+        proposals,
     } = events.into_iter().nth(1).expect("a tool_end event")
     else {
         panic!("expected a tool_end event");
     };
 
+    assert!(edit_operations.is_none());
+    assert!(proposals.is_none());
     assert_eq!(id, "call-5");
     assert_eq!(name, "Apply patch");
     assert!(ok);

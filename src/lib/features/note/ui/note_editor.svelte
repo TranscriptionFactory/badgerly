@@ -127,7 +127,7 @@
     />
   {:else if active_tab?.kind === "assistant_proposals"}
     <AssistantProposalsTabView
-      proposals={stores.assistant_proposals.pending}
+      proposals={stores.assistant_proposals.reviewable}
       applied_history={stores.assistant_proposals.applied_history}
       session_summaries={stores.assistant_sessions.summaries}
       on_accept_proposal={(id) =>

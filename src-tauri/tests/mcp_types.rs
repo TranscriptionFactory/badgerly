@@ -121,6 +121,7 @@ fn tool_definition_round_trip() {
                 m.insert(
                     "path".into(),
                     PropertySchema {
+        schema: Default::default(),
                         prop_type: "string".into(),
                         description: Some("Note path".into()),
                         enum_values: None,

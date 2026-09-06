@@ -148,6 +148,7 @@ export class AgentRunner {
         tool_calls,
         mtimes,
         anchor_applied_ids,
+        String(vault.id),
       );
       if (outcome.status === "error") {
         return { status: "error", message: outcome.error.message };
@@ -163,6 +164,7 @@ export class AgentRunner {
         tool_calls,
         mtimes,
         anchor_applied_ids,
+        String(vault.id),
       );
       return { status: "error", message };
     } finally {
@@ -235,6 +237,13 @@ export class AgentRunner {
               call.paths = merge_tool_paths(call.paths, event.paths);
               call.mutating = (call.mutating ?? false) || event.mutating;
               call.ok = event.ok;
+              call.edit_operations = event.edit_operations ?? [];
+              call.proposals = event.proposals ?? [];
+              if (
+                call.proposals.length > 0 &&
+                call.edit_operations.length === 0
+              )
+                call.mutating = false;
               this.capture_mtimes(call, mtimes);
             }
             return;
@@ -289,7 +298,12 @@ export class AgentRunner {
     tool_calls: AgentToolCall[],
     mtimes: PendingMtimes,
     anchor_applied_ids: string[],
+    vault_id: string,
   ): Promise<void> {
+    if (!this.is_run_vault_active(vault_id)) {
+      log.warn("The active vault changed; turn proposals were not queued.");
+      return;
+    }
     await this.produce_proposals(
       anchor,
       run_id,
@@ -297,8 +311,16 @@ export class AgentRunner {
       tool_calls,
       mtimes,
       anchor_applied_ids,
+      vault_id,
     );
+    // The tool paths and the notes to resync belong to the run's vault, so a
+    // switch during proposal production takes the refresh with it.
+    if (!this.is_run_vault_active(vault_id)) return;
     await this.record_file_changes(tool_calls);
+  }
+
+  private is_run_vault_active(vault_id: string): boolean {
+    return String(this.vault_store.vault?.id ?? "") === vault_id;
   }
 
   // The staleness guard is only worth anything if the mtime it compares against
@@ -345,6 +367,7 @@ export class AgentRunner {
     tool_calls: AgentToolCall[],
     mtimes: PendingMtimes,
     anchor_applied_ids: string[],
+    vault_id: string,
   ): Promise<void> {
     const vault_path = String(this.vault_store.vault?.path ?? "");
     // Rollback scope, not refresh scope. A denied tool announces its paths
@@ -352,16 +375,36 @@ export class AgentRunner {
     // the permissive set contains files the agent was never allowed to write —
     // rolling those back reverts a change the user said no to.
     const touched_paths = rollback_files_from_tools(tool_calls, vault_path);
-    if (touched_paths.length === 0) return;
+    const native_proposals = tool_calls
+      .filter((call) => call.ok)
+      .flatMap((call) => call.proposals ?? []);
+    if (touched_paths.length === 0 && native_proposals.length === 0) return;
 
     try {
+      // Resolving the mtimes waits on disk reads issued during the turn, which
+      // is long enough for the user to open another vault. The pinned identity
+      // is re-checked here rather than inside the producer's request, because
+      // the producer must never be handed the current vault as if it were the
+      // one these paths and payloads came from.
+      const expected_mtimes = await this.resolve_mtimes(mtimes);
+      if (!this.is_run_vault_active(vault_id)) {
+        log.warn(
+          "The active vault changed while reading note mtimes; turn proposals were not queued.",
+        );
+        return;
+      }
       const report = await this.proposals.produce({
         anchor,
         origin: { session_id, run_id, anchor, anchor_applied_ids },
         touched_paths,
-        expected_mtimes: await this.resolve_mtimes(mtimes),
+        expected_mtimes,
+        native_proposals,
+        vault_id,
+        is_run_vault_active: () => this.is_run_vault_active(vault_id),
       });
       log.info("Agent turn proposals", report);
+      // An abandoned turn's notice would describe the vault the user just left.
+      if (report.status === "vault_changed") return;
       const notice = build_turn_report_notice(report);
       if (notice) this.chat_store.add_assistant_message(notice, []);
     } catch (err) {

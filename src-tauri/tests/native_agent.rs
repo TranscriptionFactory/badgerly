@@ -916,3 +916,22 @@ fn save_only_memory_prompt_does_not_advertise_list_memories() {
     assert!(prompt.contains("save_memory"));
     assert!(!prompt.contains("list_memories"));
 }
+
+#[tokio::test]
+async fn native_edit_operations_survive_summary_truncation() {
+    let (client, _) = scripted(vec![call_turn("c1", "edit_note", "{}"), text_turn("done")]);
+    let (_tx, rx) = oneshot::channel();
+    let base = format!("{} target", "x".repeat(2000));
+    let operations = crate::features::notes::edit_operation::replacement_operations("a.md", &base, "target", "changed", false).unwrap();
+    let expected = operations.clone();
+    let events = drive(client, vec![tool_def("edit_note", true)], ToolSelector::Full, move |_, _| {
+        let mut result = ToolResult::text("summary".repeat(200));
+        result.edit_operations = operations.clone();
+        result
+    }, rx).await;
+    let payload = events.iter().find_map(|event| match event {
+        AgentEvent::ToolEnd { edit_operations, ok: true, .. } => edit_operations.as_ref(),
+        _ => None,
+    }).unwrap();
+    assert_eq!(payload, &expected);
+}

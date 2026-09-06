@@ -60,6 +60,39 @@ pub fn now_ms() -> i64 {
         .as_millis() as i64
 }
 
+pub fn format_epoch_ms_as_date(ms: i64) -> String {
+    let secs = ms / 1000;
+    let days = secs / 86400;
+    let mut y = 1970i32;
+    let mut remaining = days;
+
+    loop {
+        let days_in_year = if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) { 366 } else { 365 };
+        if remaining < days_in_year {
+            break;
+        }
+        remaining -= days_in_year;
+        y += 1;
+    }
+
+    let leap = y % 4 == 0 && (y % 100 != 0 || y % 400 == 0);
+    let month_days = [
+        31,
+        if leap { 29 } else { 28 },
+        31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
+    ];
+    let mut m = 0usize;
+    for &md in &month_days {
+        if remaining < md {
+            break;
+        }
+        remaining -= md;
+        m += 1;
+    }
+
+    format!("{:04}-{:02}-{:02}", y, m + 1, remaining + 1)
+}
+
 pub fn vault_id_for_path(path: &str) -> String {
     blake3::hash(path.as_bytes()).to_hex().to_string()
 }
