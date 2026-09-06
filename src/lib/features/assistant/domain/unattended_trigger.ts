@@ -1,4 +1,8 @@
 import { normalize_path_key } from "$lib/shared/utils/path";
+import {
+  normalize_folder_scope,
+  path_in_folder,
+} from "$lib/features/assistant/domain/chat_scope";
 
 export type UnattendedTriggerReason =
   | "settings_not_loaded"
@@ -21,9 +25,12 @@ export type UnattendedTriggerInput = {
   note_path: string;
 };
 
-// Trailing and leading slashes are a user-typed accident, not meaning.
+// Trailing and leading slashes are a user-typed accident, not meaning. Shares
+// `chat_scope`'s canonicalization so folder scoping means one thing across the
+// feature; that helper yields a `folder/` prefix, which this trims back off.
 export function normalize_trigger_folder(folder: string): string {
-  return folder.trim().replace(/^\/+/, "").replace(/\/+$/, "");
+  const prefix = normalize_folder_scope(folder);
+  return prefix === null ? "" : prefix.slice(0, -1);
 }
 
 // Segment-wise containment, so `Inbox` claims `Inbox/a.md` and `Inbox/sub/b.md`
@@ -33,10 +40,12 @@ export function is_in_trigger_folder(
   note_path: string,
   trigger_folder: string,
 ): boolean {
-  const folder = normalize_trigger_folder(trigger_folder);
-  if (folder === "") return false;
-  const prefix = normalize_path_key(folder) + "/";
-  return normalize_path_key(note_path).startsWith(prefix);
+  const prefix = normalize_folder_scope(trigger_folder);
+  if (prefix === null) return false;
+  return path_in_folder(
+    normalize_path_key(note_path),
+    normalize_path_key(prefix),
+  );
 }
 
 // Gate order is load-bearing, as in the ambient reactor: `settings_loaded` is

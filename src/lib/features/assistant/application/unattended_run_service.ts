@@ -81,16 +81,13 @@ export class UnattendedRunService {
 
     const collected: NativeProposal[] = [];
     try {
-      const handle = await this.deps.run_starter.start(
-        this.spec(trigger),
-        {
-          on_event: (_run_id, event) => {
-            if (event.type === "tool_end" && event.proposals?.length) {
-              collected.push(...event.proposals);
-            }
-          },
+      const handle = await this.deps.run_starter.start(this.spec(trigger), {
+        on_event: (_run_id, event) => {
+          if (event.type === "tool_end" && event.proposals?.length) {
+            collected.push(...event.proposals);
+          }
         },
-      );
+      });
 
       const outcome = await handle.outcome;
       const summary = this.publish(
@@ -117,12 +114,13 @@ export class UnattendedRunService {
   // run rather than a silent no-op.
   private spec(trigger: UnattendedTrigger): RunSpec {
     const kind = "background" as const;
+    const prompt = this.deps.build_prompt(trigger);
     return {
       kind,
-      label: this.deps.build_prompt(trigger).slice(0, 80),
+      label: prompt.slice(0, 80),
       request: {
         mode: "agent",
-        prompt: this.deps.build_prompt(trigger),
+        prompt,
         toolset: unattended_run_policy().toolset,
         // Nothing can write, so there is nothing to consent to; a prompt would
         // park a run with nobody to answer it.
@@ -169,7 +167,9 @@ export class UnattendedRunService {
       }
       if (proposals.length > 0) this.deps.queue.add_many(proposals);
     } else {
-      log.warn("The active vault changed; unattended proposals were not queued.");
+      log.warn(
+        "The active vault changed; unattended proposals were not queued.",
+      );
     }
 
     const summary: UnattendedRunSummary = {

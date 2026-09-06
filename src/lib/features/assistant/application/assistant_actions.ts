@@ -24,10 +24,7 @@ import type { AssistantProposalStore } from "$lib/features/assistant/state/assis
 import type { AssistantRunStore } from "$lib/features/assistant/state/assistant_run_store.svelte";
 import type { AssistantSessionStore } from "$lib/features/assistant/state/assistant_session_store.svelte";
 import type { RunId } from "$lib/features/assistant/types/run";
-import {
-  UNATTENDED_RUN_OP,
-  UnattendedRunService,
-} from "$lib/features/assistant/application/unattended_run_service";
+import { UnattendedRunService } from "$lib/features/assistant/application/unattended_run_service";
 
 // Accept used to discard its outcome entirely, so a stale or failed apply was
 // indistinguishable from a clean one: nothing changed on disk and nothing was
@@ -190,7 +187,9 @@ export function register_assistant_actions(
         folder: null,
       });
       if (result.status === "refused") {
-        stores.op.fail(UNATTENDED_RUN_OP, result.reason);
+        toast.warning("Unattended run not started", {
+          description: result.reason,
+        });
       }
     },
   });

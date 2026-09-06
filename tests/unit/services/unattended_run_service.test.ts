@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   UNATTENDED_RUN_OP,
   UnattendedRunService,
@@ -63,7 +63,13 @@ function harness(
     now_ms: () => 1000,
     ...overrides,
   };
-  return { service: new UnattendedRunService(deps), starter, queued, summaries, deps };
+  return {
+    service: new UnattendedRunService(deps),
+    starter,
+    queued,
+    summaries,
+    deps,
+  };
 }
 
 describe("UnattendedRunService spec", () => {
@@ -125,7 +131,9 @@ describe("UnattendedRunService proposals", () => {
     const { service, queued } = harness(proposal_events(["a.md"]));
     await service.run(watcher_trigger);
 
-    expect(require_fixture(require_fixture(queued[0])[0]).origin.anchor).toBeUndefined();
+    expect(
+      require_fixture(require_fixture(queued[0])[0]).origin.anchor,
+    ).toBeUndefined();
   });
 
   it("queues nothing when the run produced no proposals", async () => {
@@ -230,6 +238,5 @@ describe("UnattendedRunService refusals", () => {
     });
     await service.run(watcher_trigger);
     expect(starter.specs).toHaveLength(0);
-    expect(vi.isMockFunction(starter.start)).toBe(false);
   });
 });

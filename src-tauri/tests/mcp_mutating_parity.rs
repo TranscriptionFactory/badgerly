@@ -4,12 +4,16 @@ use std::path::PathBuf;
 
 use crate::features::mcp::router::McpRouter;
 
-fn agent_file_ops_source() -> String {
+fn ts_source(rel: &str) -> String {
     let ts_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
-        .join("src/lib/features/assistant/domain/agent_file_ops.ts");
+        .join(rel);
     fs::read_to_string(&ts_path)
         .unwrap_or_else(|e| panic!("cannot read TS source at {}: {}", ts_path.display(), e))
+}
+
+fn agent_file_ops_source() -> String {
+    ts_source("src/lib/features/assistant/domain/agent_file_ops.ts")
 }
 
 /// String literals of the array/set literal that follows `marker`. Tolerates
@@ -17,7 +21,7 @@ fn agent_file_ops_source() -> String {
 fn ts_string_list(src: &str, marker: &str) -> BTreeSet<String> {
     let start = src
         .find(marker)
-        .unwrap_or_else(|| panic!("`{marker}` not found in agent_file_ops.ts"));
+        .unwrap_or_else(|| panic!("`{marker}` not found in the scraped TS source"));
     let rest = &src[start + marker.len()..];
     let end = rest
         .find(']')
@@ -38,11 +42,7 @@ fn ts_string_list(src: &str, marker: &str) -> BTreeSet<String> {
 }
 
 fn agent_run_policy_source() -> String {
-    let ts_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("..")
-        .join("src/lib/features/ai/domain/agent_run_policy.ts");
-    fs::read_to_string(&ts_path)
-        .unwrap_or_else(|e| panic!("cannot read TS source at {}: {}", ts_path.display(), e))
+    ts_source("src/lib/features/ai/domain/agent_run_policy.ts")
 }
 
 fn ts_unattended_tools() -> BTreeSet<String> {

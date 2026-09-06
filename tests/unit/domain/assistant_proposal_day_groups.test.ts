@@ -145,7 +145,9 @@ describe("unattended provenance", () => {
       NOON,
     );
 
-    expect(require_fixture(require_fixture(groups[0]).groups[0]).trigger).toEqual(trigger);
+    expect(
+      require_fixture(require_fixture(groups[0]).groups[0]).trigger,
+    ).toEqual(trigger);
   });
 
   it("leaves an interactive group's trigger null", () => {
@@ -154,7 +156,9 @@ describe("unattended provenance", () => {
       NOON,
     );
 
-    expect(require_fixture(require_fixture(groups[0]).groups[0]).trigger).toBeNull();
+    expect(
+      require_fixture(require_fixture(groups[0]).groups[0]).trigger,
+    ).toBeNull();
   });
 
   // Two runs in the same day are two groups, because each run is its own

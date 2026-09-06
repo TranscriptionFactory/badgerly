@@ -105,6 +105,44 @@ fn allow_all(_: &PermissionRequestSpec) -> NativeGate {
     NativeGate::Allow
 }
 
+#[allow(clippy::too_many_arguments)]
+async fn drive_inner<C, D, A>(
+    client: C,
+    catalog: Vec<ToolDefinition>,
+    selector: ToolSelector,
+    dispatch: D,
+    max_iterations: u32,
+    unattended: bool,
+    abort_rx: oneshot::Receiver<()>,
+    approval: A,
+) -> Vec<AgentEvent>
+where
+    C: ModelClient,
+    D: FnMut(&str, Option<&Value>) -> ToolResult,
+    A: Fn(&PermissionRequestSpec) -> NativeGate,
+{
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let sink = events.clone();
+    let emit = move |event: AgentEvent| sink.lock().unwrap().push(event);
+    run_native_turn(
+        client,
+        dispatch,
+        "sess".into(),
+        "sys".into(),
+        Vec::new(),
+        catalog,
+        selector,
+        max_iterations,
+        unattended,
+        abort_rx,
+        emit,
+        approval,
+    )
+    .await;
+    let out = events.lock().unwrap().clone();
+    out
+}
+
 async fn drive<C, D>(
     client: C,
     catalog: Vec<ToolDefinition>,
@@ -132,26 +170,17 @@ where
     D: FnMut(&str, Option<&Value>) -> ToolResult,
     A: Fn(&PermissionRequestSpec) -> NativeGate,
 {
-    let events = Arc::new(Mutex::new(Vec::new()));
-    let sink = events.clone();
-    let emit = move |event: AgentEvent| sink.lock().unwrap().push(event);
-    run_native_turn(
+    drive_inner(
         client,
-        dispatch,
-        "sess".into(),
-        "sys".into(),
-        Vec::new(),
         catalog,
         selector,
+        dispatch,
         MAX_ITERATIONS,
         false,
         abort_rx,
-        emit,
         approval,
     )
-    .await;
-    let out = events.lock().unwrap().clone();
-    out
+    .await
 }
 
 /// Records every tool name that actually reached dispatch, so a refusal can be
@@ -166,7 +195,6 @@ fn recording_dispatch(
 }
 
 /// Same harness with the unattended flag raised.
-#[allow(clippy::too_many_arguments)]
 async fn drive_unattended<C, D>(
     client: C,
     catalog: Vec<ToolDefinition>,
@@ -178,30 +206,20 @@ where
     C: ModelClient,
     D: FnMut(&str, Option<&Value>) -> ToolResult,
 {
-    let events = Arc::new(Mutex::new(Vec::new()));
-    let sink = events.clone();
-    let emit = move |event: AgentEvent| sink.lock().unwrap().push(event);
-    run_native_turn(
+    drive_inner(
         client,
-        dispatch,
-        "sess".into(),
-        "sys".into(),
-        Vec::new(),
         catalog,
         selector,
+        dispatch,
         MAX_ITERATIONS,
         true,
         abort_rx,
-        emit,
         allow_all,
     )
-    .await;
-    let out = events.lock().unwrap().clone();
-    out
+    .await
 }
 
 /// Same harness with an explicit iteration budget, for the cap tests only.
-#[allow(clippy::too_many_arguments)]
 async fn drive_with_limit<C, D, A>(
     client: C,
     catalog: Vec<ToolDefinition>,
@@ -216,26 +234,17 @@ where
     D: FnMut(&str, Option<&Value>) -> ToolResult,
     A: Fn(&PermissionRequestSpec) -> NativeGate,
 {
-    let events = Arc::new(Mutex::new(Vec::new()));
-    let sink = events.clone();
-    let emit = move |event: AgentEvent| sink.lock().unwrap().push(event);
-    run_native_turn(
+    drive_inner(
         client,
-        dispatch,
-        "sess".into(),
-        "sys".into(),
-        Vec::new(),
         catalog,
         selector,
+        dispatch,
         max_iterations,
         false,
         abort_rx,
-        emit,
         approval,
     )
-    .await;
-    let out = events.lock().unwrap().clone();
-    out
+    .await
 }
 
 fn scripted(turns: Vec<Vec<AiStreamEvent>>) -> (FakeClient, Arc<Mutex<Vec<Vec<String>>>>) {

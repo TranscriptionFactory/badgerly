@@ -10,9 +10,11 @@ import type { VaultFsEvent, WatcherService } from "$lib/features/watcher";
 // a run per event; the service's own lock is the backstop, not the plan.
 const TRIGGER_DEBOUNCE_MS = 1500;
 
-export type UnattendedRunLauncher = (
-  trigger: UnattendedTrigger,
-) => Promise<unknown> | unknown;
+// Returns `unknown`, not `void`: the production launcher is async, and a
+// promise-returning function in a `void` slot is a misuse the linter rejects.
+// The result is discarded on purpose — the reactor starts a run, the review
+// centre reports it.
+export type UnattendedRunLauncher = (trigger: UnattendedTrigger) => unknown;
 
 export function create_unattended_trigger_reactor(
   ui_store: UIStore,

@@ -37,7 +37,7 @@ async function mount({
   ui_store.editor_settings.unattended_trigger_folder = folder;
   ui_store.editor_settings_loaded = loaded;
 
-  const unmount = create_unattended_trigger_reactor(
+  const dispose = create_unattended_trigger_reactor(
     ui_store,
     vault_store,
     watcher_service,
@@ -45,6 +45,15 @@ async function mount({
       launched.push(trigger);
     },
   );
+  // Idempotent, so a test that unmounts mid-body and the afterEach sweep can
+  // both call it.
+  let disposed = false;
+  const unmount = () => {
+    if (disposed) return;
+    disposed = true;
+    dispose();
+  };
+  mounted.push(unmount);
   await flush_effects();
 
   return {
@@ -56,6 +65,8 @@ async function mount({
   };
 }
 
+const mounted: (() => void)[] = [];
+
 const settle = () => vi.advanceTimersByTime(TRIGGER_DEBOUNCE_MS);
 
 describe("unattended_trigger_reactor", () => {
@@ -63,6 +74,7 @@ describe("unattended_trigger_reactor", () => {
     vi.useFakeTimers();
   });
   afterEach(() => {
+    while (mounted.length > 0) mounted.pop()?.();
     vi.useRealTimers();
   });
 
@@ -75,7 +87,6 @@ describe("unattended_trigger_reactor", () => {
     expect(t.launched).toEqual([
       { kind: "watcher", note_path: "Inbox/new.md", folder: "Inbox" },
     ]);
-    t.unmount();
   });
 
   it("coalesces a batch of arrivals into a single run", async () => {
@@ -87,7 +98,6 @@ describe("unattended_trigger_reactor", () => {
     settle();
 
     expect(t.launched).toHaveLength(1);
-    t.unmount();
   });
 
   it("ignores a note added outside the folder", async () => {
@@ -97,7 +107,6 @@ describe("unattended_trigger_reactor", () => {
     settle();
 
     expect(t.launched).toEqual([]);
-    t.unmount();
   });
 
   it("ignores a change to a note already in the folder", async () => {
@@ -112,7 +121,6 @@ describe("unattended_trigger_reactor", () => {
     settle();
 
     expect(t.launched).toEqual([]);
-    t.unmount();
   });
 
   it("starts nothing while the trigger is disabled", async () => {
@@ -122,7 +130,6 @@ describe("unattended_trigger_reactor", () => {
     settle();
 
     expect(t.launched).toEqual([]);
-    t.unmount();
   });
 
   it("starts nothing before settings have loaded", async () => {
@@ -132,7 +139,6 @@ describe("unattended_trigger_reactor", () => {
     settle();
 
     expect(t.launched).toEqual([]);
-    t.unmount();
   });
 
   // The queued-event rule. An event that arrived while the trigger was on must
@@ -146,7 +152,6 @@ describe("unattended_trigger_reactor", () => {
     settle();
 
     expect(t.launched).toEqual([]);
-    t.unmount();
   });
 
   // The other half: an event that arrived while off is not replayed by a later
@@ -160,7 +165,6 @@ describe("unattended_trigger_reactor", () => {
     settle();
 
     expect(t.launched).toEqual([]);
-    t.unmount();
   });
 
   it("ignores an event for another vault", async () => {
@@ -170,7 +174,6 @@ describe("unattended_trigger_reactor", () => {
     settle();
 
     expect(t.launched).toEqual([]);
-    t.unmount();
   });
 
   it("starts nothing once unmounted", async () => {

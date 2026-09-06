@@ -3,14 +3,16 @@ import type {
   UnattendedTrigger,
 } from "$lib/features/assistant/types/unattended";
 
-export function describe_unattended_trigger(trigger: UnattendedTrigger): string {
+export function describe_unattended_trigger(
+  trigger: UnattendedTrigger,
+): string {
   if (trigger.kind === "manual") return "run now";
   if (trigger.note_path) return `${trigger.note_path} added`;
   return trigger.folder ? `${trigger.folder} changed` : "folder changed";
 }
 
 function plural(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+  return `${String(count)} ${noun}${count === 1 ? "" : "s"}`;
 }
 
 // The "while you were away" line. Deliberately states the iteration count even

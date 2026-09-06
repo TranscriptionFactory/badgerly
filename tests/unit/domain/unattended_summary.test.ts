@@ -34,9 +34,9 @@ describe("describe_unattended_trigger", () => {
   });
 
   it("falls back to the folder when no note path was recorded", () => {
-    expect(
-      describe_unattended_trigger({ ...watcher, note_path: null }),
-    ).toBe("Inbox changed");
+    expect(describe_unattended_trigger({ ...watcher, note_path: null })).toBe(
+      "Inbox changed",
+    );
   });
 });
 

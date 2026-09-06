@@ -105,30 +105,25 @@
         </h2>
         {#each day.groups as group (group.session_id)}
           {@const session = session_by_id.get(group.session_id) ?? null}
+          {@const summary = unattended_summary_by_run.get(group.session_id)}
           <div
             class="flex flex-col gap-2"
             data-testid="assistant-proposal-group"
           >
-            {#if group.trigger}
-              {@const summary = unattended_summary_by_run.get(group.session_id)}
-              <p
-                class="text-xs text-muted-foreground"
-                data-testid="assistant-proposal-group-provenance"
-              >
+            <p
+              class="text-xs text-muted-foreground"
+              data-testid="assistant-proposal-group-provenance"
+            >
+              {#if group.trigger}
                 Unattended · {summary
                   ? describe_unattended_run(summary)
                   : describe_unattended_trigger(group.trigger)}
-              </p>
-            {:else}
-              <p
-                class="text-xs text-muted-foreground"
-                data-testid="assistant-proposal-group-provenance"
-              >
+              {:else}
                 from {session
                   ? `${KIND_GLYPHS[session.kind]} ${session.title}`
                   : group.session_id}
-              </p>
-            {/if}
+              {/if}
+            </p>
             {#each group.proposals as proposal (proposal.id)}
               <AssistantProposalCard
                 {proposal}
