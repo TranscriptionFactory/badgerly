@@ -4,12 +4,16 @@ use std::path::PathBuf;
 
 use crate::features::mcp::router::McpRouter;
 
-fn agent_file_ops_source() -> String {
+fn ts_source(rel: &str) -> String {
     let ts_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
-        .join("src/lib/features/assistant/domain/agent_file_ops.ts");
+        .join(rel);
     fs::read_to_string(&ts_path)
         .unwrap_or_else(|e| panic!("cannot read TS source at {}: {}", ts_path.display(), e))
+}
+
+fn agent_file_ops_source() -> String {
+    ts_source("src/lib/features/assistant/domain/agent_file_ops.ts")
 }
 
 /// String literals of the array/set literal that follows `marker`. Tolerates
@@ -17,7 +21,7 @@ fn agent_file_ops_source() -> String {
 fn ts_string_list(src: &str, marker: &str) -> BTreeSet<String> {
     let start = src
         .find(marker)
-        .unwrap_or_else(|| panic!("`{marker}` not found in agent_file_ops.ts"));
+        .unwrap_or_else(|| panic!("`{marker}` not found in the scraped TS source"));
     let rest = &src[start + marker.len()..];
     let end = rest
         .find(']')
@@ -35,6 +39,23 @@ fn ts_string_list(src: &str, marker: &str) -> BTreeSet<String> {
         "parsed zero entries from `{marker}` — the scraper is out of sync with the TS file format"
     );
     entries
+}
+
+fn agent_run_policy_source() -> String {
+    ts_source("src/lib/features/ai/domain/agent_run_policy.ts")
+}
+
+fn ts_unattended_tools() -> BTreeSet<String> {
+    ts_string_list(&agent_run_policy_source(), "UNATTENDED_TOOL_NAMES = [")
+}
+
+fn rust_read_only_tools() -> BTreeSet<String> {
+    McpRouter::new()
+        .tool_definitions_public()
+        .into_iter()
+        .filter(|d| !d.mutating)
+        .map(|d| d.name)
+        .collect()
 }
 
 fn ts_mutating_tools() -> BTreeSet<String> {
@@ -121,4 +142,38 @@ fn inline_edit_surface_scope_resolves_against_the_real_catalog() {
          verbatim; a rename in the Rust catalog silently narrows inline edit \
          to nothing."
     );
+}
+
+
+/// The unattended toolset is advisory — `proposal_only_refusal` is the safety
+/// boundary — but drift still costs the model iterations, so pin it.
+#[test]
+fn unattended_toolset_advertises_every_read_only_tool() {
+    let missing: Vec<String> = rust_read_only_tools()
+        .difference(&ts_unattended_tools())
+        .cloned()
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "read-only tools missing from UNATTENDED_TOOL_NAMES: {missing:?}"
+    );
+}
+
+#[test]
+fn unattended_toolset_admits_no_writer_but_the_typed_edit() {
+    let read_only = rust_read_only_tools();
+    let mutating = rust_mutating_tools();
+    for name in ts_unattended_tools() {
+        if name == "edit_note" {
+            assert!(
+                mutating.contains(&name),
+                "edit_note is expected to be a mutating tool gated to its typed form"
+            );
+            continue;
+        }
+        assert!(
+            read_only.contains(&name),
+            "`{name}` in UNATTENDED_TOOL_NAMES is not a read-only catalog tool"
+        );
+    }
 }

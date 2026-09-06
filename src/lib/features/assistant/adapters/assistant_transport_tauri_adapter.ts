@@ -78,6 +78,8 @@ const agent_turn_channel: ChannelDescriptor<AgentRequest, AgentEvent> = {
       history: request.history,
       resume_session_id: request.resume_session_id ?? null,
       backend: request.backend,
+      max_iterations: request.max_iterations ?? null,
+      unattended: input.unattended,
       acp_agent: agent_capability(input.provider_config)?.acp ?? null,
     },
   }),

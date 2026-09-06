@@ -8,6 +8,7 @@ import {
   register_assistant_actions,
 } from "$lib/features/assistant";
 import { TabStore } from "$lib/features/tab/state/tab_store.svelte";
+import { stub_unattended_runs } from "../helpers/assistant_fixtures";
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = 1_000 * DAY;
@@ -38,6 +39,7 @@ function create_harness() {
     } as never,
     chat_store: new AssistantChatStore(sessions),
     active_document_path: () => null,
+    unattended_runs: stub_unattended_runs(),
   });
   return { registry, sessions, tab };
 }

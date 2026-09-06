@@ -1,8 +1,13 @@
 import { day_label } from "$lib/shared/utils/day_label";
 import type { Proposal } from "$lib/features/assistant/types/proposal";
+import type { UnattendedTrigger } from "$lib/features/assistant/types/unattended";
 
 export type ProposalProvenanceGroup = {
   session_id: string;
+  // Set when the group's proposals came from an unattended run, which has no
+  // session to name it by. Read from the group's first proposal: a group is one
+  // run's output, so they all carry the same trigger.
+  trigger: UnattendedTrigger | null;
   proposals: Proposal[];
 };
 
@@ -40,7 +45,11 @@ export function group_proposals_by_day(
     if (group) {
       group.proposals.push(proposal);
     } else {
-      day.groups.push({ session_id, proposals: [proposal] });
+      day.groups.push({
+        session_id,
+        trigger: proposal.origin.trigger ?? null,
+        proposals: [proposal],
+      });
     }
   }
 

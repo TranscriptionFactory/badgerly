@@ -39,6 +39,9 @@ export type RunStats = {
   duration_ms?: number;
   num_turns?: number;
   total_cost_usd?: number;
+  // The run exhausted its iteration budget rather than finishing. Not an
+  // error: whatever it produced still stands, but the surface says so.
+  stopped_at_cap?: boolean;
 };
 
 export type RunEvent =
@@ -122,6 +125,10 @@ export type RunRequest =
       history: AgentHistoryMessage[];
       resume_session_id?: string;
       backend: "acp" | "native";
+      // Absent means "the kind's default"; resolved by
+      // `unattended_policy.resolve_max_iterations` before it reaches the
+      // transport, and clamped again by the backend.
+      max_iterations?: number;
     };
 
 export type RunOrigin = {

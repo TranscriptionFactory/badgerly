@@ -39,6 +39,8 @@ export {
 export {
   chat_policy,
   inline_edit_policy,
+  unattended_run_policy,
+  UNATTENDED_TOOL_NAMES,
   type SurfacePolicy,
   type ToolSelector,
 } from "$lib/features/ai/domain/agent_run_policy";

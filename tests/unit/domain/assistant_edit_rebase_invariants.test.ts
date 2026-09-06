@@ -6,6 +6,7 @@ import {
 import { compute_note_revision } from "$lib/features/assistant/domain/note_revision";
 import type { EditOperation } from "$lib/features/assistant/types/edit_operation";
 import { make_proposal } from "../helpers/assistant_proposal_fixtures";
+import { seeded_rng } from "../helpers/seeded_rng";
 
 const MARKER = "ZQMARKQZ";
 
@@ -28,23 +29,13 @@ function replace_span_proposal(base: string, start: number, end: number) {
   });
 }
 
-function seeded_random(seed: number) {
-  let state = seed;
-  return () => {
-    state = (state + 0x6d2b79f5) | 0;
-    let value = Math.imul(state ^ (state >>> 15), 1 | state);
-    value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value;
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 type Line = { text: string; origin: boolean };
 
 const base_line = (index: number) => "L" + String(index);
 const edited_line = (index: number) => "M" + String(index);
 
 function scenario(seed: number) {
-  const random = seeded_random(seed);
+  const random = seeded_rng(seed);
   const size = 4 + Math.floor(random() * 4);
   const base_lines = Array.from({ length: size }, (_, k) => base_line(k));
   const first = Math.floor(random() * (size - 1));

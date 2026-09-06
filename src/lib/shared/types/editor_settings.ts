@@ -194,6 +194,13 @@ export type EditorSettings = {
   ambient_missing_link_min_score: number;
   // 0 disables the missing-link producer without a Rust call.
   ambient_missing_link_max_notices: number;
+  // Vault-scoped for the same reason as ambient's opt-in: a trigger folder is a
+  // property of a vault, not of the app. Off by default — an unattended run
+  // starts an agent with no one watching, so it is opt-in per vault.
+  unattended_runs_enabled: boolean;
+  // Vault-relative folder whose new notes start an unattended run. Empty means
+  // no folder trigger; the manual run-now action still works.
+  unattended_trigger_folder: string;
   document_pdf_default_zoom: DocumentPdfZoomMode;
   document_pdf_scroll_mode: DocumentPdfScrollMode;
   document_code_wrap: boolean;
@@ -330,6 +337,8 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   ambient_notices_enabled: false,
   ambient_missing_link_min_score: 0.6,
   ambient_missing_link_max_notices: 3,
+  unattended_runs_enabled: false,
+  unattended_trigger_folder: "Inbox",
   document_pdf_default_zoom: "fit_width",
   document_pdf_scroll_mode: "continuous",
   document_code_wrap: true,

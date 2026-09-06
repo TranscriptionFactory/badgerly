@@ -19,6 +19,12 @@ export type TransportRequest = {
   request: RunRequest;
   vault_path: string | null;
   signal?: AbortSignal;
+  // Derived by the kernel from `RunSpec.kind`; never supplied by a caller.
+  // This is the flag that puts a run behind the backend's proposal-only gate,
+  // so it cannot write to disk however the model calls its tools. A caller
+  // that set kind "background" but forgot to raise it would get an unwatched,
+  // auto-approving run that writes — so the caller does not get to set it.
+  unattended: boolean;
 };
 
 export type { PermissionResponse };

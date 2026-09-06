@@ -9,9 +9,10 @@ use crate::features::ai::agent_stream::{AgentEvent, ToolKind, ToolSelector};
 use crate::features::ai::permissions::{ParkOutcome, PermissionRequestSpec};
 use crate::features::ai::agent_stream::PermissionOptionKind;
 use crate::features::ai::native_agent::{
-    allowed_tools, build_system_prompt, evict_history, run_native_turn, truncate_tool_result,
-    ModelClient, NativeGate, HISTORY_MAX_CHARS, HISTORY_MAX_MESSAGES, MAX_ITERATIONS,
-    TOOL_RESULT_MAX_CHARS,
+    allowed_tools, build_system_prompt, evict_history, proposal_only_refusal,
+    resolve_max_iterations, run_native_turn,
+    truncate_tool_result, ModelClient, NativeGate, HISTORY_MAX_CHARS, HISTORY_MAX_MESSAGES,
+    MAX_ITERATIONS, MAX_ITERATIONS_HARD_CAP, TOOL_RESULT_MAX_CHARS, UNATTENDED_MAX_ITERATIONS,
 };
 use crate::features::ai::stream::{AiMessage, AiMessageContent, AiStreamEvent, AiToolCall};
 use crate::features::mcp::shared_ops::{apply_edit, OpError};
@@ -104,6 +105,44 @@ fn allow_all(_: &PermissionRequestSpec) -> NativeGate {
     NativeGate::Allow
 }
 
+#[allow(clippy::too_many_arguments)]
+async fn drive_inner<C, D, A>(
+    client: C,
+    catalog: Vec<ToolDefinition>,
+    selector: ToolSelector,
+    dispatch: D,
+    max_iterations: u32,
+    unattended: bool,
+    abort_rx: oneshot::Receiver<()>,
+    approval: A,
+) -> Vec<AgentEvent>
+where
+    C: ModelClient,
+    D: FnMut(&str, Option<&Value>) -> ToolResult,
+    A: Fn(&PermissionRequestSpec) -> NativeGate,
+{
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let sink = events.clone();
+    let emit = move |event: AgentEvent| sink.lock().unwrap().push(event);
+    run_native_turn(
+        client,
+        dispatch,
+        "sess".into(),
+        "sys".into(),
+        Vec::new(),
+        catalog,
+        selector,
+        max_iterations,
+        unattended,
+        abort_rx,
+        emit,
+        approval,
+    )
+    .await;
+    let out = events.lock().unwrap().clone();
+    out
+}
+
 async fn drive<C, D>(
     client: C,
     catalog: Vec<ToolDefinition>,
@@ -131,24 +170,81 @@ where
     D: FnMut(&str, Option<&Value>) -> ToolResult,
     A: Fn(&PermissionRequestSpec) -> NativeGate,
 {
-    let events = Arc::new(Mutex::new(Vec::new()));
-    let sink = events.clone();
-    let emit = move |event: AgentEvent| sink.lock().unwrap().push(event);
-    run_native_turn(
+    drive_inner(
         client,
-        dispatch,
-        "sess".into(),
-        "sys".into(),
-        Vec::new(),
         catalog,
         selector,
+        dispatch,
+        MAX_ITERATIONS,
+        false,
         abort_rx,
-        emit,
         approval,
     )
-    .await;
-    let out = events.lock().unwrap().clone();
-    out
+    .await
+}
+
+/// Records every tool name that actually reached dispatch, so a refusal can be
+/// proven by absence rather than only by the emitted event.
+fn recording_dispatch(
+    seen: Arc<Mutex<Vec<String>>>,
+) -> impl FnMut(&str, Option<&Value>) -> ToolResult {
+    move |name: &str, _args: Option<&Value>| {
+        seen.lock().unwrap().push(name.to_string());
+        ToolResult::text("result".into())
+    }
+}
+
+/// Same harness with the unattended flag raised.
+async fn drive_unattended<C, D>(
+    client: C,
+    catalog: Vec<ToolDefinition>,
+    selector: ToolSelector,
+    dispatch: D,
+    abort_rx: oneshot::Receiver<()>,
+) -> Vec<AgentEvent>
+where
+    C: ModelClient,
+    D: FnMut(&str, Option<&Value>) -> ToolResult,
+{
+    drive_inner(
+        client,
+        catalog,
+        selector,
+        dispatch,
+        MAX_ITERATIONS,
+        true,
+        abort_rx,
+        allow_all,
+    )
+    .await
+}
+
+/// Same harness with an explicit iteration budget, for the cap tests only.
+async fn drive_with_limit<C, D, A>(
+    client: C,
+    catalog: Vec<ToolDefinition>,
+    selector: ToolSelector,
+    dispatch: D,
+    max_iterations: u32,
+    abort_rx: oneshot::Receiver<()>,
+    approval: A,
+) -> Vec<AgentEvent>
+where
+    C: ModelClient,
+    D: FnMut(&str, Option<&Value>) -> ToolResult,
+    A: Fn(&PermissionRequestSpec) -> NativeGate,
+{
+    drive_inner(
+        client,
+        catalog,
+        selector,
+        dispatch,
+        max_iterations,
+        false,
+        abort_rx,
+        approval,
+    )
+    .await
 }
 
 fn scripted(turns: Vec<Vec<AiStreamEvent>>) -> (FakeClient, Arc<Mutex<Vec<Vec<String>>>>) {
@@ -162,6 +258,13 @@ fn scripted(turns: Vec<Vec<AiStreamEvent>>) -> (FakeClient, Arc<Mutex<Vec<Vec<St
 
 fn ok_dispatch() -> impl FnMut(&str, Option<&Value>) -> ToolResult {
     |_name: &str, _args: Option<&Value>| ToolResult::text("result".into())
+}
+
+fn done_stopped_at_cap(events: &[AgentEvent]) -> bool {
+    match events.last() {
+        Some(AgentEvent::Done { stats }) => stats.stopped_at_cap,
+        other => panic!("expected done, got {other:?}"),
+    }
 }
 
 fn done_num_turns(events: &[AgentEvent]) -> u32 {
@@ -428,6 +531,94 @@ async fn scenario_5_max_iterations_cap() {
         "cap must not surface an error"
     );
     assert_eq!(done_num_turns(&events), MAX_ITERATIONS);
+    assert!(
+        done_stopped_at_cap(&events),
+        "a run cut short by the budget must say so"
+    );
+}
+
+#[test]
+fn resolve_max_iterations_takes_the_kind_default_when_unset() {
+    assert_eq!(resolve_max_iterations(None, false), MAX_ITERATIONS);
+    assert_eq!(resolve_max_iterations(None, true), UNATTENDED_MAX_ITERATIONS);
+}
+
+#[test]
+fn resolve_max_iterations_treats_zero_as_no_opinion() {
+    assert_eq!(resolve_max_iterations(Some(0), false), MAX_ITERATIONS);
+    assert_eq!(
+        resolve_max_iterations(Some(0), true),
+        UNATTENDED_MAX_ITERATIONS
+    );
+}
+
+#[test]
+fn resolve_max_iterations_honours_an_explicit_budget() {
+    assert_eq!(resolve_max_iterations(Some(3), false), 3);
+    assert_eq!(resolve_max_iterations(Some(64), true), 64);
+}
+
+#[test]
+fn resolve_max_iterations_clamps_to_the_hard_cap() {
+    assert_eq!(
+        resolve_max_iterations(Some(10_000), true),
+        MAX_ITERATIONS_HARD_CAP
+    );
+    assert_eq!(
+        resolve_max_iterations(Some(u32::MAX), false),
+        MAX_ITERATIONS_HARD_CAP
+    );
+}
+
+#[tokio::test]
+async fn a_run_stops_at_its_own_budget_not_the_interactive_default() {
+    let client = AlwaysToolClient {
+        calls: Arc::new(Mutex::new(0)),
+    };
+    let (_tx, rx) = oneshot::channel();
+
+    let events = drive_with_limit(
+        client,
+        vec![tool_def("search", false)],
+        ToolSelector::Full,
+        ok_dispatch(),
+        3,
+        rx,
+        allow_all,
+    )
+    .await;
+
+    assert!(
+        !events.iter().any(|e| matches!(e, AgentEvent::Error { .. })),
+        "cap must not surface an error"
+    );
+    assert_eq!(done_num_turns(&events), 3);
+    assert!(done_stopped_at_cap(&events));
+}
+
+#[tokio::test]
+async fn a_run_that_finishes_early_is_not_flagged_as_capped() {
+    let (client, _seen) = scripted(vec![vec![AiStreamEvent::Text {
+        text: "all done".into(),
+    }]]);
+    let (_tx, rx) = oneshot::channel();
+
+    let events = drive_with_limit(
+        client,
+        vec![tool_def("search", false)],
+        ToolSelector::Full,
+        ok_dispatch(),
+        16,
+        rx,
+        allow_all,
+    )
+    .await;
+
+    assert_eq!(done_num_turns(&events), 1);
+    assert!(
+        !done_stopped_at_cap(&events),
+        "a model that stopped on its own was not capped"
+    );
 }
 
 #[tokio::test]
@@ -809,6 +1000,8 @@ async fn replay_history_reaches_model_system_first() {
         history,
         vec![tool_def("search", false)],
         ToolSelector::Full,
+        MAX_ITERATIONS,
+        false,
         rx,
         emit,
         allow_all,
@@ -934,4 +1127,128 @@ async fn native_edit_operations_survive_summary_truncation() {
         _ => None,
     }).unwrap();
     assert_eq!(payload, &expected);
+}
+
+#[test]
+fn proposal_only_gate_lets_every_read_only_tool_through() {
+    assert_eq!(proposal_only_refusal("search_notes", None, false), None);
+    assert_eq!(proposal_only_refusal("read_note", None, false), None);
+}
+
+#[test]
+fn proposal_only_gate_allows_a_typed_edit() {
+    let args = serde_json::json!({ "path": "n.md", "operation": { "kind": "replace_span" } });
+    assert_eq!(proposal_only_refusal("edit_note", Some(&args), true), None);
+}
+
+#[test]
+fn proposal_only_gate_refuses_an_untyped_edit() {
+    let args = serde_json::json!({ "path": "n.md", "old_string": "a", "new_string": "b" });
+    let refusal = proposal_only_refusal("edit_note", Some(&args), true)
+        .expect("find/replace reaches the writing path and must be refused");
+    assert!(refusal.contains("operation"), "refusal must name the fix: {refusal}");
+}
+
+#[test]
+fn proposal_only_gate_refuses_a_null_operation() {
+    let args = serde_json::json!({ "path": "n.md", "operation": null });
+    assert!(proposal_only_refusal("edit_note", Some(&args), true).is_some());
+}
+
+#[test]
+fn proposal_only_gate_refuses_other_mutating_tools() {
+    for name in ["create_note", "delete_note", "append_note", "rename_note", "save_memory"] {
+        let refusal = proposal_only_refusal(name, None, true)
+            .unwrap_or_else(|| panic!("{name} writes and must be refused"));
+        assert!(refusal.contains("edit_note"), "refusal should point at the typed tool");
+    }
+}
+
+#[tokio::test]
+async fn an_unattended_run_refuses_an_untyped_edit_before_it_reaches_dispatch() {
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let (client, _) = scripted(vec![
+        call_turn("c1", "edit_note", r#"{"path":"n.md","old_string":"a","new_string":"b"}"#),
+        text_turn("understood"),
+    ]);
+    let (_tx, rx) = oneshot::channel();
+
+    let events = drive_unattended(
+        client,
+        vec![tool_def("edit_note", true)],
+        ToolSelector::Full,
+        recording_dispatch(seen.clone()),
+        rx,
+    )
+    .await;
+
+    assert!(
+        seen.lock().unwrap().is_empty(),
+        "the writing path must never be dispatched in an unattended run"
+    );
+    let ends: Vec<bool> = events
+        .iter()
+        .filter_map(|e| match e {
+            AgentEvent::ToolEnd { ok, .. } => Some(*ok),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(ends, [false]);
+    assert!(matches!(events.last(), Some(AgentEvent::Done { .. })));
+}
+
+#[tokio::test]
+async fn an_unattended_run_dispatches_a_typed_edit() {
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let (client, _) = scripted(vec![
+        call_turn(
+            "c1",
+            "edit_note",
+            r#"{"path":"n.md","operation":{"kind":"replace_span"}}"#,
+        ),
+        text_turn("done"),
+    ]);
+    let (_tx, rx) = oneshot::channel();
+
+    let events = drive_unattended(
+        client,
+        vec![tool_def("edit_note", true)],
+        ToolSelector::Full,
+        recording_dispatch(seen.clone()),
+        rx,
+    )
+    .await;
+
+    assert_eq!(*seen.lock().unwrap(), vec!["edit_note".to_string()]);
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, AgentEvent::ToolEnd { ok: true, .. })));
+}
+
+#[tokio::test]
+async fn an_interactive_run_is_unaffected_by_the_gate() {
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let (client, _) = scripted(vec![
+        call_turn("c1", "edit_note", r#"{"path":"n.md","old_string":"a","new_string":"b"}"#),
+        text_turn("done"),
+    ]);
+    let (_tx, rx) = oneshot::channel();
+
+    let events = drive(
+        client,
+        vec![tool_def("edit_note", true)],
+        ToolSelector::Full,
+        recording_dispatch(seen.clone()),
+        rx,
+    )
+    .await;
+
+    assert_eq!(
+        *seen.lock().unwrap(),
+        vec!["edit_note".to_string()],
+        "the gate must not narrow chat"
+    );
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, AgentEvent::ToolEnd { ok: true, .. })));
 }

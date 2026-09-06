@@ -24,6 +24,70 @@ use super::service::{AiProviderConfig, AiTransport};
 use super::stream::{AiContentPart, AiMessage, AiMessageContent, AiStreamEvent, AiToolCall};
 
 pub const MAX_ITERATIONS: u32 = 16;
+/// An unattended run gets a longer leash than a chat turn: nobody is watching to
+/// nudge it, so it must be able to finish a multi-note pass on its own.
+pub const UNATTENDED_MAX_ITERATIONS: u32 = 48;
+/// The ceiling the backend enforces no matter what the frontend asks for. The
+/// frontend owns which default applies (`unattended_policy.ts`); this is the
+/// backstop it cannot be talked past, so a malformed or hostile spec still
+/// terminates.
+pub const MAX_ITERATIONS_HARD_CAP: u32 = 128;
+
+/// The one typed-mutation tool an unattended run may call, and only in its
+/// typed form.
+pub const TYPED_EDIT_TOOL: &str = "edit_note";
+
+/// Why the toolset alone is not enough: `handle_edit_note` has two paths. With a
+/// typed `operation` it returns a proposal and writes nothing; with
+/// `old_string`/`new_string` it falls through to `shared_ops::edit_note`, which
+/// writes to disk. An unattended run advertises `edit_note` for the first path,
+/// so the second has to be refused explicitly.
+///
+/// Returns the refusal text, or `None` when the call may proceed.
+pub fn proposal_only_refusal(
+    name: &str,
+    arguments: Option<&Value>,
+    mutating: bool,
+) -> Option<String> {
+    if !mutating {
+        return None;
+    }
+    if name == TYPED_EDIT_TOOL && has_typed_operation(arguments) {
+        return None;
+    }
+    if name == TYPED_EDIT_TOOL {
+        return Some(format!(
+            "Tool '{name}' was called without a typed `operation`. An unattended run \
+             proposes edits for review and never writes to disk; re-issue the call with \
+             the `operation` argument."
+        ));
+    }
+    Some(format!(
+        "Tool '{name}' writes directly and is not available to an unattended run. \
+         Propose edits with '{TYPED_EDIT_TOOL}' and a typed `operation` instead."
+    ))
+}
+
+fn has_typed_operation(arguments: Option<&Value>) -> bool {
+    arguments
+        .and_then(|value| value.get("operation"))
+        .is_some_and(|operation| !operation.is_null())
+}
+
+/// `requested` of `None` or `0` means "no opinion" and takes the kind's default.
+/// Everything is clamped to the hard cap.
+pub fn resolve_max_iterations(requested: Option<u32>, unattended: bool) -> u32 {
+    let default = if unattended {
+        UNATTENDED_MAX_ITERATIONS
+    } else {
+        MAX_ITERATIONS
+    };
+    let chosen = match requested {
+        Some(value) if value > 0 => value,
+        _ => default,
+    };
+    chosen.min(MAX_ITERATIONS_HARD_CAP)
+}
 pub const TOOL_RESULT_MAX_CHARS: usize = 4000;
 pub const HISTORY_MAX_MESSAGES: usize = 40;
 pub const HISTORY_MAX_CHARS: usize = 100_000;
@@ -227,6 +291,8 @@ pub async fn run_native_turn<C, D, E, A>(
     mut history: Vec<AiMessage>,
     catalog: Vec<ToolDefinition>,
     toolset: ToolSelector,
+    max_iterations: u32,
+    unattended: bool,
     mut abort_rx: oneshot::Receiver<()>,
     mut emit: E,
     approval: A,
@@ -250,6 +316,7 @@ pub async fn run_native_turn<C, D, E, A>(
         .collect();
 
     let mut num_turns: u32 = 0;
+    let mut stopped_at_cap = false;
 
     loop {
         if abort_rx.try_recv().is_ok() {
@@ -258,7 +325,11 @@ pub async fn run_native_turn<C, D, E, A>(
             });
             return;
         }
-        if num_turns >= MAX_ITERATIONS {
+        if num_turns >= max_iterations {
+            // Not an error: the run ends cleanly and whatever it already
+            // produced still stands. The flag is what lets the surface say the
+            // run was cut short rather than finished.
+            stopped_at_cap = true;
             break;
         }
         num_turns += 1;
@@ -337,6 +408,26 @@ pub async fn run_native_turn<C, D, E, A>(
                 let denial = format!(
                     "Tool '{name}' is not available on this surface and was not executed."
                 );
+                emit(AgentEvent::ToolEnd {
+                    id: id.clone(),
+                    name: name.clone(),
+                    ok: false,
+                    result_summary: Some(summarize_chars(&denial, SUMMARY_MAX_CHARS)),
+                    paths,
+                    mutating,
+                    edit_operations: None,
+                    proposals: None,
+                });
+                history.push(tool_result_message(&id, denial));
+                continue;
+            }
+
+            // Ahead of the consent gate on purpose: an unattended run has nobody
+            // to prompt, so a write must be refused outright rather than parked.
+            if let Some(denial) = unattended
+                .then(|| proposal_only_refusal(&name, args_value.as_ref(), mutating))
+                .flatten()
+            {
                 emit(AgentEvent::ToolEnd {
                     id: id.clone(),
                     name: name.clone(),
@@ -435,6 +526,7 @@ pub async fn run_native_turn<C, D, E, A>(
             duration_ms: start.elapsed().as_millis() as u32,
             num_turns,
             total_cost_usd: 0.0,
+            stopped_at_cap,
         },
     });
 }
@@ -521,6 +613,8 @@ pub fn spawn_native_turn(
     let mut history = evict_history(spec.history);
     history.push(user_message(spec.prompt.clone()));
     let system_prompt = build_system_prompt(&spec.vault_path, &spec.toolset);
+    let max_iterations = resolve_max_iterations(spec.max_iterations, spec.unattended);
+    let spec_unattended = spec.unattended;
     let session_id = request_id.clone();
     let client = TransportModelClient::new(spec.provider_config);
     let toolset = spec.toolset;
@@ -570,6 +664,8 @@ pub fn spawn_native_turn(
             history,
             catalog,
             toolset,
+            max_iterations,
+            spec_unattended,
             abort_rx,
             emit,
             approval,

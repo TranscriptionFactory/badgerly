@@ -334,6 +334,7 @@ export const ACTION_IDS = {
   assistant_permission_respond: "assistant.permission_respond",
   assistant_stop_all_runs: "assistant.stop_all_runs",
   assistant_clear_runs: "assistant.clear_runs",
+  assistant_run_unattended_now: "assistant.run_unattended_now",
   assistant_open_session: "assistant.open_session",
   assistant_open_proposals: "assistant.open_proposals",
   assistant_accept_proposal: "assistant.accept_proposal",

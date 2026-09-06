@@ -11,6 +11,11 @@
   import type { RunId } from "$lib/features/assistant/types/run";
   import { KIND_GLYPHS } from "$lib/features/assistant/domain/kind_glyphs";
   import { group_proposals_by_day } from "$lib/features/assistant/domain/proposal_day_groups";
+  import {
+    describe_unattended_run,
+    describe_unattended_trigger,
+  } from "$lib/features/assistant/domain/unattended_summary";
+  import type { UnattendedRunSummary } from "$lib/features/assistant/types/unattended";
   import type { AssistantSessionSummary } from "$lib/features/assistant/types/session";
 
   interface Props {
@@ -19,6 +24,9 @@
     // the review list and its empty state keep meaning "pending".
     applied_history: Proposal[];
     session_summaries: AssistantSessionSummary[];
+    // Summaries for runs nobody watched. Absent for a run from a previous app
+    // session, whose proposals still render from their own trigger.
+    unattended_summaries?: UnattendedRunSummary[];
     on_accept_proposal: (id: ProposalId) => void;
     on_accept_all_pending: (ids: ProposalId[]) => void;
     on_reject_proposal: (id: ProposalId) => void;
@@ -36,6 +44,7 @@
     proposals,
     applied_history,
     session_summaries,
+    unattended_summaries,
     on_accept_proposal,
     on_accept_all_pending,
     on_reject_proposal,
@@ -53,6 +62,9 @@
   // Ordering lives in the domain: hydration makes the store's insertion
   // order an artifact of file order.
   const day_groups = $derived(group_proposals_by_day(proposals, now()));
+  const unattended_summary_by_run = $derived(
+    new Map((unattended_summaries ?? []).map((s) => [s.run_id, s])),
+  );
 </script>
 
 <div class="flex flex-col gap-4 p-4" data-testid="assistant-proposals-tab">
@@ -93,6 +105,7 @@
         </h2>
         {#each day.groups as group (group.session_id)}
           {@const session = session_by_id.get(group.session_id) ?? null}
+          {@const summary = unattended_summary_by_run.get(group.session_id)}
           <div
             class="flex flex-col gap-2"
             data-testid="assistant-proposal-group"
@@ -101,9 +114,15 @@
               class="text-xs text-muted-foreground"
               data-testid="assistant-proposal-group-provenance"
             >
-              from {session
-                ? `${KIND_GLYPHS[session.kind]} ${session.title}`
-                : group.session_id}
+              {#if group.trigger}
+                Unattended · {summary
+                  ? describe_unattended_run(summary)
+                  : describe_unattended_trigger(group.trigger)}
+              {:else}
+                from {session
+                  ? `${KIND_GLYPHS[session.kind]} ${session.title}`
+                  : group.session_id}
+              {/if}
             </p>
             {#each group.proposals as proposal (proposal.id)}
               <AssistantProposalCard

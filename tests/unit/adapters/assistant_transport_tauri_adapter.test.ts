@@ -77,11 +77,16 @@ const agent_request: RunRequest = {
   backend: "acp",
 };
 
-function open_stream(request: RunRequest, signal?: AbortSignal) {
+function open_stream(
+  request: RunRequest,
+  signal?: AbortSignal,
+  unattended = false,
+) {
   return create_assistant_transport_tauri_adapter().stream({
     provider_config: make_provider(),
     request,
     vault_path: "/vault",
+    unattended,
     ...(signal ? { signal } : {}),
   });
 }
@@ -150,6 +155,7 @@ describe("assistant_transport_tauri_adapter", () => {
         provider_config: no_stream_args,
         request: text_request,
         vault_path: "/vault",
+        unattended: false,
       });
       await flush();
 
@@ -208,9 +214,39 @@ describe("assistant_transport_tauri_adapter", () => {
         history: [{ role: "user", content: "earlier" }],
         resume_session_id: "sess-7",
         backend: "acp",
+        max_iterations: null,
+        unattended: false,
         acp_agent: { kind: "preset", id: "claude" },
       });
       expect(channel(0).name).toBe(`agent-run-event:${String(args.requestId)}`);
+    });
+
+    // The boundary these two cross is the one an optional TS field can fall
+    // through silently: absent on the request must reach Rust as an explicit
+    // null/false, never as a missing key.
+    it("sends an unattended run's budget and flag through to the spec", async () => {
+      open_stream({ ...agent_request, max_iterations: 48 }, undefined, true);
+      await flush();
+
+      const args = start_args_of("agent_run_start");
+      expect(args.spec).toMatchObject({
+        max_iterations: 48,
+        unattended: true,
+      });
+    });
+
+    it("defaults the budget and flag explicitly when the request omits them", async () => {
+      stream_agent();
+      await flush();
+
+      const spec = start_args_of("agent_run_start").spec as Record<
+        string,
+        unknown
+      >;
+      expect(Object.hasOwn(spec, "max_iterations")).toBe(true);
+      expect(Object.hasOwn(spec, "unattended")).toBe(true);
+      expect(spec.max_iterations).toBeNull();
+      expect(spec.unattended).toBe(false);
     });
 
     it("normalizes init to session and text.delta to text", async () => {
@@ -436,6 +472,7 @@ describe("assistant_transport_tauri_adapter", () => {
         provider_config: blocking_provider,
         request: blocking_request,
         vault_path: "/vault",
+        unattended: false,
         ...(signal ? { signal } : {}),
       });
     }

@@ -1,3 +1,4 @@
+import { vi } from "vitest";
 import type { AiProviderConfig } from "$lib/shared/types/ai_provider_config";
 import type { AiCliProbeStatus } from "$lib/features/ai";
 import type {
@@ -251,4 +252,12 @@ export function create_manual_transport(): ManualTransport {
   };
 
   return mock;
+}
+
+// The action registry only needs the seam to exist and to refuse; every test
+// that asserts on unattended behaviour drives the service directly.
+export function stub_unattended_runs() {
+  return {
+    run: vi.fn().mockResolvedValue({ status: "refused", reason: "stub" }),
+  } as never;
 }

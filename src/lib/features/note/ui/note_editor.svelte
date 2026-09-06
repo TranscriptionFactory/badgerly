@@ -130,6 +130,7 @@
       proposals={stores.assistant_proposals.reviewable}
       applied_history={stores.assistant_proposals.applied_history}
       session_summaries={stores.assistant_sessions.summaries}
+      unattended_summaries={stores.assistant_unattended.summaries}
       on_accept_proposal={(id) =>
         void action_registry.execute(ACTION_IDS.assistant_accept_proposal, id)}
       on_accept_all_pending={(ids) =>
