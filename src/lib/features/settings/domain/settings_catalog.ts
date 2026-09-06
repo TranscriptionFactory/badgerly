@@ -787,6 +787,40 @@ export const SETTINGS_REGISTRY: SettingDefinition[] = [
     ],
   },
   {
+    key: "unattended_runs_enabled",
+    label: "Unattended Runs",
+    description:
+      "Let a note added to the trigger folder start an agent run on its own. Off by default; the run proposes edits for review and never writes to a note",
+    category: "AI",
+    keywords: [
+      "unattended",
+      "background",
+      "trigger",
+      "automatic",
+      "agent",
+      "inbox",
+      "watcher",
+      "assistant",
+    ],
+  },
+  {
+    key: "unattended_trigger_folder",
+    label: "Unattended Trigger Folder",
+    description:
+      "Vault folder whose new notes start an unattended run, including nested subfolders. Empty disables the folder trigger. Needs Unattended Runs",
+    category: "AI",
+    keywords: [
+      "unattended",
+      "trigger",
+      "folder",
+      "inbox",
+      "watch",
+      "background",
+      "agent",
+      "assistant",
+    ],
+  },
+  {
     key: "document_pdf_default_zoom",
     label: "PDF Default Zoom",
     description: "Initial zoom mode when opening PDFs",
