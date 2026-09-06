@@ -77,11 +77,16 @@ const agent_request: RunRequest = {
   backend: "acp",
 };
 
-function open_stream(request: RunRequest, signal?: AbortSignal) {
+function open_stream(
+  request: RunRequest,
+  signal?: AbortSignal,
+  unattended = false,
+) {
   return create_assistant_transport_tauri_adapter().stream({
     provider_config: make_provider(),
     request,
     vault_path: "/vault",
+    unattended,
     ...(signal ? { signal } : {}),
   });
 }
@@ -150,6 +155,7 @@ describe("assistant_transport_tauri_adapter", () => {
         provider_config: no_stream_args,
         request: text_request,
         vault_path: "/vault",
+        unattended: false,
       });
       await flush();
 
@@ -219,7 +225,7 @@ describe("assistant_transport_tauri_adapter", () => {
     // through silently: absent on the request must reach Rust as an explicit
     // null/false, never as a missing key.
     it("sends an unattended run's budget and flag through to the spec", async () => {
-      open_stream({ ...agent_request, max_iterations: 48, unattended: true });
+      open_stream({ ...agent_request, max_iterations: 48 }, undefined, true);
       await flush();
 
       const args = start_args_of("agent_run_start");
@@ -466,6 +472,7 @@ describe("assistant_transport_tauri_adapter", () => {
         provider_config: blocking_provider,
         request: blocking_request,
         vault_path: "/vault",
+        unattended: false,
         ...(signal ? { signal } : {}),
       });
     }

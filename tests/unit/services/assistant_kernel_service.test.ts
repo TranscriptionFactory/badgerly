@@ -90,6 +90,27 @@ function create_throwing_transport(message: string): AssistantTransportPort {
 }
 
 describe("AssistantKernelService", () => {
+  // The proposal-only flag is derived here, from run identity, and no caller
+  // can set it. A "background" spec that forgot to raise it would be an
+  // unwatched, auto-approving run still allowed to write to disk, and nothing
+  // downstream would notice the pair had come apart.
+  it("derives the unattended flag from the run kind, not from the caller", async () => {
+    const transport = create_mock_transport();
+    const { kernel } = create_kernel(transport);
+
+    await (
+      await kernel.start(agent_spec())
+    ).outcome;
+    await (
+      await kernel.start({ ...agent_spec(), kind: "background" })
+    ).outcome;
+
+    expect(transport._requests.map((input) => input.unattended)).toEqual([
+      false,
+      true,
+    ]);
+  });
+
   it("returns a handle whose id matches the created record", async () => {
     const { kernel, run_store } = create_kernel(create_mock_transport());
 

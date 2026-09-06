@@ -32,6 +32,25 @@ export function create_unattended_trigger_reactor(
       // already there is the user editing, and a removal has nothing to read.
       if (event.type !== "note_added") return;
 
+      // Carbide's own writes reach here: WatcherService fans every port event
+      // out unfiltered, so the self-write check is each subscriber's to make.
+      // Without it, a note dragged into the trigger folder, a git restore that
+      // repopulates it, or a web clip each start a run the user never asked
+      // for. Peek, never consume — watcher.reactor subscribes first and its
+      // own check spends the one-shot arming, so a consuming check here would
+      // spend what that reactor still needs. `change` is the kind an added
+      // note carries: an atomic write's tmp->target rename surfaces as a
+      // Create with the Modify still to come.
+
+      if (
+        watcher_service.peek_suppressed(event.note_path, {
+          kind: "change",
+          mtime_ms: event.mtime_ms,
+        })
+      ) {
+        return;
+      }
+
       const decision = resolve_unattended_trigger({
         settings_loaded: ui_store.editor_settings_loaded,
         enabled: ui_store.editor_settings.unattended_runs_enabled,

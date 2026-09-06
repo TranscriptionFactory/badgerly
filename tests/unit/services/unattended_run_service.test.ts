@@ -81,7 +81,6 @@ describe("UnattendedRunService spec", () => {
     expect(spec.kind).toBe("background");
     expect(spec.request.mode).toBe("agent");
     if (spec.request.mode !== "agent") throw new Error("expected agent mode");
-    expect(spec.request.unattended).toBe(true);
     expect(spec.request.backend).toBe("native");
     expect(spec.request.max_iterations).toBe(UNATTENDED_MAX_ITERATIONS);
   });

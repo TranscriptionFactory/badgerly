@@ -1,10 +1,7 @@
 import type { OpStore } from "$lib/app/orchestration/op_store.svelte";
 import { unattended_run_policy } from "$lib/features/ai";
 import { build_native_proposal } from "$lib/features/assistant/domain/native_proposals";
-import {
-  is_unattended_kind,
-  resolve_max_iterations,
-} from "$lib/features/assistant/domain/unattended_policy";
+import { resolve_max_iterations } from "$lib/features/assistant/domain/unattended_policy";
 import type { NativeProposal } from "$lib/generated/bindings";
 import type {
   Proposal,
@@ -128,7 +125,6 @@ export class UnattendedRunService {
         history: [],
         backend: "native",
         max_iterations: resolve_max_iterations(kind),
-        unattended: is_unattended_kind(kind),
       },
     };
   }

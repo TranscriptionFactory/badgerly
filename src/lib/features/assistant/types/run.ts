@@ -129,9 +129,6 @@ export type RunRequest =
       // `unattended_policy.resolve_max_iterations` before it reaches the
       // transport, and clamped again by the backend.
       max_iterations?: number;
-      // Puts the run behind the backend's proposal-only gate, so it cannot
-      // write to disk however the model calls its tools.
-      unattended?: boolean;
     };
 
 export type RunOrigin = {

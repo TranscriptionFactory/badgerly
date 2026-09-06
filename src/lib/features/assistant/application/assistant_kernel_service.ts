@@ -3,6 +3,7 @@ import {
   provider_supports_streaming,
 } from "$lib/features/ai";
 import { resolve_assistant_provider } from "$lib/features/assistant/domain/resolve_assistant_provider";
+import { is_unattended_kind } from "$lib/features/assistant/domain/unattended_policy";
 import { create_logger } from "$lib/shared/utils/logger";
 import { error_message } from "$lib/shared/utils/error_message";
 import type { AiProviderConfig } from "$lib/shared/types/ai_provider_config";
@@ -203,6 +204,7 @@ export class AssistantKernelService {
         request: spec.request,
         vault_path,
         signal,
+        unattended: is_unattended_kind(spec.kind),
       })) {
         if (signal.aborted) break;
 

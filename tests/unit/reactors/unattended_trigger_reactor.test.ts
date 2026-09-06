@@ -59,6 +59,7 @@ async function mount({
   return {
     ui_store,
     watcher_port,
+    watcher_service,
     launched,
     unmount,
     vault_id: String(vault.id),
@@ -174,6 +175,29 @@ describe("unattended_trigger_reactor", () => {
     settle();
 
     expect(t.launched).toEqual([]);
+  });
+
+  it("ignores a note Carbide wrote itself", async () => {
+    const t = await mount();
+
+    // What NoteService, FolderService, GitService and link repair all do
+    // before writing. The trigger folder is the default "Inbox", which is
+    // exactly where the app drops things.
+    t.watcher_service.suppress_next("Inbox/new.md");
+    t.watcher_port._emit(added_event("Inbox/new.md", t.vault_id));
+    settle();
+
+    expect(t.launched).toEqual([]);
+  });
+
+  it("still starts a run for a note the user added outside Carbide", async () => {
+    const t = await mount();
+
+    t.watcher_service.suppress_next("Inbox/other.md");
+    t.watcher_port._emit(added_event("Inbox/new.md", t.vault_id));
+    settle();
+
+    expect(t.launched).toHaveLength(1);
   });
 
   it("starts nothing once unmounted", async () => {
