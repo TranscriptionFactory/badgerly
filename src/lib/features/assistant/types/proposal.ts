@@ -19,6 +19,7 @@ import type {
 // app was closed resolves stale rather than mis-applying.
 
 import type { RunId } from "$lib/features/assistant/types/run";
+import type { UnattendedTrigger } from "$lib/features/assistant/types/unattended";
 
 export type ProposalId = string;
 export type ProposalHunkId = string;
@@ -68,6 +69,10 @@ export type ProposalOrigin = {
   anchor?: string | null;
   // Captured before the checkpoint: an earlier turn applied later is not in it.
   anchor_applied_ids?: ProposalId[];
+  // Present only for a run nobody was watching. Absent means the proposal came
+  // from an interactive surface, which is what the review center groups by
+  // session instead.
+  trigger?: UnattendedTrigger;
 };
 
 // `stale` is terminal-on-detection, not a fourth pending state: it means the

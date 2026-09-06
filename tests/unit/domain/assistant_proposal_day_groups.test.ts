@@ -124,3 +124,60 @@ describe("group_proposals_by_day", () => {
     expect(group_proposals_by_day([], NOON)).toEqual([]);
   });
 });
+
+describe("unattended provenance", () => {
+  const trigger = {
+    kind: "watcher" as const,
+    note_path: "Inbox/new.md",
+    folder: "Inbox",
+  };
+
+  it("carries the trigger onto the group so it needs no session to name it", () => {
+    const groups = group_proposals_by_day(
+      [
+        make_proposal({
+          id: "u",
+          created_at: NOON,
+          origin: { session_id: "run-9", run_id: "run-9", trigger },
+        }),
+      ],
+      NOON,
+    );
+
+    expect(groups[0].groups[0].trigger).toEqual(trigger);
+  });
+
+  it("leaves an interactive group's trigger null", () => {
+    const groups = group_proposals_by_day(
+      [make_proposal({ id: "c", created_at: NOON })],
+      NOON,
+    );
+
+    expect(groups[0].groups[0].trigger).toBeNull();
+  });
+
+  // Two runs in the same day are two groups, because each run is its own
+  // provenance — a single "Unattended" bucket would merge unrelated work.
+  it("keeps separate runs in separate groups", () => {
+    const groups = group_proposals_by_day(
+      [
+        make_proposal({
+          id: "a",
+          created_at: NOON,
+          origin: { session_id: "run-1", run_id: "run-1", trigger },
+        }),
+        make_proposal({
+          id: "b",
+          created_at: NOON - 1000,
+          origin: { session_id: "run-2", run_id: "run-2", trigger },
+        }),
+      ],
+      NOON,
+    );
+
+    expect(groups[0].groups.map((g) => g.session_id)).toEqual([
+      "run-1",
+      "run-2",
+    ]);
+  });
+});
