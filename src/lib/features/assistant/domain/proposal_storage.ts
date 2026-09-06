@@ -1,3 +1,4 @@
+import { validate_edit_operations } from "$lib/features/assistant/domain/edit_operations";
 import type {
   Proposal,
   ProposalTarget,
@@ -58,7 +59,7 @@ function parse_entry(raw: unknown): Proposal | null {
   if (!is_record(raw)) return null;
   // Terminal statuses are never written; a file that carries one anyway
   // (hand-edited, or a future format change) must not resurrect it.
-  if (raw.status !== "pending") return null;
+  if (raw.status !== "pending" || raw.mutations !== undefined) return null;
   if (typeof raw.id !== "string" || raw.id.length === 0) return null;
   if (typeof raw.base_revision !== "string") return null;
   if (typeof raw.created_at !== "number") return null;
@@ -78,6 +79,11 @@ function parse_entry(raw: unknown): Proposal | null {
     return null;
   if (!valid_hunks(raw.hunks)) return null;
 
+  try {
+    validate_edit_operations(raw as Proposal);
+  } catch {
+    return null;
+  }
   return raw as Proposal;
 }
 

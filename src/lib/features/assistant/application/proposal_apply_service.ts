@@ -1,9 +1,15 @@
+import {
+  apply_edit_operations,
+  validate_edit_operations,
+} from "$lib/features/assistant/domain/edit_operations";
+import type { ProposalMutation } from "$lib/features/assistant/types/edit_operation";
 import { error_message } from "$lib/shared/utils/error_message";
 import { apply_proposal_hunks } from "$lib/features/assistant/domain/apply_proposal_hunks";
 import { is_stale } from "$lib/features/assistant/domain/note_revision";
 import type { AssistantProposalStore } from "$lib/features/assistant/state/assistant_proposal_store.svelte";
 import type {
   AssistantDocumentPort,
+  ProposalMutationPort,
   ProposalCheckpointOutcome,
   ProposalCheckpointPort,
   ProposalNotePort,
@@ -44,6 +50,7 @@ export type ProposalApplyDeps = {
   notes: ProposalNotePort;
   git: ProposalCheckpointPort;
   documents: AssistantDocumentPort;
+  mutations?: ProposalMutationPort;
 };
 
 export class ProposalApplyService {
@@ -86,10 +93,22 @@ export class ProposalApplyService {
   private async apply_unlocked(
     ids: ProposalId[],
   ): Promise<ProposalApplyOutcome> {
+    const vault = this.deps.mutations?.current_vault();
     const applied: ProposalId[] = [];
     const stale: ProposalId[] = [];
     const failed: { id: ProposalId; error: string }[] = [];
     const written_note_paths: string[] = [];
+    const operation_writes: {
+      id: ProposalId;
+      mutations: ProposalMutation[];
+    }[] = [];
+    const planned_content = new Map<string, string | null>();
+    // The paths a typed operation already claims in this batch — a rename's
+    // source, destination and repaired backlinks included. Only typed
+    // mutations claim a path exclusively: their content is composed onto the
+    // planned state, so a later blind write over the same path would discard
+    // it silently.
+    const typed_paths = new Set<string>();
     const to_write: { id: ProposalId; note_path: string; content: string }[] =
       [];
     // Document targets STAGE into the open buffer (edited content + dirty
@@ -107,6 +126,122 @@ export class ProposalApplyService {
           error: proposal
             ? `proposal is ${proposal.status}, not pending`
             : "proposal not found",
+        });
+        continue;
+      }
+
+      if (proposal.operations !== undefined) {
+        try {
+          validate_edit_operations(proposal);
+          const path =
+            proposal.target.kind === "note"
+              ? proposal.target.note_path
+              : proposal.target.file_path;
+          if (
+            to_write.some((write) => write.note_path === path) ||
+            to_stage.some((stage) => stage.file_path === path)
+          )
+            throw new Error(
+              "Proposal overlaps another pending mutation in this batch",
+            );
+          const current =
+            proposal.target.kind === "note"
+              ? planned_content.has(path)
+                ? (planned_content.get(path) ?? null)
+                : await this.deps.notes.read_note(path)
+              : (this.deps.documents.read_document(path)?.content ?? null);
+          if (current === null) {
+            stale.push(id);
+            continue;
+          }
+          const result = apply_edit_operations(proposal, current);
+          if (result.conflict) {
+            this.deps.proposals.set_conflict(id, result.conflict);
+            stale.push(id);
+            continue;
+          }
+          const rename = proposal.operations.find(
+            (operation) =>
+              operation.kind === "rename_with_repair" &&
+              proposal.hunks.some(
+                (hunk) => hunk.id === operation.hunk_id && hunk.selected,
+              ),
+          );
+          if (
+            rename?.kind === "rename_with_repair" &&
+            is_stale(proposal.base_revision, current)
+          ) {
+            this.deps.proposals.set_conflict(id, {
+              hunk_id: rename.hunk_id,
+              start: 0,
+              end: proposal.base_content?.length ?? 0,
+              reason: "Rename source changed.",
+            });
+            stale.push(id);
+            continue;
+          }
+          if (proposal.target.kind === "document") {
+            if (result.content === current) applied.push(id);
+            else {
+              typed_paths.add(path);
+              to_stage.push({ id, file_path: path, content: result.content });
+            }
+            continue;
+          }
+          if (!rename && result.content === current) {
+            applied.push(id);
+            continue;
+          }
+          if (!this.deps.mutations)
+            throw new Error("Structured note mutation support is unavailable");
+          const mutations =
+            rename?.kind === "rename_with_repair"
+              ? await this.deps.mutations.prepare_rename(path, rename.to_path)
+              : [{ path, before: current, after: result.content }];
+          if (rename) {
+            for (const mutation of mutations) {
+              if (
+                planned_content.has(mutation.path) ||
+                to_write.some((write) => write.note_path === mutation.path)
+              )
+                throw new Error(
+                  "Rename overlaps another pending mutation in this batch",
+                );
+              if (
+                (await this.deps.notes.read_note(mutation.path)) !==
+                mutation.before
+              )
+                throw new Error("Rename snapshot changed before checkpoint");
+            }
+            if (
+              mutations.find((mutation) => mutation.path === path)?.before !==
+              current
+            )
+              throw new Error("Rename source changed before checkpoint");
+          }
+          for (const mutation of mutations) {
+            planned_content.set(mutation.path, mutation.after);
+            typed_paths.add(mutation.path);
+          }
+          operation_writes.push({ id, mutations });
+        } catch (error) {
+          failed.push({ id, error: error_message(error) });
+        }
+        continue;
+      }
+
+      const legacy_path =
+        proposal.target.kind === "note"
+          ? proposal.target.note_path
+          : proposal.target.file_path;
+      // Two legacy proposals may name the same path in one batch: both are
+      // computed against the same content and written in the order given,
+      // which is what their apply history records. Only a collision with a
+      // typed mutation is refused.
+      if (typed_paths.has(legacy_path)) {
+        failed.push({
+          id,
+          error: "Proposal overlaps another pending mutation in this batch",
         });
         continue;
       }
@@ -164,30 +299,66 @@ export class ProposalApplyService {
       });
     }
 
+    if (vault !== this.deps.mutations?.current_vault())
+      return {
+        applied: [],
+        stale: [],
+        failed: ids.map((id) => ({
+          id,
+          error: "The active vault changed; nothing applied",
+        })),
+        checkpoint: null,
+        written_note_paths: [],
+      };
+
     for (const id of stale) this.deps.proposals.set_status(id, "stale");
     for (const id of applied) this.deps.proposals.set_status(id, "applied");
 
     let checkpoint: ProposalApplyOutcome["checkpoint"] = null;
 
-    if (to_write.length > 0) {
-      const description = `before applying ${String(to_write.length)} proposal${
-        to_write.length === 1 ? "" : "s"
+    if (to_write.length + operation_writes.length > 0) {
+      const description = `before applying ${String(to_write.length + operation_writes.length)} proposal${
+        to_write.length + operation_writes.length === 1 ? "" : "s"
       }`;
       const outcome = await this.deps.git.create_checkpoint(description);
       checkpoint = { description, outcome };
 
-      if (outcome === "failed") {
+      if (
+        outcome === "failed" ||
+        vault !== this.deps.mutations?.current_vault()
+      ) {
         // Fails the WHOLE batch closed, stagings included — a mixed batch is
         // one undo unit and must not half-apply.
-        for (const entry of [...to_write, ...to_stage]) {
+        for (const entry of [...to_write, ...operation_writes, ...to_stage]) {
           failed.push({
             id: entry.id,
             error: "checkpoint failed; nothing applied",
           });
         }
       } else {
+        for (const write of operation_writes) {
+          try {
+            if (vault !== this.deps.mutations?.current_vault())
+              throw new Error("The active vault changed; mutation refused");
+            if (!this.deps.mutations)
+              throw new Error(
+                "Structured note mutation support is unavailable",
+              );
+            await this.deps.mutations.apply_mutations(write.mutations);
+            this.deps.proposals.set_mutations(write.id, write.mutations);
+            this.deps.proposals.set_status(write.id, "applied");
+            applied.push(write.id);
+            written_note_paths.push(
+              ...write.mutations.map((mutation) => mutation.path),
+            );
+          } catch (error) {
+            failed.push({ id: write.id, error: error_message(error) });
+          }
+        }
         for (const write of to_write) {
           try {
+            if (vault !== this.deps.mutations?.current_vault())
+              throw new Error("The active vault changed; mutation refused");
             await this.deps.notes.write_note(write.note_path, write.content);
             this.deps.proposals.set_status(write.id, "applied");
             applied.push(write.id);
@@ -199,7 +370,10 @@ export class ProposalApplyService {
       }
     }
 
-    if (checkpoint?.outcome !== "failed") {
+    if (
+      checkpoint?.outcome !== "failed" &&
+      vault === this.deps.mutations?.current_vault()
+    ) {
       for (const stage of to_stage) {
         const staged = this.deps.documents.stage_document(
           stage.file_path,

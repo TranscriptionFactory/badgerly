@@ -181,6 +181,8 @@ pub struct InputSchema {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PropertySchema {
+    #[serde(default, flatten)]
+    pub schema: HashMap<String, Value>,
     #[serde(rename = "type")]
     pub prop_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -203,6 +205,10 @@ pub struct ToolResult {
     pub content: Vec<ContentBlock>,
     #[serde(default)]
     pub is_error: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub edit_operations: Vec<crate::features::notes::edit_operation::NativeEditOperation>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub proposals: Vec<crate::features::notes::edit_operation::NativeProposal>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -217,6 +223,8 @@ impl ToolResult {
         Self {
             content: vec![ContentBlock::Text { text }],
             is_error: false,
+            edit_operations: Vec::new(),
+            proposals: Vec::new(),
         }
     }
 
@@ -224,6 +232,8 @@ impl ToolResult {
         Self {
             content: vec![ContentBlock::Text { text: message }],
             is_error: true,
+            edit_operations: Vec::new(),
+            proposals: Vec::new(),
         }
     }
 }

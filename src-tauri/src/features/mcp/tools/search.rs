@@ -38,6 +38,7 @@ fn search_notes_def() -> ToolDefinition {
     properties.insert(
         "limit".into(),
         PropertySchema {
+        schema: Default::default(),
             prop_type: "integer".into(),
             description: Some("Optional. Maximum number of results to return (default: 20, max: 100)".into()),
             enum_values: None,
@@ -47,6 +48,7 @@ fn search_notes_def() -> ToolDefinition {
     properties.insert(
         "mode".into(),
         PropertySchema {
+        schema: Default::default(),
             prop_type: "string".into(),
             description: Some("Search mode: 'text' (default, full-text search) or 'semantic' (hybrid vector + FTS search, better for conceptual queries)".into()),
             enum_values: Some(vec!["text".into(), "semantic".into()]),

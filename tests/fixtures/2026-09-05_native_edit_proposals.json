@@ -1,0 +1,58 @@
+[
+  {
+    "path": "a.md",
+    "base_content": "# Intro\nbody",
+    "operations": [
+      {
+        "base_revision": "305a0962fe586a5e",
+        "hunk_id": "operation-0",
+        "kind": "replace_span",
+        "start": 8,
+        "end": 12,
+        "text": "new"
+      }
+    ],
+    "vault_id": "vault-1"
+  },
+  {
+    "path": "a.md",
+    "base_content": "# Intro\nbody",
+    "operations": [
+      {
+        "base_revision": "305a0962fe586a5e",
+        "hunk_id": "operation-0",
+        "kind": "insert_at_heading",
+        "heading": "Intro",
+        "text": "new"
+      }
+    ],
+    "vault_id": "vault-1"
+  },
+  {
+    "path": "a.md",
+    "base_content": "# Intro\nbody",
+    "operations": [
+      {
+        "base_revision": "305a0962fe586a5e",
+        "hunk_id": "operation-0",
+        "kind": "set_frontmatter",
+        "key": "memory",
+        "value": true
+      }
+    ],
+    "vault_id": "vault-1"
+  },
+  {
+    "path": "a.md",
+    "base_content": "# Intro\nbody",
+    "operations": [
+      {
+        "base_revision": "305a0962fe586a5e",
+        "hunk_id": "operation-0",
+        "kind": "rename_with_repair",
+        "to_path": "renamed.md"
+      }
+    ],
+    "vault_id": "vault-1"
+  }
+]

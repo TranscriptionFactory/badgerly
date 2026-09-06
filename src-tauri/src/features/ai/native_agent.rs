@@ -110,10 +110,13 @@ pub fn build_system_prompt(vault_path: &str, toolset: &ToolSelector) -> String {
     } else {
         ""
     };
+    let edits = if auth::selector_allows(toolset, "edit_note") {
+        "Prefer edit_note's operation object for replace_span, insert_at_heading, set_frontmatter, or rename_with_repair. These stage review proposals without changing files; read-after-proposal still returns the original note. "
+    } else { "" };
     format!(
         "You are Carbide's vault-scoped assistant operating on the vault at {vault_path}. \
 Use the provided tools to {actions} before answering. \
-{memory}\
+{memory}{edits}\
 Only act within this vault; do not assume access to anything outside the tool catalog."
     )
 }
@@ -341,6 +344,8 @@ pub async fn run_native_turn<C, D, E, A>(
                     result_summary: Some(summarize_chars(&denial, SUMMARY_MAX_CHARS)),
                     paths,
                     mutating,
+                    edit_operations: None,
+                    proposals: None,
                 });
                 history.push(tool_result_message(&id, denial));
                 continue;
@@ -401,6 +406,8 @@ pub async fn run_native_turn<C, D, E, A>(
                     result_summary: Some(summarize_chars(&denial, SUMMARY_MAX_CHARS)),
                     paths,
                     mutating,
+                    edit_operations: None,
+                    proposals: None,
                 });
                 history.push(tool_result_message(&id, denial));
                 continue;
@@ -416,6 +423,8 @@ pub async fn run_native_turn<C, D, E, A>(
                 result_summary: Some(summarize_chars(&text, SUMMARY_MAX_CHARS)),
                 paths,
                 mutating,
+                    edit_operations: (!result.edit_operations.is_empty()).then(|| result.edit_operations.clone()),
+                proposals: (!result.proposals.is_empty()).then(|| result.proposals.clone()),
             });
             history.push(tool_result_message(&id, text));
         }

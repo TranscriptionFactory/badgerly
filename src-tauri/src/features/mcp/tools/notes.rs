@@ -35,8 +35,12 @@ pub(crate) struct EditNoteArgs {
     #[serde(default)]
     pub vault_id: Option<String>,
     pub path: String,
+    #[serde(default)]
     pub old_string: String,
+    #[serde(default)]
     pub new_string: String,
+    #[serde(default)]
+    pub operation: Option<crate::features::notes::edit_operation::StructuredEditOperation>,
     #[serde(default)]
     pub replace_all: bool,
 }
@@ -84,6 +88,7 @@ fn list_notes_def() -> ToolDefinition {
     properties.insert(
         "limit".into(),
         PropertySchema {
+        schema: Default::default(),
             prop_type: "integer".into(),
             description: Some("Optional. Maximum number of results to return (default: 200, max: 500)".into()),
             enum_values: None,
@@ -93,6 +98,7 @@ fn list_notes_def() -> ToolDefinition {
     properties.insert(
         "offset".into(),
         PropertySchema {
+        schema: Default::default(),
             prop_type: "integer".into(),
             description: Some("Optional. Number of results to skip for pagination (default: 0)".into()),
             enum_values: None,
@@ -149,6 +155,7 @@ fn create_note_def() -> ToolDefinition {
     properties.insert(
         "overwrite".into(),
         PropertySchema {
+        schema: Default::default(),
             prop_type: "boolean".into(),
             description: Some("Optional. If true, replace the note when one already exists at the path instead of failing (default: false).".into()),
             enum_values: None,
@@ -210,12 +217,17 @@ fn edit_note_def() -> ToolDefinition {
     properties.insert(
         "replace_all".into(),
         PropertySchema {
+        schema: Default::default(),
             prop_type: "boolean".into(),
             description: Some("Optional. Replace every occurrence of old_string instead of requiring a unique match (default: false).".into()),
             enum_values: None,
             default: Some(Value::Bool(false)),
         },
     );
+
+    let mut operation = prop("object", "Typed proposal-only edit; no files change until the user accepts it. Use instead of old_string/new_string. Missing base_revision and hunk_id are filled from the current note.");
+    operation.schema.insert("anyOf".into(), crate::features::notes::edit_operation::operation_schema());
+    properties.insert("operation".into(), operation);
 
     ToolDefinition {
         name: "edit_note".into(),
@@ -224,7 +236,7 @@ fn edit_note_def() -> ToolDefinition {
         input_schema: InputSchema {
             schema_type: "object".into(),
             properties,
-            required: vec!["path".into(), "old_string".into(), "new_string".into()],
+            required: vec!["path".into()],
         },
     }
 }
@@ -340,6 +352,24 @@ fn handle_edit_note(app: &AppHandle, arguments: Option<&Value>) -> ToolResult {
         Err(e) => return op_err_to_tool_result(e),
     };
 
+    if let Some(operation) = args.operation {
+        if !args.old_string.is_empty() || !args.new_string.is_empty() || args.replace_all {
+            return ToolResult::error("typed operations cannot be combined with find/replace arguments".into());
+        }
+        let (_, content) = match shared_ops::read_note(app, &vault_id, &args.path) {
+            Ok(note) => note,
+            Err(error) => return op_err_to_tool_result(error),
+        };
+        return match crate::features::notes::edit_operation::prepare_native_proposal(vault_id, args.path, content, vec![operation]) {
+            Ok(proposal) => {
+                let mut result = ToolResult::text("Edits proposed for review; no files changed.".into());
+                result.proposals.push(proposal);
+                result
+            }
+            Err(error) => ToolResult::error(error),
+        };
+    }
+
     match shared_ops::edit_note(
         app,
         &vault_id,
@@ -348,8 +378,10 @@ fn handle_edit_note(app: &AppHandle, arguments: Option<&Value>) -> ToolResult {
         &args.new_string,
         args.replace_all,
     ) {
-        Ok((path, replacements)) => {
-            ToolResult::text(format!("Edited: {} ({} replacement(s))", path, replacements))
+        Ok((path, replacements, operations)) => {
+            let mut result = ToolResult::text(format!("Edited: {} ({} replacement(s))", path, replacements));
+            result.edit_operations = operations;
+            result
         }
         Err(e) => op_err_to_tool_result(e),
     }
@@ -508,6 +540,7 @@ fn list_memories_def() -> ToolDefinition {
     properties.insert(
         "limit".into(),
         PropertySchema {
+        schema: Default::default(),
             prop_type: "integer".into(),
             description: Some("Optional. Maximum number of memories to return (default: 50, max: 200)".into()),
             enum_values: None,

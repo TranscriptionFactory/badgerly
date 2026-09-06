@@ -58,12 +58,15 @@
 <div class="flex flex-col gap-4 p-4" data-testid="assistant-proposals-tab">
   <div class="flex items-center justify-between">
     <h1 class="text-sm font-semibold">Proposals</h1>
-    {#if proposals.length > 0}
+    {#if proposals.some((proposal) => proposal.status === "pending")}
       <button
         type="button"
         class="rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
         data-testid="assistant-proposals-accept-all-pending"
-        onclick={() => on_accept_all_pending(proposals.map((p) => p.id))}
+        onclick={() =>
+          on_accept_all_pending(
+            proposals.filter((p) => p.status === "pending").map((p) => p.id),
+          )}
       >
         Accept all pending
       </button>

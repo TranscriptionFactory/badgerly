@@ -1,3 +1,7 @@
+import type {
+  NativeEditOperation,
+  NativeProposal,
+} from "$lib/generated/bindings";
 import type { AiProviderConfig } from "$lib/shared/types/ai_provider_config";
 import type { AiMessage, ToolSelector } from "$lib/features/ai";
 // An agent turn replays tool calls and tool results, which the text channel's
@@ -71,6 +75,8 @@ export type RunEvent =
       name: string;
       ok: boolean;
       result_summary?: string | null;
+      edit_operations?: NativeEditOperation[];
+      proposals?: NativeProposal[];
       paths: string[];
       mutating: boolean;
     }

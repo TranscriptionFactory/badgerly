@@ -47,6 +47,7 @@ fn get_note_history_def() -> ToolDefinition {
     properties.insert(
         "limit".into(),
         PropertySchema {
+        schema: Default::default(),
             prop_type: "integer".into(),
             description: Some("Optional. Maximum number of commits to return (default: 20, max: 100)".into()),
             enum_values: None,
@@ -140,6 +141,7 @@ fn git_log_def() -> ToolDefinition {
     properties.insert(
         "limit".into(),
         PropertySchema {
+        schema: Default::default(),
             prop_type: "integer".into(),
             description: Some("Optional. Maximum number of commits to return (default: 20, max: 100)".into()),
             enum_values: None,

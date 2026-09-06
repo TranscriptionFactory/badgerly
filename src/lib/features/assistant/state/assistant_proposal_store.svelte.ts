@@ -1,3 +1,7 @@
+import type {
+  OperationConflict,
+  ProposalMutation,
+} from "$lib/features/assistant/types/edit_operation";
 import {
   to_proposal_summary,
   type Proposal,
@@ -21,6 +25,14 @@ export class AssistantProposalStore {
   // would ever call it — this store is `hydrate`-shaped, not `create`-shaped.
   // Shipping a constructor param with no consumer is the `detached_ids`
   // mistake from W0; the producer owns its own clock.
+
+  get reviewable(): Proposal[] {
+    return this.proposals.filter(
+      (proposal) =>
+        proposal.status === "pending" ||
+        (proposal.status === "stale" && proposal.conflict !== undefined),
+    );
+  }
 
   get summaries(): ProposalSummary[] {
     return this.proposals.map(to_proposal_summary);
@@ -84,6 +96,14 @@ export class AssistantProposalStore {
   // transitions are meaningful.
   set_status(id: ProposalId, status: ProposalStatus): void {
     this.patch(id, (proposal) => ({ ...proposal, status }));
+  }
+
+  set_conflict(id: ProposalId, conflict: OperationConflict): void {
+    this.patch(id, (proposal) => ({ ...proposal, conflict, status: "stale" }));
+  }
+
+  set_mutations(id: ProposalId, mutations: ProposalMutation[]): void {
+    this.patch(id, (proposal) => ({ ...proposal, mutations }));
   }
 
   set_hunk_selected(

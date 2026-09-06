@@ -1,3 +1,7 @@
+import type {
+  NativeEditOperation,
+  NativeProposal,
+} from "$lib/generated/bindings";
 export type AgentToolCall = {
   id?: string;
   name: string;
@@ -9,6 +13,8 @@ export type AgentToolCall = {
   // "the agent touched this file" and "the agent wrote this file" are not the
   // same set.
   ok?: boolean;
+  edit_operations?: NativeEditOperation[];
+  proposals?: NativeProposal[];
 };
 
 export const MCP_TOOL_PREFIX = "mcp__carbide__";

@@ -42,6 +42,7 @@ fn query_tasks_def() -> ToolDefinition {
     properties.insert(
         "status".into(),
         PropertySchema {
+        schema: Default::default(),
             prop_type: "string".into(),
             description: Some("Filter by task status".into()),
             enum_values: Some(vec!["todo".into(), "doing".into(), "done".into()]),
@@ -59,6 +60,7 @@ fn query_tasks_def() -> ToolDefinition {
     properties.insert(
         "limit".into(),
         PropertySchema {
+        schema: Default::default(),
             prop_type: "integer".into(),
             description: Some("Optional. Maximum number of results (default: 50)".into()),
             enum_values: None,

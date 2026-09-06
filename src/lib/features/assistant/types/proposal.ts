@@ -1,3 +1,8 @@
+import type {
+  EditOperation,
+  OperationConflict,
+  ProposalMutation,
+} from "$lib/features/assistant/types/edit_operation";
 // C2 contracts — frozen for the cycle (E1). A lane needing a change files it
 // to the orchestrator instead of editing.
 //
@@ -96,6 +101,11 @@ export type Proposal = {
   id: ProposalId;
   target: ProposalTarget;
   base_revision: NoteRevision;
+  base_content?: string;
+  operations?: EditOperation[];
+  conversion?: "native" | "best_effort";
+  conflict?: OperationConflict;
+  mutations?: ProposalMutation[];
   hunks: ProposalHunk[];
   origin: ProposalOrigin;
   status: ProposalStatus;
@@ -121,3 +131,11 @@ export function to_proposal_summary(proposal: Proposal): ProposalSummary {
 }
 
 export const PROPOSAL_MUTATION_OP = "assistant.proposal_mutation";
+
+export function proposal_mutation_paths(proposal: Proposal): string[] {
+  return (
+    proposal.mutations?.map((mutation) => mutation.path) ?? [
+      proposal_path(proposal.target),
+    ]
+  );
+}

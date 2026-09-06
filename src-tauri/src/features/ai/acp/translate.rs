@@ -167,6 +167,8 @@ impl TurnTranslator {
                 result_summary,
                 paths: state.paths,
                 mutating: state.mutating,
+                    edit_operations: None,
+                    proposals: None,
             });
         }
 

@@ -1,3 +1,4 @@
+import type { ProposalMutation } from "$lib/features/assistant/types/edit_operation";
 import type { AiProviderConfig } from "$lib/shared/types/ai_provider_config";
 import type { AiCliProbeStatus } from "$lib/features/ai";
 import type { RunEvent, RunRequest } from "$lib/features/assistant/types/run";
@@ -113,6 +114,19 @@ export interface ProposalCheckpointPort {
 // staleness against the proposal's base revision (R4) immediately before
 // writing it. Returns null when the note is gone — a proposal over a deleted
 // note is stale, not failed.
+export interface ProposalMutationPort {
+  current_vault(): string | null;
+  prepare_rename(
+    from_path: string,
+    to_path: string,
+  ): Promise<ProposalMutation[]>;
+  apply_mutations(mutations: ProposalMutation[]): Promise<void>;
+  anchor_mutations(
+    paths: string[],
+    anchor: string,
+  ): Promise<ProposalMutation[]>;
+}
+
 export interface ProposalNotePort {
   read_note(note_path: string): Promise<string | null>;
   write_note(note_path: string, content: string): Promise<void>;

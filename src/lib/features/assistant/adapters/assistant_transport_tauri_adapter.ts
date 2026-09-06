@@ -109,6 +109,10 @@ const agent_turn_channel: ChannelDescriptor<AgentRequest, AgentEvent> = {
           name: event.name,
           ok: event.ok,
           result_summary: event.result_summary ?? null,
+          ...(event.proposals?.length ? { proposals: event.proposals } : {}),
+          ...(event.edit_operations?.length
+            ? { edit_operations: event.edit_operations }
+            : {}),
           paths: event.paths,
           mutating: event.mutating,
         };

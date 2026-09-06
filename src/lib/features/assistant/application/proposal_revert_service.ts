@@ -9,11 +9,13 @@ import type { AssistantProposalStore } from "$lib/features/assistant/state/assis
 import type {
   ProposalCheckpointPort,
   ProposalNotePort,
+  ProposalMutationPort,
 } from "$lib/features/assistant/ports";
 import type { OpStore } from "$lib/app/orchestration/op_store.svelte";
 import {
   PROPOSAL_MUTATION_OP,
   proposal_path,
+  proposal_mutation_paths,
 } from "$lib/features/assistant/types/proposal";
 import type { RunId } from "$lib/features/assistant/types/run";
 
@@ -33,6 +35,7 @@ export type ProposalRevertDeps = {
   notes: ProposalNotePort;
   git: ProposalRevertGit;
   checkpoint: ProposalCheckpointPort;
+  mutations?: ProposalMutationPort;
 };
 
 export type ProposalRevertOptions = { confirmed: boolean };
@@ -102,6 +105,7 @@ export class ProposalRevertService {
   private async restore_plan(
     plan: ReadyTurnRevertPlan,
   ): Promise<ProposalRevertOutcome> {
+    const vault = this.deps.mutations?.current_vault();
     const reverting = new Set(plan.proposals.map((proposal) => proposal.id));
     const at_anchor = new Set(
       plan.target.proposals[0]?.origin.anchor_applied_ids ?? [],
@@ -110,7 +114,9 @@ export class ProposalRevertService {
       (proposal) =>
         proposal.status === "applied" &&
         proposal.target.kind === "note" &&
-        plan.note_paths.includes(proposal.target.note_path) &&
+        proposal_mutation_paths(proposal).some((path) =>
+          plan.note_paths.includes(path),
+        ) &&
         !reverting.has(proposal.id) &&
         !at_anchor.has(proposal.id),
     );
@@ -121,16 +127,69 @@ export class ProposalRevertService {
       };
     }
 
+    const structured = plan.proposals.some(
+      (proposal) => proposal.mutations !== undefined,
+    );
+    let restore_mutations;
+    if (structured) {
+      if (!this.deps.mutations)
+        return {
+          status: "refused",
+          reason: "Structured restore support is unavailable.",
+        };
+      try {
+        restore_mutations = await this.deps.mutations.anchor_mutations(
+          plan.note_paths,
+          plan.anchor,
+        );
+      } catch (error) {
+        return { status: "refused", reason: error_message(error) };
+      }
+    }
+    if (vault !== this.deps.mutations?.current_vault())
+      return {
+        status: "refused",
+        reason: "The active vault changed; nothing reverted.",
+      };
     const checkpoint = await this.deps.checkpoint.create_checkpoint(
       `before reverting turn ${String(plan.target.ordinal)}`,
     );
-    if (checkpoint === "failed" || checkpoint === "unavailable") {
+    if (
+      checkpoint === "failed" ||
+      checkpoint === "unavailable" ||
+      vault !== this.deps.mutations?.current_vault()
+    ) {
       return {
         status: "refused",
         reason: "checkpoint failed; nothing reverted",
       };
     }
 
+    if (restore_mutations) {
+      try {
+        if (!this.deps.mutations)
+          throw new Error("Structured restore support is unavailable");
+        await this.deps.mutations.apply_mutations(restore_mutations);
+        for (const proposal of plan.proposals)
+          this.deps.proposals.set_status(proposal.id, "reverted");
+        return {
+          status: "reverted",
+          plan,
+          restored_note_paths: plan.note_paths,
+          failed: [],
+        };
+      } catch (error) {
+        return {
+          status: "reverted",
+          plan,
+          restored_note_paths: [],
+          failed: plan.note_paths.map((note_path) => ({
+            note_path,
+            error: error_message(error),
+          })),
+        };
+      }
+    }
     const restored_note_paths: string[] = [];
     const failed: { note_path: string; error: string }[] = [];
     for (const note_path of plan.note_paths) {
@@ -144,7 +203,9 @@ export class ProposalRevertService {
 
     const restored = new Set(restored_note_paths);
     for (const proposal of plan.proposals) {
-      if (restored.has(proposal_path(proposal.target))) {
+      if (
+        proposal_mutation_paths(proposal).every((path) => restored.has(path))
+      ) {
         this.deps.proposals.set_status(proposal.id, "reverted");
       }
     }

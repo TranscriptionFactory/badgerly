@@ -1,3 +1,5 @@
+import { build_native_proposal } from "$lib/features/assistant/domain/native_proposals";
+import type { NativeProposal } from "$lib/generated/bindings";
 import { create_logger } from "$lib/shared/utils/logger";
 import { error_message } from "$lib/shared/utils/error_message";
 import type { GitDiff } from "$lib/features/git";
@@ -21,7 +23,8 @@ const STALE_ERROR =
 type RestoreOutcome =
   | { status: "restored"; content: string }
   | { status: "stale" }
-  | { status: "failed" };
+  | { status: "failed" }
+  | { status: "vault_changed" };
 
 // Narrow structural dependencies rather than the concrete services, following
 // AgentCheckpointGit's precedent in agent_runner.ts.
@@ -49,8 +52,18 @@ export type AgentProposalQueue = {
 
 export type AgentTurnProposalRequest = {
   anchor: string | null;
+  // The vault the run started in, never a value re-read from the store here:
+  // the paths, the anchor and the native payloads below all belong to it.
+  vault_id?: string;
+  native_proposals?: NativeProposal[];
   origin: ProposalOrigin;
   touched_paths: readonly string[];
+  // Whether that vault is still the active one, re-asked after every await
+  // below. The git reads and restores are slow enough for the user to switch
+  // vaults underneath them, and neither a write nor a queue publication may
+  // land in a vault the run did not start in. The runner owns the pinned
+  // identity and supplies this; a request that omits it is unguarded.
+  is_run_vault_active?: () => boolean;
   // Read from disk at the agent's last successful write to each path, keyed by
   // vault-relative path. A path with no entry rolls back unguarded, so this is
   // required rather than optional — omitting it is the defect this exists to
@@ -59,7 +72,7 @@ export type AgentTurnProposalRequest = {
 };
 
 export type AgentTurnProposalReport = {
-  status: "produced" | "no_anchor";
+  status: "produced" | "no_anchor" | "vault_changed";
   proposed: string[];
   reverted_deletions: string[];
   kept_creations: string[];
@@ -108,15 +121,50 @@ export class AgentProposalService implements AgentTurnProposalProducer {
       failed: [],
     };
 
+    const created_at = this.now_ms();
+    const native: Proposal[] = [];
+    for (const [index, input] of (request.native_proposals ?? []).entries()) {
+      try {
+        native.push(
+          build_native_proposal(
+            input,
+            request.origin,
+            created_at,
+            index,
+            request.vault_id,
+          ),
+        );
+      } catch (error) {
+        report.failed.push({
+          note_path: input.path,
+          error: error_message(error),
+        });
+      }
+    }
+    report.proposed = native.map((proposal) => proposal_path(proposal.target));
+    if (
+      request.touched_paths.length === 0 &&
+      request.native_proposals?.length
+    ) {
+      if (this.vault_changed(request)) return this.abandon(report);
+      if (native.length > 0) this.queue.add_many(native);
+      return report;
+    }
+
     // Named I5 carve-out. Without an anchor there is no pre-turn content to
     // diff against or restore from, so the turn's writes stay on disk
     // unreviewed. Two ways to get here, both legitimate: a vault that is not a
     // git repo at all (`no_repo` — refusing the turn instead would make agent
     // mode unusable in every non-git vault, D2-2), and an unborn branch, where
     // the checkpoint was skipped because no commit exists yet.
-    if (!request.anchor) return { ...report, status: "no_anchor" };
+    if (!request.anchor) {
+      if (this.vault_changed(request)) return this.abandon(report);
+      if (native.length > 0) this.queue.add_many(native);
+      return { ...report, status: "no_anchor" };
+    }
 
     const diff = await this.git.get_working_diff(null, request.anchor);
+    if (this.vault_changed(request)) return this.abandon(report);
     const triage = triage_turn_diff(diff.hunks, request.touched_paths);
     report.skipped_non_note = triage.skipped_non_note;
     report.skipped_binary = triage.skipped_binary;
@@ -128,10 +176,12 @@ export class AgentProposalService implements AgentTurnProposalProducer {
     // deletion the user never approved is git archaeology.
     for (const note_path of triage.deleted_paths) {
       const restored = await this.restore_to_anchor(
+        request,
         note_path,
         request.anchor,
         request.expected_mtimes[note_path],
       );
+      if (restored.status === "vault_changed") return this.abandon(report);
       if (restored.status !== "restored") {
         report.failed.push({
           note_path,
@@ -154,10 +204,12 @@ export class AgentProposalService implements AgentTurnProposalProducer {
     const inputs: AgentTurnProposalInput[] = [];
     for (const file of triage.modified) {
       const restored = await this.restore_to_anchor(
+        request,
         file.note_path,
         request.anchor,
         request.expected_mtimes[file.note_path],
       );
+      if (restored.status === "vault_changed") return this.abandon(report);
       // Fail closed per note: proposing a note we could not roll back would
       // reintroduce exactly the corruption this design exists to prevent.
       if (restored.status !== "restored") {
@@ -173,19 +225,31 @@ export class AgentProposalService implements AgentTurnProposalProducer {
       inputs.push({ file, base_content: restored.content });
     }
 
-    const proposals = build_turn_proposals(
-      inputs,
-      request.origin,
-      this.now_ms(),
-    );
+    const proposals = build_turn_proposals(inputs, request.origin, created_at);
+    if (this.vault_changed(request)) return this.abandon(report);
     // One add_many for the whole turn — the store's contract is that a
     // half-arrived turn must never render.
-    this.queue.add_many(proposals);
-    report.proposed = proposals.map((proposal) =>
-      proposal_path(proposal.target),
+    this.queue.add_many([...native, ...proposals]);
+    report.proposed.push(
+      ...proposals.map((proposal) => proposal_path(proposal.target)),
     );
 
     return report;
+  }
+
+  private vault_changed(request: AgentTurnProposalRequest): boolean {
+    return request.is_run_vault_active?.() === false;
+  }
+
+  // What was already restored stays in the report, because it happened and the
+  // log is the only record of it. `proposed` is cleared: nothing reached the
+  // queue, and a report claiming otherwise would be read as a promise of
+  // reviewable proposals that do not exist.
+  private abandon(report: AgentTurnProposalReport): AgentTurnProposalReport {
+    log.warn("The active vault changed mid-turn; nothing was queued", {
+      restored: report.reverted_deletions.length,
+    });
+    return { ...report, status: "vault_changed", proposed: [] };
   }
 
   // Carries back the content written, which is also the content the caller
@@ -194,10 +258,13 @@ export class AgentProposalService implements AgentTurnProposalProducer {
   // moved under us and leaving it alone is the correct outcome, not a
   // degradation of one.
   private async restore_to_anchor(
+    request: AgentTurnProposalRequest,
     note_path: string,
     anchor: string,
     expected_mtime: number | undefined,
   ): Promise<RestoreOutcome> {
+    if (this.vault_changed(request)) return { status: "vault_changed" };
+
     let content: string;
     try {
       content = await this.git.get_file_at_commit(note_path, anchor);
@@ -208,6 +275,9 @@ export class AgentProposalService implements AgentTurnProposalProducer {
       });
       return { status: "failed" };
     }
+    // The checkpoint read is the last await before the write, and the write is
+    // the point of no return: it lands on whichever vault is open now.
+    if (this.vault_changed(request)) return { status: "vault_changed" };
 
     try {
       await this.notes.write_note(note_path, content, expected_mtime);

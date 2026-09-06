@@ -22,6 +22,7 @@ pub fn parse_args<T: serde::de::DeserializeOwned>(
 
 pub fn prop(prop_type: &str, description: &str) -> PropertySchema {
     PropertySchema {
+        schema: Default::default(),
         prop_type: prop_type.into(),
         description: Some(description.into()),
         enum_values: None,

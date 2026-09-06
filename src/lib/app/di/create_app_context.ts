@@ -62,6 +62,7 @@ import {
   ProposalApplyService,
   ProposalPersistenceService,
   ProposalRevertService,
+  create_proposal_mutation_tauri_adapter,
   create_assistant_transport_tauri_adapter,
   register_assistant_actions,
   register_assistant_edit_actions,
@@ -1324,6 +1325,10 @@ export function create_app_context(input: {
   // and the write is dropped rather than forced.
   const proposal_read_mtimes = new Map<string, number>();
 
+  const proposal_mutations = create_proposal_mutation_tauri_adapter(
+    () => stores.vault.vault?.id ?? null,
+  );
+
   const proposal_notes: ProposalNotePort = {
     read_note: async (note_path) => {
       const vault_id = stores.vault.vault?.id;
@@ -1408,6 +1413,7 @@ export function create_app_context(input: {
   };
 
   const proposal_apply = new ProposalApplyService({
+    mutations: proposal_mutations,
     ops: stores.op,
     proposals: stores.assistant_proposals,
     notes: proposal_notes,
@@ -1416,6 +1422,7 @@ export function create_app_context(input: {
   });
 
   const proposal_revert = new ProposalRevertService({
+    mutations: proposal_mutations,
     ops: stores.op,
     proposals: stores.assistant_proposals,
     notes: proposal_notes,
