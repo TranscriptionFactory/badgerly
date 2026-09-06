@@ -1,5 +1,12 @@
 # carbide
 
+## 2.35.1
+
+### Patch Changes
+
+- e8f89d2: Typing `[[~` now opens the assistant-session suggester, so session links no longer require typing the `◈` glyph. The alias is only accepted while the suggester is open; accepting a suggestion still writes the canonical `[[◈ id|title]]` target.
+- f8ad138: Assistant replies in an opened session transcript now render as markdown instead of raw text, matching the chat panel, and links inside them open the note or URL they point at.
+
 ## 2.35.0
 
 ### Minor Changes
