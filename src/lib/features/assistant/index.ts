@@ -372,6 +372,8 @@ export {
 
 export {
   is_session_link,
+  is_session_query,
+  session_query_term,
   session_link_target,
   resolve_session_link,
   type SessionLinkTarget,

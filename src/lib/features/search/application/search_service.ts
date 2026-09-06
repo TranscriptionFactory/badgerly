@@ -52,8 +52,9 @@ import {
 } from "$lib/features/search/domain/omnibar_ranking";
 
 import {
-  is_session_link,
+  is_session_query,
   resolve_session_link,
+  session_query_term,
   type SessionLinkTarget,
 } from "$lib/features/assistant";
 
@@ -323,8 +324,8 @@ export class SearchService {
     const vault_id = this.get_active_vault_id();
     if (!vault_id) return { status: "skipped", results: [] };
 
-    if (is_session_link(trimmed)) {
-      const term = trimmed.slice(1).trim().toLowerCase();
+    if (is_session_query(trimmed)) {
+      const term = session_query_term(trimmed).toLowerCase();
       const results = this.get_session_links(vault_id)
         .filter(
           (session) =>

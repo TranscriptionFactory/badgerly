@@ -5,8 +5,11 @@ import {
 import { extract_local_links } from "$lib/features/links/domain/extract_local_links";
 import { describe, expect, it } from "vitest";
 import {
+  is_session_link,
+  is_session_query,
   resolve_session_link,
   session_link_target,
+  session_query_term,
 } from "$lib/features/assistant/domain/session_link";
 import {
   build_wiki_href,
@@ -83,4 +86,43 @@ it("does not resolve a reserved session target against similarly named notes", (
   expect(
     is_resolved_wiki_link_target("◈ session-1", new Set(["◈ session-1"])),
   ).toBe(false);
+});
+
+describe("the ~ typing alias", () => {
+  it.each([
+    ["~", ""],
+    ["~session-1", "session-1"],
+    ["~ Review #3", "Review #3"],
+    ["◈ Review #3", "Review #3"],
+  ])("reads %s as the session query %s", (text, term) => {
+    expect(is_session_query(text)).toBe(true);
+    expect(session_query_term(text)).toBe(term);
+  });
+
+  it("keeps a title hash out of the heading query", () => {
+    expect(extract_wiki_query("[[~Review #3")).toMatchObject({
+      mode: "note",
+      query: "~Review #3",
+    });
+  });
+
+  it.each(["note", "d:today", " ordinary"])(
+    "leaves %s to the note suggester",
+    (text) => {
+      expect(is_session_query(text)).toBe(false);
+      expect(session_query_term(text)).toBe("");
+    },
+  );
+
+  // The alias never reaches storage: only the suggester accepts it, and
+  // accepting writes the canonical target, so a hand-typed `~` link stays an
+  // ordinary note reference on both sides of the IPC boundary.
+  it("is not a stored session link", () => {
+    expect(is_session_link("~session-1")).toBe(false);
+    expect(session_link_target("~session-1")).toBeNull();
+    expect(resolve_session_link("~session-1", [session])).toBeNull();
+    expect(extract_local_links("[[~session-1]]").outlink_paths).toEqual([
+      "~session-1",
+    ]);
+  });
 });

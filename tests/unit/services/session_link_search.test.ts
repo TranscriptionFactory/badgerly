@@ -52,6 +52,17 @@ describe("session link search", () => {
     expect(suggest_planned_links).not.toHaveBeenCalled();
   });
 
+  it("suggests sessions for the ~ typing alias", async () => {
+    const { service, suggest_wiki_links } = setup();
+    for (const term of ["~", "~REVIEW", "~ session-1"]) {
+      expect(await service.suggest_wiki_links(term)).toEqual({
+        status: "success",
+        results: [{ kind: "session", id: "session-1", title: "Link review" }],
+      });
+    }
+    expect(suggest_wiki_links).not.toHaveBeenCalled();
+  });
+
   it("fails closed immediately on vault switch, including before hydration", async () => {
     const { vault, sessions, service } = setup();
     expect(service.resolve_session_link("◈ session-1")?.id).toBe("session-1");
