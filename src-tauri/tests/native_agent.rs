@@ -9,7 +9,8 @@ use crate::features::ai::agent_stream::{AgentEvent, ToolKind, ToolSelector};
 use crate::features::ai::permissions::{ParkOutcome, PermissionRequestSpec};
 use crate::features::ai::agent_stream::PermissionOptionKind;
 use crate::features::ai::native_agent::{
-    allowed_tools, build_system_prompt, evict_history, resolve_max_iterations, run_native_turn,
+    allowed_tools, build_system_prompt, evict_history, proposal_only_refusal,
+    resolve_max_iterations, run_native_turn,
     truncate_tool_result, ModelClient, NativeGate, HISTORY_MAX_CHARS, HISTORY_MAX_MESSAGES,
     MAX_ITERATIONS, MAX_ITERATIONS_HARD_CAP, TOOL_RESULT_MAX_CHARS, UNATTENDED_MAX_ITERATIONS,
 };
@@ -143,9 +144,56 @@ where
         catalog,
         selector,
         MAX_ITERATIONS,
+        false,
         abort_rx,
         emit,
         approval,
+    )
+    .await;
+    let out = events.lock().unwrap().clone();
+    out
+}
+
+/// Records every tool name that actually reached dispatch, so a refusal can be
+/// proven by absence rather than only by the emitted event.
+fn recording_dispatch(
+    seen: Arc<Mutex<Vec<String>>>,
+) -> impl FnMut(&str, Option<&Value>) -> ToolResult {
+    move |name: &str, _args: Option<&Value>| {
+        seen.lock().unwrap().push(name.to_string());
+        ToolResult::text("result".into())
+    }
+}
+
+/// Same harness with the unattended flag raised.
+#[allow(clippy::too_many_arguments)]
+async fn drive_unattended<C, D>(
+    client: C,
+    catalog: Vec<ToolDefinition>,
+    selector: ToolSelector,
+    dispatch: D,
+    abort_rx: oneshot::Receiver<()>,
+) -> Vec<AgentEvent>
+where
+    C: ModelClient,
+    D: FnMut(&str, Option<&Value>) -> ToolResult,
+{
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let sink = events.clone();
+    let emit = move |event: AgentEvent| sink.lock().unwrap().push(event);
+    run_native_turn(
+        client,
+        dispatch,
+        "sess".into(),
+        "sys".into(),
+        Vec::new(),
+        catalog,
+        selector,
+        MAX_ITERATIONS,
+        true,
+        abort_rx,
+        emit,
+        allow_all,
     )
     .await;
     let out = events.lock().unwrap().clone();
@@ -180,6 +228,7 @@ where
         catalog,
         selector,
         max_iterations,
+        false,
         abort_rx,
         emit,
         approval,
@@ -943,6 +992,7 @@ async fn replay_history_reaches_model_system_first() {
         vec![tool_def("search", false)],
         ToolSelector::Full,
         MAX_ITERATIONS,
+        false,
         rx,
         emit,
         allow_all,
@@ -1068,4 +1118,128 @@ async fn native_edit_operations_survive_summary_truncation() {
         _ => None,
     }).unwrap();
     assert_eq!(payload, &expected);
+}
+
+#[test]
+fn proposal_only_gate_lets_every_read_only_tool_through() {
+    assert_eq!(proposal_only_refusal("search_notes", None, false), None);
+    assert_eq!(proposal_only_refusal("read_note", None, false), None);
+}
+
+#[test]
+fn proposal_only_gate_allows_a_typed_edit() {
+    let args = serde_json::json!({ "path": "n.md", "operation": { "kind": "replace_span" } });
+    assert_eq!(proposal_only_refusal("edit_note", Some(&args), true), None);
+}
+
+#[test]
+fn proposal_only_gate_refuses_an_untyped_edit() {
+    let args = serde_json::json!({ "path": "n.md", "old_string": "a", "new_string": "b" });
+    let refusal = proposal_only_refusal("edit_note", Some(&args), true)
+        .expect("find/replace reaches the writing path and must be refused");
+    assert!(refusal.contains("operation"), "refusal must name the fix: {refusal}");
+}
+
+#[test]
+fn proposal_only_gate_refuses_a_null_operation() {
+    let args = serde_json::json!({ "path": "n.md", "operation": null });
+    assert!(proposal_only_refusal("edit_note", Some(&args), true).is_some());
+}
+
+#[test]
+fn proposal_only_gate_refuses_other_mutating_tools() {
+    for name in ["create_note", "delete_note", "append_note", "rename_note", "save_memory"] {
+        let refusal = proposal_only_refusal(name, None, true)
+            .unwrap_or_else(|| panic!("{name} writes and must be refused"));
+        assert!(refusal.contains("edit_note"), "refusal should point at the typed tool");
+    }
+}
+
+#[tokio::test]
+async fn an_unattended_run_refuses_an_untyped_edit_before_it_reaches_dispatch() {
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let (client, _) = scripted(vec![
+        call_turn("c1", "edit_note", r#"{"path":"n.md","old_string":"a","new_string":"b"}"#),
+        text_turn("understood"),
+    ]);
+    let (_tx, rx) = oneshot::channel();
+
+    let events = drive_unattended(
+        client,
+        vec![tool_def("edit_note", true)],
+        ToolSelector::Full,
+        recording_dispatch(seen.clone()),
+        rx,
+    )
+    .await;
+
+    assert!(
+        seen.lock().unwrap().is_empty(),
+        "the writing path must never be dispatched in an unattended run"
+    );
+    let ends: Vec<bool> = events
+        .iter()
+        .filter_map(|e| match e {
+            AgentEvent::ToolEnd { ok, .. } => Some(*ok),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(ends, [false]);
+    assert!(matches!(events.last(), Some(AgentEvent::Done { .. })));
+}
+
+#[tokio::test]
+async fn an_unattended_run_dispatches_a_typed_edit() {
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let (client, _) = scripted(vec![
+        call_turn(
+            "c1",
+            "edit_note",
+            r#"{"path":"n.md","operation":{"kind":"replace_span"}}"#,
+        ),
+        text_turn("done"),
+    ]);
+    let (_tx, rx) = oneshot::channel();
+
+    let events = drive_unattended(
+        client,
+        vec![tool_def("edit_note", true)],
+        ToolSelector::Full,
+        recording_dispatch(seen.clone()),
+        rx,
+    )
+    .await;
+
+    assert_eq!(*seen.lock().unwrap(), vec!["edit_note".to_string()]);
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, AgentEvent::ToolEnd { ok: true, .. })));
+}
+
+#[tokio::test]
+async fn an_interactive_run_is_unaffected_by_the_gate() {
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let (client, _) = scripted(vec![
+        call_turn("c1", "edit_note", r#"{"path":"n.md","old_string":"a","new_string":"b"}"#),
+        text_turn("done"),
+    ]);
+    let (_tx, rx) = oneshot::channel();
+
+    let events = drive(
+        client,
+        vec![tool_def("edit_note", true)],
+        ToolSelector::Full,
+        recording_dispatch(seen.clone()),
+        rx,
+    )
+    .await;
+
+    assert_eq!(
+        *seen.lock().unwrap(),
+        vec!["edit_note".to_string()],
+        "the gate must not narrow chat"
+    );
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, AgentEvent::ToolEnd { ok: true, .. })));
 }
