@@ -49,6 +49,14 @@ pub struct AgentRunSpec {
     pub acp_agent: Option<super::acp::AcpAgentSpec>,
     #[serde(default)]
     pub history: Vec<AiMessage>,
+    /// Per-run iteration budget. `None` takes the kind's default; the backend
+    /// clamps to `MAX_ITERATIONS_HARD_CAP` regardless.
+    #[serde(default)]
+    pub max_iterations: Option<u32>,
+    /// A run nobody is watching. Raises the default iteration budget and puts
+    /// the run behind the proposal-only gate, so it can never write to disk.
+    #[serde(default)]
+    pub unattended: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
@@ -56,6 +64,10 @@ pub struct AgentRunStats {
     pub duration_ms: u32,
     pub num_turns: u32,
     pub total_cost_usd: f64,
+    /// The run ended because it exhausted its iteration budget rather than
+    /// because the model was finished.
+    #[serde(default)]
+    pub stopped_at_cap: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]

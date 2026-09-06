@@ -24,6 +24,29 @@ use super::service::{AiProviderConfig, AiTransport};
 use super::stream::{AiContentPart, AiMessage, AiMessageContent, AiStreamEvent, AiToolCall};
 
 pub const MAX_ITERATIONS: u32 = 16;
+/// An unattended run gets a longer leash than a chat turn: nobody is watching to
+/// nudge it, so it must be able to finish a multi-note pass on its own.
+pub const UNATTENDED_MAX_ITERATIONS: u32 = 48;
+/// The ceiling the backend enforces no matter what the frontend asks for. The
+/// frontend owns which default applies (`unattended_policy.ts`); this is the
+/// backstop it cannot be talked past, so a malformed or hostile spec still
+/// terminates.
+pub const MAX_ITERATIONS_HARD_CAP: u32 = 128;
+
+/// `requested` of `None` or `0` means "no opinion" and takes the kind's default.
+/// Everything is clamped to the hard cap.
+pub fn resolve_max_iterations(requested: Option<u32>, unattended: bool) -> u32 {
+    let default = if unattended {
+        UNATTENDED_MAX_ITERATIONS
+    } else {
+        MAX_ITERATIONS
+    };
+    let chosen = match requested {
+        Some(value) if value > 0 => value,
+        _ => default,
+    };
+    chosen.min(MAX_ITERATIONS_HARD_CAP)
+}
 pub const TOOL_RESULT_MAX_CHARS: usize = 4000;
 pub const HISTORY_MAX_MESSAGES: usize = 40;
 pub const HISTORY_MAX_CHARS: usize = 100_000;
@@ -227,6 +250,7 @@ pub async fn run_native_turn<C, D, E, A>(
     mut history: Vec<AiMessage>,
     catalog: Vec<ToolDefinition>,
     toolset: ToolSelector,
+    max_iterations: u32,
     mut abort_rx: oneshot::Receiver<()>,
     mut emit: E,
     approval: A,
@@ -250,6 +274,7 @@ pub async fn run_native_turn<C, D, E, A>(
         .collect();
 
     let mut num_turns: u32 = 0;
+    let mut stopped_at_cap = false;
 
     loop {
         if abort_rx.try_recv().is_ok() {
@@ -258,7 +283,11 @@ pub async fn run_native_turn<C, D, E, A>(
             });
             return;
         }
-        if num_turns >= MAX_ITERATIONS {
+        if num_turns >= max_iterations {
+            // Not an error: the run ends cleanly and whatever it already
+            // produced still stands. The flag is what lets the surface say the
+            // run was cut short rather than finished.
+            stopped_at_cap = true;
             break;
         }
         num_turns += 1;
@@ -435,6 +464,7 @@ pub async fn run_native_turn<C, D, E, A>(
             duration_ms: start.elapsed().as_millis() as u32,
             num_turns,
             total_cost_usd: 0.0,
+            stopped_at_cap,
         },
     });
 }
@@ -521,6 +551,7 @@ pub fn spawn_native_turn(
     let mut history = evict_history(spec.history);
     history.push(user_message(spec.prompt.clone()));
     let system_prompt = build_system_prompt(&spec.vault_path, &spec.toolset);
+    let max_iterations = resolve_max_iterations(spec.max_iterations, spec.unattended);
     let session_id = request_id.clone();
     let client = TransportModelClient::new(spec.provider_config);
     let toolset = spec.toolset;
@@ -570,6 +601,7 @@ pub fn spawn_native_turn(
             history,
             catalog,
             toolset,
+            max_iterations,
             abort_rx,
             emit,
             approval,

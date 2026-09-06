@@ -347,6 +347,8 @@ async fn run_turn(
                 duration_ms: started.elapsed().as_millis().min(u128::from(u32::MAX)) as u32,
                 num_turns: 1,
                 total_cost_usd: 0.0,
+                // ACP runs are not iteration-capped by us; the agent decides.
+                stopped_at_cap: false,
             },
         }),
         Err(error) => turn(AgentEvent::Error {

@@ -208,9 +208,39 @@ describe("assistant_transport_tauri_adapter", () => {
         history: [{ role: "user", content: "earlier" }],
         resume_session_id: "sess-7",
         backend: "acp",
+        max_iterations: null,
+        unattended: false,
         acp_agent: { kind: "preset", id: "claude" },
       });
       expect(channel(0).name).toBe(`agent-run-event:${String(args.requestId)}`);
+    });
+
+    // The boundary these two cross is the one an optional TS field can fall
+    // through silently: absent on the request must reach Rust as an explicit
+    // null/false, never as a missing key.
+    it("sends an unattended run's budget and flag through to the spec", async () => {
+      open_stream({ ...agent_request, max_iterations: 48, unattended: true });
+      await flush();
+
+      const args = start_args_of("agent_run_start");
+      expect(args.spec).toMatchObject({
+        max_iterations: 48,
+        unattended: true,
+      });
+    });
+
+    it("defaults the budget and flag explicitly when the request omits them", async () => {
+      stream_agent();
+      await flush();
+
+      const spec = start_args_of("agent_run_start").spec as Record<
+        string,
+        unknown
+      >;
+      expect(Object.hasOwn(spec, "max_iterations")).toBe(true);
+      expect(Object.hasOwn(spec, "unattended")).toBe(true);
+      expect(spec.max_iterations).toBeNull();
+      expect(spec.unattended).toBe(false);
     });
 
     it("normalizes init to session and text.delta to text", async () => {

@@ -9,9 +9,9 @@ use crate::features::ai::agent_stream::{AgentEvent, ToolKind, ToolSelector};
 use crate::features::ai::permissions::{ParkOutcome, PermissionRequestSpec};
 use crate::features::ai::agent_stream::PermissionOptionKind;
 use crate::features::ai::native_agent::{
-    allowed_tools, build_system_prompt, evict_history, run_native_turn, truncate_tool_result,
-    ModelClient, NativeGate, HISTORY_MAX_CHARS, HISTORY_MAX_MESSAGES, MAX_ITERATIONS,
-    TOOL_RESULT_MAX_CHARS,
+    allowed_tools, build_system_prompt, evict_history, resolve_max_iterations, run_native_turn,
+    truncate_tool_result, ModelClient, NativeGate, HISTORY_MAX_CHARS, HISTORY_MAX_MESSAGES,
+    MAX_ITERATIONS, MAX_ITERATIONS_HARD_CAP, TOOL_RESULT_MAX_CHARS, UNATTENDED_MAX_ITERATIONS,
 };
 use crate::features::ai::stream::{AiMessage, AiMessageContent, AiStreamEvent, AiToolCall};
 use crate::features::mcp::shared_ops::{apply_edit, OpError};
@@ -142,6 +142,44 @@ where
         Vec::new(),
         catalog,
         selector,
+        MAX_ITERATIONS,
+        abort_rx,
+        emit,
+        approval,
+    )
+    .await;
+    let out = events.lock().unwrap().clone();
+    out
+}
+
+/// Same harness with an explicit iteration budget, for the cap tests only.
+#[allow(clippy::too_many_arguments)]
+async fn drive_with_limit<C, D, A>(
+    client: C,
+    catalog: Vec<ToolDefinition>,
+    selector: ToolSelector,
+    dispatch: D,
+    max_iterations: u32,
+    abort_rx: oneshot::Receiver<()>,
+    approval: A,
+) -> Vec<AgentEvent>
+where
+    C: ModelClient,
+    D: FnMut(&str, Option<&Value>) -> ToolResult,
+    A: Fn(&PermissionRequestSpec) -> NativeGate,
+{
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let sink = events.clone();
+    let emit = move |event: AgentEvent| sink.lock().unwrap().push(event);
+    run_native_turn(
+        client,
+        dispatch,
+        "sess".into(),
+        "sys".into(),
+        Vec::new(),
+        catalog,
+        selector,
+        max_iterations,
         abort_rx,
         emit,
         approval,
@@ -162,6 +200,13 @@ fn scripted(turns: Vec<Vec<AiStreamEvent>>) -> (FakeClient, Arc<Mutex<Vec<Vec<St
 
 fn ok_dispatch() -> impl FnMut(&str, Option<&Value>) -> ToolResult {
     |_name: &str, _args: Option<&Value>| ToolResult::text("result".into())
+}
+
+fn done_stopped_at_cap(events: &[AgentEvent]) -> bool {
+    match events.last() {
+        Some(AgentEvent::Done { stats }) => stats.stopped_at_cap,
+        other => panic!("expected done, got {other:?}"),
+    }
 }
 
 fn done_num_turns(events: &[AgentEvent]) -> u32 {
@@ -428,6 +473,94 @@ async fn scenario_5_max_iterations_cap() {
         "cap must not surface an error"
     );
     assert_eq!(done_num_turns(&events), MAX_ITERATIONS);
+    assert!(
+        done_stopped_at_cap(&events),
+        "a run cut short by the budget must say so"
+    );
+}
+
+#[test]
+fn resolve_max_iterations_takes_the_kind_default_when_unset() {
+    assert_eq!(resolve_max_iterations(None, false), MAX_ITERATIONS);
+    assert_eq!(resolve_max_iterations(None, true), UNATTENDED_MAX_ITERATIONS);
+}
+
+#[test]
+fn resolve_max_iterations_treats_zero_as_no_opinion() {
+    assert_eq!(resolve_max_iterations(Some(0), false), MAX_ITERATIONS);
+    assert_eq!(
+        resolve_max_iterations(Some(0), true),
+        UNATTENDED_MAX_ITERATIONS
+    );
+}
+
+#[test]
+fn resolve_max_iterations_honours_an_explicit_budget() {
+    assert_eq!(resolve_max_iterations(Some(3), false), 3);
+    assert_eq!(resolve_max_iterations(Some(64), true), 64);
+}
+
+#[test]
+fn resolve_max_iterations_clamps_to_the_hard_cap() {
+    assert_eq!(
+        resolve_max_iterations(Some(10_000), true),
+        MAX_ITERATIONS_HARD_CAP
+    );
+    assert_eq!(
+        resolve_max_iterations(Some(u32::MAX), false),
+        MAX_ITERATIONS_HARD_CAP
+    );
+}
+
+#[tokio::test]
+async fn a_run_stops_at_its_own_budget_not_the_interactive_default() {
+    let client = AlwaysToolClient {
+        calls: Arc::new(Mutex::new(0)),
+    };
+    let (_tx, rx) = oneshot::channel();
+
+    let events = drive_with_limit(
+        client,
+        vec![tool_def("search", false)],
+        ToolSelector::Full,
+        ok_dispatch(),
+        3,
+        rx,
+        allow_all,
+    )
+    .await;
+
+    assert!(
+        !events.iter().any(|e| matches!(e, AgentEvent::Error { .. })),
+        "cap must not surface an error"
+    );
+    assert_eq!(done_num_turns(&events), 3);
+    assert!(done_stopped_at_cap(&events));
+}
+
+#[tokio::test]
+async fn a_run_that_finishes_early_is_not_flagged_as_capped() {
+    let (client, _seen) = scripted(vec![vec![AiStreamEvent::Text {
+        text: "all done".into(),
+    }]]);
+    let (_tx, rx) = oneshot::channel();
+
+    let events = drive_with_limit(
+        client,
+        vec![tool_def("search", false)],
+        ToolSelector::Full,
+        ok_dispatch(),
+        16,
+        rx,
+        allow_all,
+    )
+    .await;
+
+    assert_eq!(done_num_turns(&events), 1);
+    assert!(
+        !done_stopped_at_cap(&events),
+        "a model that stopped on its own was not capped"
+    );
 }
 
 #[tokio::test]
@@ -809,6 +942,7 @@ async fn replay_history_reaches_model_system_first() {
         history,
         vec![tool_def("search", false)],
         ToolSelector::Full,
+        MAX_ITERATIONS,
         rx,
         emit,
         allow_all,
