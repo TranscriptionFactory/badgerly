@@ -12,14 +12,11 @@
   import { ACTION_IDS } from "$lib/app";
   import CollapsibleSection from "$lib/components/ui/collapsible_section.svelte";
   import ToolCallCard from "$lib/features/assistant/ui/tool_call_card.svelte";
+  import AssistantMarkdown from "$lib/features/assistant/ui/assistant_markdown.svelte";
   import type {
     AssistantCitation,
     AssistantMessage,
   } from "$lib/features/assistant/types/session";
-  import {
-    render_rag_markdown,
-    CITATION_INDEX_ATTR,
-  } from "$lib/features/assistant/domain/chat_markdown";
   import type { PermissionResponse } from "$lib/features/assistant/domain/permission_outcome";
   import { citations_from_tools } from "$lib/features/assistant/domain/agent_citations";
   import { to_vault_relative_path } from "$lib/features/assistant/domain/agent_file_ops";
@@ -49,10 +46,6 @@
 
   const citation_map = $derived(
     new Map(display_citations.map((c) => [c.index, c])),
-  );
-
-  const rendered_html = $derived(
-    render_rag_markdown(message.content, citation_map),
   );
 
   const stats = $derived(message.context_stats);
@@ -103,8 +96,6 @@
     void action_registry.execute(ACTION_IDS.rag_fork, message.id);
   }
 
-  let content_el = $state<HTMLElement | null>(null);
-
   let reasoning_user_open = $state<boolean | null>(null);
   const reasoning_auto_open = $derived(
     is_streaming && Boolean(message.reasoning) && message.content === "",
@@ -140,40 +131,6 @@
   function allow_everything() {
     void action_registry.execute(ACTION_IDS.assistant_set_auto_approve, true);
   }
-
-  $effect(() => {
-    const el = content_el;
-    if (!el) return;
-    const on_click = (event: MouseEvent) => {
-      const source = event.target as HTMLElement | null;
-      const target = source?.closest(`[${CITATION_INDEX_ATTR}]`);
-      if (target) {
-        const index = Number(target.getAttribute(CITATION_INDEX_ATTR));
-        const citation = citation_map.get(index);
-        if (citation) open_citation(citation);
-        return;
-      }
-      const anchor = source?.closest("a");
-      if (!anchor) return;
-      event.preventDefault();
-      const href = anchor.getAttribute("href") ?? "";
-      if (href === "" || href.startsWith("#")) return;
-      // Scheme needs 2+ chars so Windows drive paths (C:/…) read as paths
-      if (/^[a-z][a-z0-9+.-]+:/i.test(href)) {
-        void action_registry.execute(ACTION_IDS.shell_open_url, href);
-        return;
-      }
-      let decoded = href;
-      try {
-        decoded = decodeURI(href);
-      } catch {
-        // malformed percent-encoding — fall back to the raw href
-      }
-      open_note(to_vault_relative_path(vault_path, decoded));
-    };
-    el.addEventListener("click", on_click);
-    return () => el.removeEventListener("click", on_click);
-  });
 </script>
 
 {#if message.role === "user"}
@@ -223,15 +180,16 @@
         </CollapsibleSection>
       </div>
     {/if}
-    <div
-      bind:this={content_el}
-      class="rag-markdown text-sm leading-[1.45] text-foreground"
-    >
-      {@html rendered_html}{#if is_streaming}<span
-          class="ml-0.5 inline-block w-1.5 animate-pulse select-none align-baseline text-foreground"
-          aria-hidden="true">▍</span
-        >{/if}
-    </div>
+    <AssistantMarkdown
+      content={message.content}
+      citations={citation_map}
+      streaming={is_streaming}
+      on_citation={open_citation}
+      on_open_url={(href) =>
+        void action_registry.execute(ACTION_IDS.shell_open_url, href)}
+      on_open_path={(path) =>
+        open_note(to_vault_relative_path(vault_path, path))}
+    />
 
     {#if message.error}
       <div class="flex select-text items-start gap-2 text-xs text-destructive">
@@ -370,40 +328,3 @@
     {/if}
   </div>
 {/if}
-
-<style>
-  .rag-markdown :global(> :not(:last-child)) {
-    margin-bottom: 0.5rem;
-  }
-  .rag-markdown :global(ul),
-  .rag-markdown :global(ol) {
-    padding-left: 1.25rem;
-  }
-  .rag-markdown :global(ul) {
-    list-style: disc;
-  }
-  .rag-markdown :global(ol) {
-    list-style: decimal;
-  }
-  .rag-markdown :global(pre) {
-    overflow-x: auto;
-    border-radius: calc(var(--radius) - 2px);
-    background: var(--muted);
-    padding: 0.5rem;
-  }
-  .rag-markdown :global(code) {
-    font-family: var(--font-mono, monospace);
-    font-size: 0.85em;
-  }
-  .rag-markdown :global(blockquote) {
-    border-left: 2px solid var(--border);
-    padding-left: 0.75rem;
-    color: var(--muted-foreground);
-  }
-  .rag-markdown :global(h1),
-  .rag-markdown :global(h2),
-  .rag-markdown :global(h3),
-  .rag-markdown :global(h4) {
-    font-weight: 600;
-  }
-</style>

@@ -1,17 +1,27 @@
 <script lang="ts">
   import MessagesSquare from "@lucide/svelte/icons/messages-square";
   import EmptyMessage from "$lib/components/ui/empty_message.svelte";
+  import AssistantMarkdown from "$lib/features/assistant/ui/assistant_markdown.svelte";
   import type { AssistantSession } from "$lib/features/assistant/types/session";
 
   interface Props {
     session: AssistantSession | null;
+    on_open_path?: ((path: string) => void) | undefined;
+    on_open_url?: ((href: string) => void) | undefined;
   }
 
-  let { session }: Props = $props();
+  let { session, on_open_path, on_open_url }: Props = $props();
 
   // tool-call replay messages are persisted for the agent loop, not shown
   const visible_messages = $derived(
-    (session?.messages ?? []).filter((message) => message.role !== "tool"),
+    (session?.messages ?? [])
+      .filter((message) => message.role !== "tool")
+      .map((message) => ({
+        message,
+        citations: new Map(
+          message.citations.map((citation) => [citation.index, citation]),
+        ),
+      })),
   );
 </script>
 
@@ -45,16 +55,28 @@
       />
     {:else}
       <ol class="AssistantSessionTabView__transcript">
-        {#each visible_messages as message (message.id)}
+        {#each visible_messages as { message, citations } (message.id)}
           <li
             class="AssistantSessionTabView__message"
             data-testid="assistant-session-message"
             data-role={message.role}
           >
             <span class="AssistantSessionTabView__role">{message.role}</span>
-            <div class="AssistantSessionTabView__content">
-              {message.content}
-            </div>
+            {#if message.role === "user"}
+              <!-- verbatim, like the chat composer's own bubble: what was typed
+                   is the record, not markdown the assistant authored -->
+              <div class="AssistantSessionTabView__content">
+                {message.content}
+              </div>
+            {:else}
+              <AssistantMarkdown
+                content={message.content}
+                {citations}
+                on_citation={(citation) => on_open_path?.(citation.note_path)}
+                {on_open_path}
+                {on_open_url}
+              />
+            {/if}
           </li>
         {/each}
       </ol>

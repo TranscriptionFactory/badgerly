@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import AssistantSessionTabView from "$lib/features/assistant/ui/assistant_session_tab_view.svelte";
 import type { AssistantSession } from "$lib/features/assistant";
 import {
@@ -16,10 +16,18 @@ import {
 
 // The view takes the session as a prop and never reads the app context, so it
 // mounts without any store or context wiring.
-function render(session: AssistantSession | null) {
+type ViewProps = {
+  on_open_path?: (path: string) => void;
+  on_open_url?: (href: string) => void;
+};
+
+function render(session: AssistantSession | null, props: ViewProps = {}) {
   const target = document.createElement("div");
   document.body.appendChild(target);
-  const app = mount(AssistantSessionTabView, { target, props: { session } });
+  const app = mount(AssistantSessionTabView, {
+    target,
+    props: { session, ...props },
+  });
   flushSync();
   return {
     target,
@@ -123,6 +131,78 @@ describe("assistant_session_tab_view", () => {
     expect(
       view.target.querySelector('[data-testid="empty-message"]')?.textContent,
     ).toContain("No messages yet");
+
+    view.cleanup();
+  });
+});
+
+describe("assistant_session_tab_view markdown", () => {
+  function transcript_message(content: string, role: "user" | "assistant") {
+    const view = render(
+      make_session({ messages: [make_session_message({ role, content })] }),
+    );
+    const message = view.target.querySelector<HTMLElement>(
+      '[data-testid="assistant-session-message"]',
+    );
+    if (!message) throw new Error("no transcript message rendered");
+    return { view, message };
+  }
+
+  it("renders assistant replies as markdown", () => {
+    const { view, message } = transcript_message(
+      "**Bold** and `code`\n\n- first\n- second",
+      "assistant",
+    );
+
+    expect(message.querySelector("strong")?.textContent).toBe("Bold");
+    expect(message.querySelector("code")?.textContent).toBe("code");
+    expect(message.querySelectorAll("li")).toHaveLength(2);
+    expect(message.textContent).not.toContain("**Bold**");
+
+    view.cleanup();
+  });
+
+  it("keeps what the user typed verbatim", () => {
+    const { view, message } = transcript_message(
+      "**not bold** in my # note",
+      "user",
+    );
+
+    expect(message.querySelector("strong")).toBeNull();
+    expect(message.textContent).toContain("**not bold** in my # note");
+
+    view.cleanup();
+  });
+
+  it("routes transcript links instead of navigating the webview", () => {
+    const on_open_path = vi.fn();
+    const on_open_url = vi.fn();
+    const view = render(
+      make_session({
+        messages: [
+          make_session_message({
+            role: "assistant",
+            content:
+              "See [the note](Some%20Note.md) and [docs](https://example.com).",
+          }),
+        ],
+      }),
+      { on_open_path, on_open_url },
+    );
+
+    const anchors = view.target.querySelectorAll("a");
+    expect(anchors).toHaveLength(2);
+    for (const anchor of anchors) {
+      const event = new MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+      });
+      anchor.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+    }
+
+    expect(on_open_path).toHaveBeenCalledWith("Some Note.md");
+    expect(on_open_url).toHaveBeenCalledWith("https://example.com");
 
     view.cleanup();
   });

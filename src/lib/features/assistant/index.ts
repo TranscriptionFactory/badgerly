@@ -114,6 +114,7 @@ export {
   changed_files_from_tools,
   is_mutating_tool,
   paths_from_summary,
+  to_vault_relative_path,
   type AgentToolCall,
 } from "$lib/features/assistant/domain/agent_file_ops";
 

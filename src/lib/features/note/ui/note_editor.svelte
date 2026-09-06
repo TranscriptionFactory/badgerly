@@ -15,6 +15,7 @@
     AssistantSessionTabView,
     AssistantProposalsTabView,
     AssistantNoticeRail,
+    to_vault_relative_path,
   } from "$lib/features/assistant";
   import { EditorContextMenu } from "$lib/features/editor";
   import { as_markdown_text } from "$lib/shared/types/ids";
@@ -124,6 +125,13 @@
   {:else if active_tab?.kind === "assistant_session"}
     <AssistantSessionTabView
       session={stores.assistant_sessions.get(active_tab.session_id)}
+      on_open_path={(path) =>
+        void action_registry.execute(
+          ACTION_IDS.rag_open_citation,
+          to_vault_relative_path(String(stores.vault.vault?.path ?? ""), path),
+        )}
+      on_open_url={(href) =>
+        void action_registry.execute(ACTION_IDS.shell_open_url, href)}
     />
   {:else if active_tab?.kind === "assistant_proposals"}
     <AssistantProposalsTabView
