@@ -113,6 +113,9 @@ function create_harness(options: HarnessOptions = {}) {
     proposal_revert: proposal_revert as never,
     chat_store: new AssistantChatStore(sessions),
     active_document_path: () => null,
+    unattended_runs: {
+      run: vi.fn().mockResolvedValue({ status: "refused", reason: "stub" }),
+    } as never,
   });
 
   return {
@@ -645,6 +648,9 @@ describe("assistant.open_panel (pin 5)", () => {
       } as never,
       chat_store,
       active_document_path: () => options?.active_document ?? null,
+      unattended_runs: {
+        run: vi.fn().mockResolvedValue({ status: "refused", reason: "stub" }),
+      } as never,
     });
 
     return { registry, chat_store, stores, resolve_provider, attach };

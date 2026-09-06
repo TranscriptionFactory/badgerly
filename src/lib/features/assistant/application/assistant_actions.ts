@@ -24,6 +24,10 @@ import type { AssistantProposalStore } from "$lib/features/assistant/state/assis
 import type { AssistantRunStore } from "$lib/features/assistant/state/assistant_run_store.svelte";
 import type { AssistantSessionStore } from "$lib/features/assistant/state/assistant_session_store.svelte";
 import type { RunId } from "$lib/features/assistant/types/run";
+import {
+  UNATTENDED_RUN_OP,
+  UnattendedRunService,
+} from "$lib/features/assistant/application/unattended_run_service";
 
 // Accept used to discard its outcome entirely, so a stale or failed apply was
 // indistinguishable from a clean one: nothing changed on disk and nothing was
@@ -88,6 +92,7 @@ export function register_assistant_actions(
     proposal_revert: ProposalRevertService;
     chat_store: AssistantChatStore;
     active_document_path: () => string | null;
+    unattended_runs: UnattendedRunService;
   },
 ) {
   const {
@@ -100,6 +105,7 @@ export function register_assistant_actions(
     proposal_revert,
     chat_store,
     active_document_path,
+    unattended_runs,
     stores,
   } = input;
 
@@ -168,6 +174,24 @@ export function register_assistant_actions(
     label: "Clear Finished Assistant Runs",
     execute: () => {
       assistant_runs.clear_terminated();
+    },
+  });
+
+  // Explicit intent, so it deliberately does NOT consult the trigger toggle or
+  // the folder: those gate the automatic trigger, not the user asking for a run.
+  // The run is still proposal-only, on the same gate as a triggered one.
+  registry.register({
+    id: ACTION_IDS.assistant_run_unattended_now,
+    label: "Run Unattended Assistant Now",
+    execute: async () => {
+      const result = await unattended_runs.run({
+        kind: "manual",
+        note_path: null,
+        folder: null,
+      });
+      if (result.status === "refused") {
+        stores.op.fail(UNATTENDED_RUN_OP, result.reason);
+      }
     },
   });
 

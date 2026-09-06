@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { group_proposals_by_day } from "$lib/features/assistant";
 import { make_proposal } from "../helpers/assistant_proposal_fixtures";
+import { require_fixture } from "../helpers/require_fixture";
 
 // Pinned local noon so day boundaries sit hours away in either direction.
 const NOON = new Date(2026, 7, 3, 12, 0, 0).getTime();
@@ -144,7 +145,7 @@ describe("unattended provenance", () => {
       NOON,
     );
 
-    expect(groups[0].groups[0].trigger).toEqual(trigger);
+    expect(require_fixture(require_fixture(groups[0]).groups[0]).trigger).toEqual(trigger);
   });
 
   it("leaves an interactive group's trigger null", () => {
@@ -153,7 +154,7 @@ describe("unattended provenance", () => {
       NOON,
     );
 
-    expect(groups[0].groups[0].trigger).toBeNull();
+    expect(require_fixture(require_fixture(groups[0]).groups[0]).trigger).toBeNull();
   });
 
   // Two runs in the same day are two groups, because each run is its own
@@ -175,7 +176,7 @@ describe("unattended provenance", () => {
       NOON,
     );
 
-    expect(groups[0].groups.map((g) => g.session_id)).toEqual([
+    expect(require_fixture(groups[0]).groups.map((g) => g.session_id)).toEqual([
       "run-1",
       "run-2",
     ]);

@@ -62,6 +62,8 @@ import {
   ProposalApplyService,
   ProposalPersistenceService,
   ProposalRevertService,
+  UnattendedRunService,
+  build_unattended_prompt,
   create_proposal_mutation_tauri_adapter,
   create_assistant_transport_tauri_adapter,
   register_assistant_actions,
@@ -1430,6 +1432,17 @@ export function create_app_context(input: {
     checkpoint: proposal_git,
   });
 
+  const unattended_runs = new UnattendedRunService({
+    run_starter: assistant_kernel,
+    queue: stores.assistant_proposals,
+    summaries: stores.assistant_unattended,
+    ops: stores.op,
+    active_vault_id: () =>
+      stores.vault.vault ? String(stores.vault.vault.id) : null,
+    build_prompt: (trigger) => build_unattended_prompt(trigger),
+    now_ms: () => Date.now(),
+  });
+
   const document_edit_service = new DocumentEditService(assistant_kernel);
 
   register_ai_actions({
@@ -1442,6 +1455,7 @@ export function create_app_context(input: {
   });
 
   register_assistant_actions({
+    unattended_runs,
     ...base_action_input,
     assistant_kernel,
     assistant_runs: stores.assistant_runs,
@@ -1669,6 +1683,7 @@ export function create_app_context(input: {
   });
 
   const reactor_handles = mount_reactors({
+    launch_unattended_run: (trigger) => unattended_runs.run(trigger),
     editor_store: stores.editor,
     ui_store: stores.ui,
     op_store: stores.op,

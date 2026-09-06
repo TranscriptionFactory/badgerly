@@ -11,16 +11,9 @@ import type { NativeProposal } from "$lib/generated/bindings";
 import type { Proposal } from "$lib/features/assistant/types/proposal";
 import type { RunEvent } from "$lib/features/assistant";
 import type { UnattendedRunSummary } from "$lib/features/assistant/types/unattended";
-import type { AiProviderConfig } from "$lib/shared/types/ai_provider_config";
 import { create_test_run_starter } from "../../adapters/test_run_starter";
 import fixtures from "../../fixtures/2026-09-05_native_edit_proposals.json";
 import { require_fixture } from "../helpers/require_fixture";
-
-const provider: AiProviderConfig = {
-  id: "native",
-  name: "Native",
-  transport: { kind: "cli", command: "unused", args: [] },
-};
 
 // Reuses Lane 3's native-proposal fixture rather than hand-rolling one: the
 // operations there already satisfy validate_edit_operations, so this test
@@ -65,7 +58,6 @@ function harness(
     queue: { add_many: (p) => queued.push(p) },
     summaries: { record: (s) => summaries.push(s) },
     ops: new OpStore(),
-    resolve_provider: () => provider,
     active_vault_id: () => VAULT,
     build_prompt: () => "triage the inbox",
     now_ms: () => 1000,
@@ -79,7 +71,7 @@ describe("UnattendedRunService spec", () => {
     const { service, starter } = harness(proposal_events([]));
     await service.run(watcher_trigger);
 
-    const spec = starter.specs[0];
+    const spec = require_fixture(starter.specs[0]);
     expect(spec.kind).toBe("background");
     expect(spec.request.mode).toBe("agent");
     if (spec.request.mode !== "agent") throw new Error("expected agent mode");
@@ -92,7 +84,7 @@ describe("UnattendedRunService spec", () => {
     const { service, starter } = harness(proposal_events([]));
     await service.run(watcher_trigger);
 
-    const request = starter.specs[0].request;
+    const request = require_fixture(starter.specs[0]).request;
     if (request.mode !== "agent") throw new Error("expected agent mode");
     expect(request.toolset).toEqual({
       kind: "only",
@@ -106,7 +98,7 @@ describe("UnattendedRunService spec", () => {
     const { service, starter } = harness(proposal_events([]));
     await service.run(watcher_trigger);
 
-    const request = starter.specs[0].request;
+    const request = require_fixture(starter.specs[0]).request;
     if (request.mode !== "agent") throw new Error("expected agent mode");
     expect(request.auto_approve).toBe(true);
   });
@@ -119,8 +111,8 @@ describe("UnattendedRunService proposals", () => {
 
     expect(result.status).toBe("started");
     expect(queued).toHaveLength(1);
-    expect(queued[0]).toHaveLength(2);
-    for (const proposal of queued[0]) {
+    expect(require_fixture(queued[0])).toHaveLength(2);
+    for (const proposal of require_fixture(queued[0])) {
       expect(proposal.origin.trigger).toEqual(watcher_trigger);
       expect(proposal.origin.run_id).toBe("run-1");
       expect(proposal.status).toBe("pending");
@@ -133,7 +125,7 @@ describe("UnattendedRunService proposals", () => {
     const { service, queued } = harness(proposal_events(["a.md"]));
     await service.run(watcher_trigger);
 
-    expect(queued[0][0].origin.anchor).toBeUndefined();
+    expect(require_fixture(require_fixture(queued[0])[0]).origin.anchor).toBeUndefined();
   });
 
   it("queues nothing when the run produced no proposals", async () => {
@@ -141,7 +133,7 @@ describe("UnattendedRunService proposals", () => {
     await service.run(watcher_trigger);
 
     expect(queued).toHaveLength(0);
-    expect(summaries[0].proposal_count).toBe(0);
+    expect(require_fixture(summaries[0]).proposal_count).toBe(0);
   });
 
   it("does not queue into a vault the run did not start in", async () => {
@@ -154,7 +146,7 @@ describe("UnattendedRunService proposals", () => {
     await pending;
 
     expect(queued).toHaveLength(0);
-    expect(summaries[0].proposal_count).toBe(0);
+    expect(require_fixture(summaries[0]).proposal_count).toBe(0);
   });
 });
 
@@ -168,7 +160,7 @@ describe("UnattendedRunService summary", () => {
     );
     await service.run(watcher_trigger);
 
-    expect(summaries[0]).toMatchObject({
+    expect(require_fixture(summaries[0])).toMatchObject({
       run_id: "run-1",
       trigger: watcher_trigger,
       num_turns: 48,
@@ -184,8 +176,8 @@ describe("UnattendedRunService summary", () => {
     ]);
     await service.run(watcher_trigger);
 
-    expect(summaries[0].status).toBe("error");
-    expect(summaries[0].proposal_count).toBe(0);
+    expect(require_fixture(summaries[0]).status).toBe("error");
+    expect(require_fixture(summaries[0]).proposal_count).toBe(0);
   });
 });
 
@@ -210,21 +202,26 @@ describe("UnattendedRunService refusals", () => {
     expect((await service.run(watcher_trigger)).status).toBe("started");
   });
 
-  it("refuses without a vault or a provider", async () => {
+  it("refuses without a vault", async () => {
     const no_vault = harness(proposal_events([]), {
       active_vault_id: () => null,
     });
     expect((await no_vault.service.run(watcher_trigger)).status).toBe(
       "refused",
     );
+  });
 
-    const no_provider = harness(proposal_events([]), {
-      resolve_provider: () => null,
-    });
-    expect((await no_provider.service.run(watcher_trigger)).status).toBe(
-      "refused",
-    );
-    expect(no_provider.starter.specs).toHaveLength(0);
+  // The kernel owns provider resolution and settles a refusal through the
+  // outcome, so an unresolvable provider is a recorded failed run, not a
+  // silently dropped trigger.
+  it("records an unresolved provider as a failed run", async () => {
+    const { service, summaries } = harness([
+      { type: "error", message: "no provider resolved" },
+    ]);
+    const result = await service.run(watcher_trigger);
+
+    expect(result.status).toBe("started");
+    expect(require_fixture(summaries[0]).status).toBe("error");
   });
 
   it("does not start a run when it refuses", async () => {

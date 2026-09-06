@@ -38,6 +38,9 @@ function create_harness() {
     } as never,
     chat_store: new AssistantChatStore(sessions),
     active_document_path: () => null,
+    unattended_runs: {
+      run: vi.fn().mockResolvedValue({ status: "refused", reason: "stub" }),
+    } as never,
   });
   return { registry, sessions, tab };
 }

@@ -120,6 +120,10 @@ import type {
 } from "$lib/features/assistant";
 import { produce_ambient_notices } from "$lib/features/assistant";
 import { create_ambient_reactor } from "$lib/reactors/ambient.reactor.svelte";
+import {
+  create_unattended_trigger_reactor,
+  type UnattendedRunLauncher,
+} from "$lib/reactors/unattended_trigger.reactor.svelte";
 import type { TagService, TagStore } from "$lib/features/tags";
 // import type { SttStore, SttService } from "$lib/features/stt";
 
@@ -178,6 +182,7 @@ export type ReactorContext = {
   tag_store: TagStore;
   tag_service: TagService;
   assistant_notices: AssistantNoticeStore;
+  launch_unattended_run: UnattendedRunLauncher;
   assistant_proposals: AssistantProposalStore;
   assistant_proposal_persistence: ProposalPersistenceService;
   // The first port handed to a reactor positionally alongside
@@ -276,6 +281,12 @@ export function mount_reactors(context: ReactorContext): ReactorHandles {
       context.assistant_notices,
       context.search_port,
       produce_ambient_notices,
+    ),
+    create_unattended_trigger_reactor(
+      context.ui_store,
+      context.vault_store,
+      context.watcher_service,
+      context.launch_unattended_run,
     ),
     create_tab_persist_reactor(
       context.tab_store,

@@ -1,5 +1,4 @@
 import type { OpStore } from "$lib/app/orchestration/op_store.svelte";
-import type { AiProviderConfig } from "$lib/shared/types/ai_provider_config";
 import { unattended_run_policy } from "$lib/features/ai";
 import { build_native_proposal } from "$lib/features/assistant/domain/native_proposals";
 import {
@@ -46,7 +45,6 @@ export type UnattendedRunDeps = {
   queue: UnattendedProposalQueue;
   summaries: UnattendedRunSummarySink;
   ops: OpStore;
-  resolve_provider: () => AiProviderConfig | null;
   active_vault_id: () => string | null;
   build_prompt: (trigger: UnattendedTrigger) => string;
   now_ms: () => number;
@@ -78,16 +76,13 @@ export class UnattendedRunService {
     const vault_id = this.deps.active_vault_id();
     if (!vault_id) return { status: "refused", reason: "No active vault." };
 
-    const provider = this.deps.resolve_provider();
-    if (!provider) return { status: "refused", reason: "No provider resolved." };
-
     const started_at = this.deps.now_ms();
     this.deps.ops.start(UNATTENDED_RUN_OP, started_at);
 
     const collected: NativeProposal[] = [];
     try {
       const handle = await this.deps.run_starter.start(
-        this.spec(provider, trigger),
+        this.spec(trigger),
         {
           on_event: (_run_id, event) => {
             if (event.type === "tool_end" && event.proposals?.length) {
@@ -117,15 +112,14 @@ export class UnattendedRunService {
     }
   }
 
-  private spec(
-    provider: AiProviderConfig,
-    trigger: UnattendedTrigger,
-  ): RunSpec {
+  // No provider is passed: the kernel resolves one and settles a refusal
+  // through `outcome`, so an unresolved provider surfaces as a recorded failed
+  // run rather than a silent no-op.
+  private spec(trigger: UnattendedTrigger): RunSpec {
     const kind = "background" as const;
     return {
       kind,
       label: this.deps.build_prompt(trigger).slice(0, 80),
-      provider,
       request: {
         mode: "agent",
         prompt: this.deps.build_prompt(trigger),

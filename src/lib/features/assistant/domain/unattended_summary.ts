@@ -32,3 +32,20 @@ export function describe_unattended_run(summary: UnattendedRunSummary): string {
 
   return parts.join(" · ");
 }
+
+// The instruction an unattended run is given. States the proposal-only contract
+// in the prompt as well as enforcing it at the gate, so the model spends its
+// budget proposing rather than rediscovering that writes are refused.
+export function build_unattended_prompt(trigger: UnattendedTrigger): string {
+  const subject =
+    trigger.kind === "watcher" && trigger.note_path
+      ? `The note "${trigger.note_path}" was just added to the vault.`
+      : "Review the vault for work that needs doing.";
+
+  return [
+    subject,
+    "Read it and any notes it relates to, then propose improvements: fix broken links, add links to related notes, and correct obvious errors.",
+    "You cannot write to disk. Use edit_note with a typed `operation` argument to propose a change; every proposal is reviewed by a person before it lands.",
+    "If nothing needs changing, say so and stop rather than inventing work.",
+  ].join(" ");
+}

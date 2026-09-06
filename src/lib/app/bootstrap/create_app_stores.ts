@@ -42,6 +42,7 @@ import {
   AssistantNoticeStore,
   AssistantRunStore,
   AssistantSessionStore,
+  AssistantUnattendedStore,
 } from "$lib/features/assistant";
 // STT removed — archived on archive/stt-main
 // import { SttStore } from "$lib/features/stt";
@@ -90,6 +91,7 @@ export type AppStores = {
   assistant_sessions: AssistantSessionStore;
   assistant_proposals: AssistantProposalStore;
   assistant_notices: AssistantNoticeStore;
+  assistant_unattended: AssistantUnattendedStore;
   // stt: SttStore;
 };
 
@@ -142,6 +144,7 @@ export function create_app_stores(): AppStores {
     assistant_sessions,
     assistant_proposals: new AssistantProposalStore(),
     assistant_notices: new AssistantNoticeStore(),
+    assistant_unattended: new AssistantUnattendedStore(),
     // stt: new SttStore(),
   };
 }

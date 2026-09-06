@@ -391,3 +391,37 @@ export {
   apply_edit_operations,
 } from "./domain/edit_operations";
 export { build_native_proposal } from "./domain/native_proposals";
+
+export {
+  resolve_unattended_trigger,
+  is_in_trigger_folder,
+  normalize_trigger_folder,
+  type UnattendedTriggerDecision,
+  type UnattendedTriggerInput,
+  type UnattendedTriggerReason,
+} from "./domain/unattended_trigger";
+export {
+  resolve_max_iterations,
+  is_unattended_kind,
+  INTERACTIVE_MAX_ITERATIONS,
+  UNATTENDED_MAX_ITERATIONS,
+  MAX_ITERATIONS_HARD_CAP,
+} from "./domain/unattended_policy";
+export {
+  describe_unattended_run,
+  describe_unattended_trigger,
+  build_unattended_prompt,
+} from "./domain/unattended_summary";
+export type {
+  UnattendedTrigger,
+  UnattendedTriggerKind,
+  UnattendedRunStatus,
+  UnattendedRunSummary,
+} from "./types/unattended";
+export {
+  UnattendedRunService,
+  UNATTENDED_RUN_OP,
+  type UnattendedRunDeps,
+  type UnattendedRunResult,
+} from "./application/unattended_run_service";
+export { AssistantUnattendedStore } from "./state/assistant_unattended_store.svelte";
