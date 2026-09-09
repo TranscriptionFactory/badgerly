@@ -5239,8 +5239,8 @@
               <div class="SettingsDialog__label-group">
                 <span class="SettingsDialog__label">Embedding Scope</span>
                 <span class="SettingsDialog__description"
-                  >Which files get note embeddings. Applies on the next embedding
-                  pass.</span
+                  >Which files get note embeddings. Applies on the next
+                  embedding pass.</span
                 >
               </div>
               <div class="flex items-center gap-3">
