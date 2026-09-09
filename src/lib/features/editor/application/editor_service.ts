@@ -129,6 +129,7 @@ export type EditorServiceCallbacks = {
   on_open_document?: (file_path: string, base_note_path: string) => void;
   on_external_link_click: (url: string) => void;
   on_anchor_link_click?: (fragment: string) => void;
+  on_tag_accepted?: (tag: string) => void;
   on_image_paste_requested: (
     note_id: NoteId,
     note_path: NotePath,

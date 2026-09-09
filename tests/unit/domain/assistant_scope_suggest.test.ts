@@ -5,9 +5,9 @@ import type { ScopeSources } from "$lib/features/assistant/domain/scope_suggest"
 const sources: ScopeSources = {
   folder_paths: ["projects", "projects/alpha", "archive", "work/2026/meetings"],
   tags: [
-    { tag: "active", count: 5 },
-    { tag: "project/active", count: 2 },
-    { tag: "idea", count: 1 },
+    { tag: "active", count: 5, promoted: true },
+    { tag: "project/active", count: 2, promoted: true },
+    { tag: "idea", count: 1, promoted: true },
   ],
   saved_views: [
     { name: "Active Projects", path: "views/active.base" },

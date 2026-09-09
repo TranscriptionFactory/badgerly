@@ -81,7 +81,9 @@ export type EditorSession = {
   set_image_suggestions?: (
     items: Array<{ path: string; name: string }>,
   ) => void;
-  set_tag_suggestions?: (items: Array<{ tag: string; count: number }>) => void;
+  set_tag_suggestions?: (
+    items: Array<{ tag: string; count: number; promoted: boolean }>,
+  ) => void;
   set_dsl_suggestions?: (
     language: DslLanguage,
     items: DslSuggestion[],
@@ -182,6 +184,7 @@ export type EditorEventHandlers = {
   on_block_suggest_accept?: (item: BlockSuggestion) => Promise<string | null>;
   on_image_suggest_query?: (query: string) => void;
   on_tag_suggest_query?: (query: string) => void;
+  on_tag_suggest_accept?: (tag: string) => void;
   on_dsl_query_suggest?: (query: string) => void;
   on_dsl_query_dismiss?: () => void;
   on_dsl_base_suggest?: (query: string) => void;

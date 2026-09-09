@@ -11,10 +11,21 @@ export class TagStore {
   search_query = $state("");
   expanded_tags = $state<Set<string>>(new Set());
   tag_colors = $state<Record<string, string>>({});
+  promoted_setting = $state<string[]>([]);
+
+  get promoted_tags(): TagInfo[] {
+    return [];
+  }
+
+  get candidate_tags(): TagInfo[] {
+    return [];
+  }
 
   set_tags(tags: TagInfo[]) {
     this.tags = tags;
   }
+
+  set_promoted_setting(_list: string[]) {}
 
   set_tag_colors(colors: Record<string, string>) {
     this.tag_colors = colors;

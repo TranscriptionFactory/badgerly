@@ -1,8 +1,8 @@
 import type { TagService, TagStore } from "$lib/features/tags";
 import type { VaultStore } from "$lib/features/vault";
-import { apply_tag_pill_colors } from "$lib/shared/utils/apply_tag_pill_colors";
+import { apply_tag_pill_styles } from "$lib/shared/utils/tag_pill_styles";
 
-export function create_tag_pill_colors_reactor(
+export function create_tag_pill_styles_reactor(
   tag_store: TagStore,
   vault_store: VaultStore,
   tag_service: TagService,
@@ -14,7 +14,7 @@ export function create_tag_pill_colors_reactor(
     });
 
     $effect(() => {
-      apply_tag_pill_colors(tag_store.tag_colors);
+      apply_tag_pill_styles(tag_store.promoted_setting, tag_store.tag_colors);
     });
   });
 }

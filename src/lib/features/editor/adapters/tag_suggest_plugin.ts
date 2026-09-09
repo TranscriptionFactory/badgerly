@@ -10,7 +10,7 @@ export const tag_suggest_plugin_key = new PluginKey<SuggestState<TagItem>>(
   "tag-suggest",
 );
 
-type TagItem = { tag: string; count: number };
+export type TagItem = { tag: string; count: number; promoted: boolean };
 
 export type TagSuggestPluginConfig = {
   on_query: (query: string) => void;
@@ -142,9 +142,6 @@ export function create_tag_suggest_prose_plugin(
   });
 }
 
-export function set_tag_suggestions(
-  view: EditorView,
-  items: Array<{ tag: string; count: number }>,
-) {
+export function set_tag_suggestions(view: EditorView, items: TagItem[]) {
   view.dispatch(view.state.tr.setMeta(tag_suggest_plugin_key, { items }));
 }

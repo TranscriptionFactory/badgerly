@@ -1,4 +1,4 @@
-export type TagInfo = { tag: string; count: number };
+export type TagInfo = { tag: string; count: number; promoted: boolean };
 
 export type TagTreeNode = {
   segment: string;

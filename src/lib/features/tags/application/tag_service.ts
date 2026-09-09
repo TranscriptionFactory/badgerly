@@ -46,6 +46,22 @@ export class TagService {
     }
   }
 
+  async load_promoted_setting() {
+    throw new Error("not implemented");
+  }
+
+  async promote(_tag: string) {
+    throw new Error("not implemented");
+  }
+
+  async demote(_tag: string) {
+    throw new Error("not implemented");
+  }
+
+  async promote_all_candidates() {
+    throw new Error("not implemented");
+  }
+
   async set_tag_color(tag: string, color: string) {
     const next = with_tag_color(this.store.tag_colors, tag, color);
     if (!next || next === this.store.tag_colors) return;
