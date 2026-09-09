@@ -10,8 +10,12 @@ use crate::features::search::model::{
     BatchSemanticEdge, BlockSearchHit, BlockSectionHit, DateRange, EmbeddingStatus,
     HybridSearchHit, IndexNoteMeta, MissingLinkHit, SearchHit, SearchScope, SemanticSearchHit,
 };
+use crate::features::search::tag_promotion::{
+    is_promoted, promoted_set, promoted_setting_from_value,
+};
 use crate::features::search::{hybrid, vector_db};
 use crate::features::settings::service as settings_service;
+use crate::features::vault_settings::service::get_vault_setting_value;
 use crate::shared::storage::{self, VaultMode};
 use crate::shared::vault_ignore;
 use rusqlite::Connection;
@@ -424,7 +428,28 @@ pub fn tags_list_all_inner(
     app: AppHandle,
     vault_id: String,
 ) -> Result<Vec<crate::features::search::model::TagInfo>, String> {
-    with_read_conn(&app, &vault_id, |conn| search_db::list_all_tags(conn))
+    with_read_conn(&app, &vault_id, |conn| {
+        let promoted = resolve_promoted_set(&app, &vault_id, conn)?;
+        let tags = search_db::list_all_tags(conn)?
+            .into_iter()
+            .map(|t| {
+                let promoted = is_promoted(&t.tag, &promoted);
+                crate::features::search::model::TagInfo { promoted, ..t }
+            })
+            .collect();
+        Ok(tags)
+    })
+}
+
+pub(crate) fn resolve_promoted_set(
+    app: &AppHandle,
+    vault_id: &str,
+    conn: &Connection,
+) -> Result<HashSet<String>, String> {
+    let setting = get_vault_setting_value(app, vault_id, "promoted_tags")?;
+    let listed = promoted_setting_from_value(setting.as_ref());
+    let frontmatter = search_db::list_frontmatter_tags(conn)?;
+    Ok(promoted_set(&listed, &frontmatter))
 }
 
 #[tauri::command]

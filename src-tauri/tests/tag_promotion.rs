@@ -102,7 +102,16 @@ fn open_db() -> (TempDir, rusqlite::Connection) {
     (tmp, conn)
 }
 
+fn insert_note(conn: &rusqlite::Connection, path: &str) {
+    conn.execute(
+        "INSERT OR IGNORE INTO notes (path, title, mtime_ms, ctime_ms, size_bytes, word_count, char_count, heading_count, reading_time_secs, last_indexed_at, file_type) VALUES (?1, ?1, 0, 0, 100, 50, 200, 2, 30, 0, 'md')",
+        params![path],
+    )
+    .expect("insert note");
+}
+
 fn insert_tag(conn: &rusqlite::Connection, path: &str, tag: &str, line: i64, source: &str) {
+    insert_note(conn, path);
     conn.execute(
         "INSERT INTO note_inline_tags (path, tag, line, source) VALUES (?1, ?2, ?3, ?4)",
         params![path, tag, line, source],

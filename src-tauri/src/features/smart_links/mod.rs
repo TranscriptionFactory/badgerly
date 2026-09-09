@@ -186,7 +186,7 @@ pub fn smart_links_compute_suggestions_inner(
     let bi_guard = bi.read().map_err(|e| e.to_string())?;
 
     search_service::with_read_conn(&app, &vault_id, |conn| {
-        let promoted = std::collections::HashSet::new();
+        let promoted = search_service::resolve_promoted_set(&app, &vault_id, conn)?;
         execute_rules(
             conn,
             &note_path,
@@ -218,11 +218,13 @@ pub async fn smart_links_compute_vault_edges(
     let (ni, bi) = search_service::get_index_arcs(&app, &vault_id)?;
 
     crate::shared::blocking::blocking("smart_links_compute_vault_edges", move || {
-        let note_paths: Vec<String> = {
+        let (note_paths, promoted): (Vec<String>, _) = {
             let conn = read_conn.lock().map_err(|e| e.to_string())?;
-            crate::features::search::db::get_manifest(&conn)?
+            let paths = crate::features::search::db::get_manifest(&conn)?
                 .into_keys()
-                .collect()
+                .collect();
+            let promoted = search_service::resolve_promoted_set(&app, &vault_id, &conn)?;
+            (paths, promoted)
         };
 
         let mut seen = std::collections::HashSet::new();
@@ -235,7 +237,6 @@ pub async fn smart_links_compute_vault_edges(
                 let ni_guard = ni.read().map_err(|e| e.to_string())?;
                 let bi_guard = bi.read().map_err(|e| e.to_string())?;
                 let conn = read_conn.lock().map_err(|e| e.to_string())?;
-                let promoted = std::collections::HashSet::new();
                 execute_rules(
                     &conn,
                     source_path,

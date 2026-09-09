@@ -5969,6 +5969,7 @@ pub fn list_all_tags(
             Ok(crate::features::search::model::TagInfo {
                 tag: row.get(0)?,
                 count: row.get(1)?,
+                promoted: false,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -5978,8 +5979,14 @@ pub fn list_all_tags(
 }
 
 pub fn list_frontmatter_tags(conn: &Connection) -> Result<Vec<String>, String> {
-    let _ = conn;
-    todo!("lane C phase 2")
+    let mut stmt = conn
+        .prepare("SELECT DISTINCT tag FROM note_inline_tags WHERE source = 'frontmatter'")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 pub fn get_notes_for_tag(conn: &Connection, tag: &str) -> Result<Vec<String>, String> {
