@@ -408,6 +408,9 @@ export const ACTION_IDS = {
   tags_toggle_expanded: "tags.toggle_expanded",
   tags_set_color: "tags.set_color",
   tags_clear_color: "tags.clear_color",
+  tags_promote: "tags.promote",
+  tags_demote: "tags.demote",
+  tags_promote_all: "tags.promote_all",
 
   metadata_refresh: "metadata.refresh",
   metadata_toggle_panel: "metadata.toggle_panel",

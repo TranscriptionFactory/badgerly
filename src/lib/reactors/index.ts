@@ -53,7 +53,7 @@ import { create_assistant_readiness_reactor } from "$lib/reactors/assistant_read
 import { create_assistant_proposals_sync_reactor } from "$lib/reactors/assistant_proposals_sync.reactor.svelte";
 import { create_assistant_chat_mcp_bridge_reactor } from "$lib/reactors/assistant_chat_mcp_bridge.reactor.svelte";
 import { create_visual_editor_diagnostics_reactor } from "$lib/reactors/visual_editor_diagnostics.reactor.svelte";
-import { create_tag_pill_colors_reactor } from "$lib/reactors/tag_pill_colors.reactor.svelte";
+import { create_tag_pill_styles_reactor } from "$lib/reactors/tag_pill_styles.reactor.svelte";
 // STT removed — archived on archive/stt-main
 // import { create_stt_settings_sync_reactor } from "$lib/reactors/stt_settings_sync.reactor.svelte";
 // import { create_stt_init_reactor } from "$lib/reactors/stt_init.reactor.svelte";
@@ -503,7 +503,7 @@ export function mount_reactors(context: ReactorContext): ReactorHandles {
       context.assistant_proposal_persistence,
       context.vault_store,
     ),
-    create_tag_pill_colors_reactor(
+    create_tag_pill_styles_reactor(
       context.tag_store,
       context.vault_store,
       context.tag_service,

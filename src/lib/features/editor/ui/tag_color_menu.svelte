@@ -22,6 +22,12 @@
   const current_color = $derived(
     menu?.open ? config.get_color(menu.tag) : null,
   );
+  const is_promoted = $derived(
+    menu?.open ? config.is_promoted(menu.tag) : false,
+  );
+  const can_demote = $derived(
+    menu?.open ? is_promoted && config.can_demote(menu.tag) : false,
+  );
 
   let root_el = $state<HTMLElement | null>(null);
 
@@ -34,6 +40,16 @@
   function clear_color() {
     if (!menu) return;
     config.on_clear_color(menu.tag);
+    on_close();
+  }
+
+  function toggle_promoted() {
+    if (!menu) return;
+    if (is_promoted) {
+      config.on_demote(menu.tag);
+    } else {
+      config.on_promote(menu.tag);
+    }
     on_close();
   }
 
@@ -73,6 +89,16 @@
       class="flex w-56 flex-col gap-2 rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-md"
     >
       <div class="truncate text-xs text-muted-foreground">#{menu.tag}</div>
+      {#if !is_promoted || can_demote}
+        <button
+          type="button"
+          class="h-7 rounded border border-border px-2 text-xs hover:bg-muted"
+          onclick={toggle_promoted}
+          data-testid={is_promoted ? "tag-demote" : "tag-promote"}
+        >
+          {is_promoted ? "Demote to candidate" : "Promote to tag"}
+        </button>
+      {/if}
       <ColorSwatchPicker value={current_color} on_select={set_color} />
       {#if current_color}
         <button

@@ -487,7 +487,7 @@
     {suggest_notes}
     scope={rag.scope}
     folder_paths={stores.notes.folder_paths}
-    tags={stores.tag.tags}
+    tags={stores.tag.promoted_tags}
     saved_views={stores.bases.saved_views}
     {active_note_path}
     is_loading={rag.is_loading}

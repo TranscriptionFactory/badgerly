@@ -9,7 +9,7 @@
   import { parse_window_init } from "$lib/features/window";
   import { to_editor_slash_commands } from "$lib/features/plugin";
   import { resolve_instructions } from "$lib/shared/domain/prompt_recipes";
-  import { tag_color_for } from "$lib/features/tags";
+  import { is_tag_promoted, tag_color_for } from "$lib/features/tags";
 
   const url_params = new URLSearchParams(window.location.search);
   const vault_path_param = url_params.get("vault_path");
@@ -113,6 +113,17 @@
     void app.action_registry.execute(ACTION_IDS.tags_set_color, tag, color);
   ports.tag_pill_menu.on_clear_color = (tag) =>
     void app.action_registry.execute(ACTION_IDS.tags_clear_color, tag);
+  ports.tag_pill_menu.is_promoted = (tag) =>
+    is_tag_promoted(tag, app.stores.tag.promoted_setting) ||
+    app.stores.tag.promoted_tags.some((t) => t.tag === tag);
+  ports.tag_pill_menu.can_demote = (tag) =>
+    app.stores.tag.promoted_setting.some(
+      (entry) => entry.toLowerCase() === tag.toLowerCase(),
+    );
+  ports.tag_pill_menu.on_promote = (tag) =>
+    void app.action_registry.execute(ACTION_IDS.tags_promote, tag);
+  ports.tag_pill_menu.on_demote = (tag) =>
+    void app.action_registry.execute(ACTION_IDS.tags_demote, tag);
 
   provide_app_context(app);
 

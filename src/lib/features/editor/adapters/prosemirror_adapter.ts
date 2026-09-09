@@ -1288,7 +1288,9 @@ export function create_prosemirror_editor_port(args?: {
           if (!view) return;
           set_image_suggestions(view, items);
         },
-        set_tag_suggestions(items: Array<{ tag: string; count: number }>) {
+        set_tag_suggestions(
+          items: Array<{ tag: string; count: number; promoted: boolean }>,
+        ) {
           if (!view) return;
           set_tag_suggestions(view, items);
         },

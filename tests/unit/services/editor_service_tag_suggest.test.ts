@@ -37,15 +37,17 @@ function create_open_note(note_path: string, markdown: string): OpenNoteState {
   };
 }
 
+type TagSuggestion = { tag: string; count: number; promoted: boolean };
+
 function create_session_with_tag_suggest(): EditorSession & {
-  captured_tag_suggestions: Array<{ tag: string; count: number }>[];
+  captured_tag_suggestions: TagSuggestion[][];
   captured_at_palette_tags: Array<{
     category: string;
     tag: string;
     count: number;
   }>[];
 } {
-  const captured_tag_suggestions: Array<{ tag: string; count: number }>[] = [];
+  const captured_tag_suggestions: TagSuggestion[][] = [];
   const captured_at_palette_tags: Array<{
     category: string;
     tag: string;
@@ -100,11 +102,13 @@ function create_setup(
     get_notes_for_tag_prefix: vi.fn(() => Promise.resolve([])),
   };
 
+  const on_tag_accepted = vi.fn();
   const callbacks: EditorServiceCallbacks = {
     on_internal_link_click: vi.fn(),
     on_external_link_click: vi.fn(),
     on_image_paste_requested: vi.fn(),
     on_file_drop_requested: vi.fn(),
+    on_tag_accepted,
   };
 
   const service = new EditorService(
@@ -119,7 +123,7 @@ function create_setup(
     tag_port,
   );
 
-  return { service, get_config: () => session_config };
+  return { service, get_config: () => session_config, on_tag_accepted };
 }
 
 function require_config(
@@ -137,10 +141,17 @@ function require_first<T>(arr: T[]): T {
 }
 
 const SAMPLE_TAGS: TagInfo[] = [
-  { tag: "parent/child", count: 3 },
-  { tag: "parent", count: 5 },
-  { tag: "unrelated", count: 1 },
-  { tag: "other/child", count: 2 },
+  { tag: "parent/child", count: 3, promoted: true },
+  { tag: "parent", count: 5, promoted: true },
+  { tag: "unrelated", count: 1, promoted: true },
+  { tag: "other/child", count: 2, promoted: true },
+];
+
+const MIXED_TAGS: TagInfo[] = [
+  { tag: "child/a", count: 9, promoted: false },
+  { tag: "child/b", count: 1, promoted: true },
+  { tag: "child/c", count: 4, promoted: false },
+  { tag: "child", count: 2, promoted: true },
 ];
 
 describe("handle_tag_suggest_query — fuzzy/hierarchical ranking", () => {
@@ -211,6 +222,47 @@ describe("handle_tag_suggest_query — fuzzy/hierarchical ranking", () => {
     const parent_entry = results.find((r) => r.tag === "parent");
     expect(parent_entry?.count).toBe(5);
   });
+
+  it("ranks promoted tags before candidates and flags candidates", async () => {
+    const session = create_session_with_tag_suggest();
+    const { service, get_config } = create_setup(session, MIXED_TAGS);
+    const note = create_open_note("test.md", "# Test");
+    await service.mount({ root: {} as HTMLDivElement, note });
+
+    const config = require_config(get_config());
+    config.events.on_tag_suggest_query?.("child");
+    await vi.waitUntil(() => session.captured_tag_suggestions.length > 0);
+
+    const results = require_first(session.captured_tag_suggestions);
+    expect(results.map((r) => r.promoted)).toEqual([true, true, false, false]);
+    expect(
+      results
+        .slice(0, 2)
+        .map((r) => r.tag)
+        .sort(),
+    ).toEqual(["child", "child/b"]);
+    expect(
+      results
+        .slice(2)
+        .map((r) => r.tag)
+        .sort(),
+    ).toEqual(["child/a", "child/c"]);
+  });
+
+  it("accepting a suggestion calls on_tag_accepted", async () => {
+    const session = create_session_with_tag_suggest();
+    const { service, get_config, on_tag_accepted } = create_setup(
+      session,
+      SAMPLE_TAGS,
+    );
+    const note = create_open_note("test.md", "# Test");
+    await service.mount({ root: {} as HTMLDivElement, note });
+
+    const config = require_config(get_config());
+    config.events.on_tag_suggest_accept?.("parent/child");
+
+    expect(on_tag_accepted).toHaveBeenCalledWith("parent/child");
+  });
 });
 
 describe("handle_at_palette_tag_query — fuzzy/hierarchical ranking", () => {
@@ -229,5 +281,21 @@ describe("handle_at_palette_tag_query — fuzzy/hierarchical ranking", () => {
     );
     expect(tags).toContain("parent/child");
     expect(tags).not.toContain("unrelated");
+  });
+
+  it("lists promoted tags only", async () => {
+    const session = create_session_with_tag_suggest();
+    const { service, get_config } = create_setup(session, MIXED_TAGS);
+    const note = create_open_note("test.md", "# Test");
+    await service.mount({ root: {} as HTMLDivElement, note });
+
+    const config = require_config(get_config());
+    config.events.on_at_palette_tag_query?.("child");
+    await vi.waitUntil(() => session.captured_at_palette_tags.length > 0);
+
+    const tags = require_first(session.captured_at_palette_tags)
+      .map((r) => r.tag)
+      .sort();
+    expect(tags).toEqual(["child", "child/b"]);
   });
 });

@@ -80,6 +80,7 @@ export function create_suggest_extension(
     const tag_suggest_config: TagSuggestPluginConfig = {
       on_query: ctx.events.on_tag_suggest_query,
       on_dismiss: () => {},
+      on_accept: (item) => ctx.events.on_tag_suggest_accept?.(item.tag),
     };
     plugins.push(create_tag_suggest_prose_plugin(tag_suggest_config) as Plugin);
   }

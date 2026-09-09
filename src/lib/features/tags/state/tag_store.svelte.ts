@@ -11,9 +11,22 @@ export class TagStore {
   search_query = $state("");
   expanded_tags = $state<Set<string>>(new Set());
   tag_colors = $state<Record<string, string>>({});
+  promoted_setting = $state<string[]>([]);
+
+  get promoted_tags(): TagInfo[] {
+    return this.tags.filter((t) => t.promoted);
+  }
+
+  get candidate_tags(): TagInfo[] {
+    return this.tags.filter((t) => !t.promoted);
+  }
 
   set_tags(tags: TagInfo[]) {
     this.tags = tags;
+  }
+
+  set_promoted_setting(list: string[]) {
+    this.promoted_setting = list;
   }
 
   set_tag_colors(colors: Record<string, string>) {
@@ -70,5 +83,6 @@ export class TagStore {
     this.search_query = "";
     this.expanded_tags = new Set();
     this.tag_colors = {};
+    this.promoted_setting = [];
   }
 }

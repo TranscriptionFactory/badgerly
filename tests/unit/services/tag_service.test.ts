@@ -33,8 +33,8 @@ function make_service(
 describe("TagService", () => {
   it("refresh_tags calls port and updates store", async () => {
     const tags: TagInfo[] = [
-      { tag: "rust", count: 5 },
-      { tag: "svelte", count: 3 },
+      { tag: "rust", count: 5, promoted: true },
+      { tag: "svelte", count: 3, promoted: false },
     ];
     const { service, store, port } = make_service({
       list_all_tags: vi.fn().mockResolvedValue(tags),

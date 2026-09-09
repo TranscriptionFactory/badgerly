@@ -3,7 +3,7 @@ import { build_tag_tree } from "$lib/features/tags/domain/build_tag_tree";
 import type { TagInfo } from "$lib/features/tags/types";
 
 function tag(name: string, count: number): TagInfo {
-  return { tag: name, count };
+  return { tag: name, count, promoted: true };
 }
 
 describe("build_tag_tree", () => {

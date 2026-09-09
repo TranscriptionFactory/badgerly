@@ -175,6 +175,10 @@ export function create_prod_ports(): Ports & {
     get_color: () => null,
     on_set_color: () => {},
     on_clear_color: () => {},
+    is_promoted: () => true,
+    can_demote: () => false,
+    on_promote: () => {},
+    on_demote: () => {},
   };
 
   return {

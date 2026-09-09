@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { TagStore } from "$lib/features/tags/state/tag_store.svelte";
 import type { TagInfo } from "$lib/features/tags/types";
 
-function make_tag(tag: string, count: number): TagInfo {
-  return { tag, count };
+function make_tag(tag: string, count: number, promoted = true): TagInfo {
+  return { tag, count, promoted };
 }
 
 describe("TagStore", () => {
@@ -19,6 +19,7 @@ describe("TagStore", () => {
     expect(store.notes_loading).toBe(false);
     expect(store.search_query).toBe("");
     expect(store.expanded_tags).toEqual(new Set());
+    expect(store.promoted_setting).toEqual([]);
   });
 
   it("set_tags updates tags array", () => {
@@ -28,6 +29,26 @@ describe("TagStore", () => {
     store.set_tags(tags);
 
     expect(store.tags).toEqual(tags);
+  });
+
+  it("promoted_tags and candidate_tags partition by flag", () => {
+    const store = new TagStore();
+    const rust = make_tag("rust", 5, true);
+    const idea = make_tag("idea", 1, false);
+    const svelte = make_tag("svelte", 3, true);
+
+    store.set_tags([rust, idea, svelte]);
+
+    expect(store.promoted_tags).toEqual([rust, svelte]);
+    expect(store.candidate_tags).toEqual([idea]);
+  });
+
+  it("set_promoted_setting replaces the list", () => {
+    const store = new TagStore();
+
+    store.set_promoted_setting(["rust", "svelte"]);
+
+    expect(store.promoted_setting).toEqual(["rust", "svelte"]);
   });
 
   it("set_loading updates loading state", () => {
@@ -126,6 +147,7 @@ describe("TagStore", () => {
     store.set_notes_loading(true);
     store.set_search_query("ru");
     store.toggle_expanded("rust");
+    store.set_promoted_setting(["rust"]);
 
     store.reset();
 
@@ -138,5 +160,6 @@ describe("TagStore", () => {
     expect(store.notes_loading).toBe(false);
     expect(store.search_query).toBe("");
     expect(store.expanded_tags).toEqual(new Set());
+    expect(store.promoted_setting).toEqual([]);
   });
 });

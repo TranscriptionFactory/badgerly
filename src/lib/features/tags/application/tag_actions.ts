@@ -64,6 +64,32 @@ export function register_tag_actions(
   });
 
   registry.register({
+    id: ACTION_IDS.tags_promote,
+    label: "Promote to Tag",
+    execute: async (tag: unknown) => {
+      if (typeof tag !== "string") return;
+      await tag_service.promote(tag);
+    },
+  });
+
+  registry.register({
+    id: ACTION_IDS.tags_demote,
+    label: "Demote to Candidate",
+    execute: async (tag: unknown) => {
+      if (typeof tag !== "string") return;
+      await tag_service.demote(tag);
+    },
+  });
+
+  registry.register({
+    id: ACTION_IDS.tags_promote_all,
+    label: "Promote All Candidate Tags",
+    execute: async () => {
+      await tag_service.promote_all_candidates();
+    },
+  });
+
+  registry.register({
     id: ACTION_IDS.tags_toggle_expanded,
     label: "Toggle Tag Expanded",
     execute: (tag: unknown) => {

@@ -7,6 +7,12 @@ import {
   with_tag_color,
   without_tag_color,
 } from "../domain/tag_colors";
+import {
+  PROMOTED_TAGS_SETTING_KEY,
+  sanitize_promoted_tags,
+  with_promoted,
+  without_promoted,
+} from "../domain/promoted_tags";
 
 export class TagService {
   constructor(
@@ -22,6 +28,7 @@ export class TagService {
 
     this.store.set_loading(true);
     this.store.set_error(null);
+    await this.load_promoted_setting();
     try {
       const tags = await this.port.list_all_tags(vault.id);
       this.store.set_tags(tags);
@@ -44,6 +51,58 @@ export class TagService {
     } catch (e) {
       this.store.set_error(e instanceof Error ? e.message : String(e));
     }
+  }
+
+  async load_promoted_setting() {
+    const vault = this.vault_store.vault;
+    if (!vault || !this.vault_settings_port) return;
+    try {
+      const raw = await this.vault_settings_port.get_vault_setting<unknown>(
+        vault.id,
+        PROMOTED_TAGS_SETTING_KEY,
+      );
+      this.store.set_promoted_setting(sanitize_promoted_tags(raw));
+    } catch (e) {
+      this.store.set_error(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async promote(tag: string) {
+    await this.persist_promoted(
+      with_promoted(this.store.promoted_setting, tag),
+    );
+  }
+
+  async demote(tag: string) {
+    await this.persist_promoted(
+      without_promoted(this.store.promoted_setting, tag),
+    );
+  }
+
+  async promote_all_candidates() {
+    const next = this.store.candidate_tags.reduce(
+      (list, t) => with_promoted(list, t.tag),
+      this.store.promoted_setting,
+    );
+    await this.persist_promoted(next);
+  }
+
+  private async persist_promoted(next: string[]) {
+    const vault = this.vault_store.vault;
+    if (!vault || !this.vault_settings_port) return;
+    if (next === this.store.promoted_setting) return;
+    this.store.set_promoted_setting(next);
+    try {
+      await this.vault_settings_port.set_vault_setting(
+        vault.id,
+        PROMOTED_TAGS_SETTING_KEY,
+        next,
+      );
+    } catch (e) {
+      this.store.set_error(e instanceof Error ? e.message : String(e));
+      return;
+    }
+    await this.refresh_tags();
   }
 
   async set_tag_color(tag: string, color: string) {

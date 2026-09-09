@@ -5,6 +5,7 @@
   import RefreshCw from "@lucide/svelte/icons/refresh-cw";
   import Search from "@lucide/svelte/icons/search";
   import ChevronLeft from "@lucide/svelte/icons/chevron-left";
+  import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
   import { ACTION_IDS } from "$lib/app";
@@ -14,13 +15,23 @@
   const { stores, action_registry } = use_app_context();
   const tag_store = stores.tag;
 
-  let tag_tree = $derived(build_tag_tree(tag_store.tags));
+  let tag_tree = $derived(build_tag_tree(tag_store.promoted_tags));
 
   let filtered_tree = $derived(
     tag_store.search_query
       ? filter_tag_tree(tag_tree, tag_store.search_query)
       : tag_tree,
   );
+
+  let filtered_candidates = $derived.by(() => {
+    const query = tag_store.search_query.toLowerCase();
+    if (!query) return tag_store.candidate_tags;
+    return tag_store.candidate_tags.filter((t) =>
+      t.tag.toLowerCase().includes(query),
+    );
+  });
+
+  let candidates_open = $state(true);
 
   onMount(() => {
     void action_registry.execute(ACTION_IDS.tags_refresh);
@@ -121,7 +132,7 @@
       >
         Loading tags...
       </div>
-    {:else if filtered_tree.length === 0}
+    {:else if filtered_tree.length === 0 && filtered_candidates.length === 0}
       <div
         class="flex flex-col items-center justify-center h-40 text-xs text-muted-foreground gap-2"
       >
@@ -146,6 +157,61 @@
         {#each filtered_tree as node (node.full_tag)}
           <TagTreeNode {node} depth={0} {tag_store} {action_registry} />
         {/each}
+
+        {#if filtered_candidates.length > 0}
+          <div class="mt-2 border-t pt-1">
+            <div class="flex items-center justify-between gap-2 px-2 py-1">
+              <button
+                type="button"
+                class="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground rounded hover:bg-muted px-1"
+                onclick={() => (candidates_open = !candidates_open)}
+                aria-expanded={candidates_open}
+              >
+                <ChevronRight
+                  size={12}
+                  class="transition-transform {candidates_open
+                    ? 'rotate-90'
+                    : ''}"
+                />
+                Candidates ({filtered_candidates.length})
+              </button>
+              <Button
+                variant="ghost"
+                size="sm"
+                class="h-6 px-2 text-[10px]"
+                onclick={() =>
+                  void action_registry.execute(ACTION_IDS.tags_promote_all)}
+              >
+                Promote all
+              </Button>
+            </div>
+
+            {#if candidates_open}
+              {#each filtered_candidates as candidate (candidate.tag)}
+                <div class="flex items-center gap-0.5 pl-2">
+                  <span class="shrink-0 w-4"></span>
+                  <button
+                    type="button"
+                    class="flex-1 min-w-0 text-left py-1 pr-2 rounded text-xs text-muted-foreground hover:bg-muted flex items-center justify-between gap-2"
+                    title="Promote to tag"
+                    onclick={() =>
+                      void action_registry.execute(
+                        ACTION_IDS.tags_promote,
+                        candidate.tag,
+                      )}
+                  >
+                    <span class="truncate">#{candidate.tag}</span>
+                    <span
+                      class="shrink-0 text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full"
+                    >
+                      {candidate.count}
+                    </span>
+                  </button>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        {/if}
       </div>
     {/if}
   </div>

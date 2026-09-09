@@ -39,7 +39,7 @@
   const sort_props = [...SORTABLE_PROPS];
   const group_props = ["none", ...GROUPABLE_PROPS] as TaskGrouping[];
 
-  const tag_options = $derived(stores.tag.tags.map((t) => t.tag));
+  const tag_options = $derived(stores.tag.promoted_tags.map((t) => t.tag));
 
   let clauses = $state<TaskQueryClause[]>([{ kind: "status", status: "todo" }]);
   let sort = $state<TaskSortSpec[]>([]);

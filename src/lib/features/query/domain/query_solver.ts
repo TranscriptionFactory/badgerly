@@ -181,7 +181,7 @@ async function resolve_with(
     const all_tags = await backends.tags.list_all_tags(vault_id);
     const ranked = rank_tags(
       value.tag,
-      all_tags.map((info) => info.tag),
+      all_tags.filter((info) => info.promoted).map((info) => info.tag),
       5,
     );
     if (ranked.length === 0) return [];

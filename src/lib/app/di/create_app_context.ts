@@ -292,6 +292,8 @@ export function create_app_context(input: {
   let note_service: NoteService | null = null;
 
   const editor_callbacks: EditorServiceCallbacks = {
+    on_tag_accepted: (tag) =>
+      void action_registry.execute(ACTION_IDS.tags_promote, tag),
     resolve_session_link: (target) =>
       search_service.resolve_session_link(target),
     read_note_markdown: (note_path) =>
