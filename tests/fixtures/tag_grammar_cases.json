@@ -1,0 +1,187 @@
+{
+  "cases": [
+    {
+      "name": "inline_simple",
+      "markdown": "Some text #project and #status/active here",
+      "expected_tags": ["project", "status/active"]
+    },
+    {
+      "name": "nested_path_dash_underscore",
+      "markdown": "#proj/sub-task_1 done",
+      "expected_tags": ["proj/sub-task_1"]
+    },
+    {
+      "name": "unicode_letters",
+      "markdown": "note #日本語 and #café end",
+      "expected_tags": ["日本語", "café"]
+    },
+    {
+      "name": "pure_numeric_rejected",
+      "markdown": "Issue #2024 but #2024-q1 ok",
+      "expected_tags": ["2024-q1"]
+    },
+    {
+      "name": "digit_first_with_letter_accepted",
+      "markdown": "the #1st place",
+      "expected_tags": ["1st"]
+    },
+    {
+      "name": "leading_underscore_accepted",
+      "markdown": "see #_private now",
+      "expected_tags": ["_private"]
+    },
+    {
+      "name": "leading_dash_rejected",
+      "markdown": "see #-dash now",
+      "expected_tags": []
+    },
+    {
+      "name": "mid_word_hash_rejected",
+      "markdown": "foo#bar baz",
+      "expected_tags": []
+    },
+    {
+      "name": "double_hash_rejected",
+      "markdown": "##foo bar",
+      "expected_tags": []
+    },
+    {
+      "name": "bare_hash_ignored",
+      "markdown": "a # b",
+      "expected_tags": []
+    },
+    {
+      "name": "heading_line_not_tag",
+      "markdown": "# Heading\n## Subheading\nBody #real-tag",
+      "expected_tags": ["real-tag"]
+    },
+    {
+      "name": "punctuation_terminates_tag",
+      "markdown": "#done. and #next, then #last!",
+      "expected_tags": ["done", "next", "last"]
+    },
+    {
+      "name": "tags_on_consecutive_lines",
+      "markdown": "#one\n#two",
+      "expected_tags": ["one", "two"]
+    },
+    {
+      "name": "tag_in_blockquote",
+      "markdown": "> quote #quoted here",
+      "expected_tags": ["quoted"]
+    },
+    {
+      "name": "tag_inside_emphasis",
+      "markdown": "**bold #inside** and *em #em-tag* end",
+      "expected_tags": ["inside", "em-tag"]
+    },
+    {
+      "name": "hash_after_emphasis_without_space_rejected",
+      "markdown": "**bold**#glued end",
+      "expected_tags": []
+    },
+    {
+      "name": "fenced_backtick_skipped",
+      "markdown": "Before #visible\n```\n#hidden\n```\nAfter #also-visible",
+      "expected_tags": ["visible", "also-visible"]
+    },
+    {
+      "name": "fenced_info_string_skipped",
+      "markdown": "```rust\n#hidden\n```\n\nAfter #shown",
+      "expected_tags": ["shown"]
+    },
+    {
+      "name": "fenced_tilde_skipped",
+      "markdown": "Before #visible\n~~~\n#hidden\n~~~\nAfter #also-visible",
+      "expected_tags": ["visible", "also-visible"]
+    },
+    {
+      "name": "indented_four_spaces_skipped",
+      "markdown": "Text #before\n\n    #inside-code\n\nAfter #after",
+      "expected_tags": ["before", "after"]
+    },
+    {
+      "name": "tab_indented_skipped",
+      "markdown": "Text #before\n\n\t#inside-code\n\nAfter #after",
+      "expected_tags": ["before", "after"]
+    },
+    {
+      "name": "list_continuation_keeps_tags",
+      "markdown": "- item\n    #tag",
+      "expected_tags": ["tag"]
+    },
+    {
+      "name": "nested_list_under_ordered_keeps_tags",
+      "markdown": "1. a\n    - #child",
+      "expected_tags": ["child"]
+    },
+    {
+      "name": "indented_code_after_list_ends_skipped",
+      "markdown": "- #item\n\nplain\n\n    #code",
+      "expected_tags": ["item"]
+    },
+    {
+      "name": "inline_code_single_backtick_skipped",
+      "markdown": "use `#include` and #real",
+      "expected_tags": ["real"]
+    },
+    {
+      "name": "inline_code_space_before_hash_skipped",
+      "markdown": "run `cmd #flag` then #real",
+      "expected_tags": ["real"]
+    },
+    {
+      "name": "inline_code_double_backtick_skipped",
+      "markdown": "see ``#tag `inner` `` then #real",
+      "expected_tags": ["real"]
+    },
+    {
+      "name": "inline_code_spans_between_tag",
+      "markdown": "`#a` #b `#c`",
+      "expected_tags": ["b"]
+    },
+    {
+      "name": "unclosed_backtick_keeps_tag",
+      "markdown": "a ` b #tag",
+      "expected_tags": ["tag"]
+    },
+    {
+      "name": "math_block_skipped",
+      "markdown": "Before #a\n\n$$\n#inside\n$$\n\nAfter #b",
+      "expected_tags": ["a", "b"]
+    },
+    {
+      "name": "one_line_math_block_skipped",
+      "markdown": "$$ #x $$\n\nAfter #after",
+      "expected_tags": ["after"]
+    },
+    {
+      "name": "frontmatter_other_key_ignored",
+      "markdown": "---\ntitle: #nope\n---\nBody text",
+      "expected_tags": []
+    },
+    {
+      "name": "frontmatter_then_body_tag",
+      "markdown": "---\ntitle: Note\n---\nBody #real",
+      "expected_tags": ["real"]
+    },
+    {
+      "name": "frontmatter_tags_list",
+      "markdown": "---\ntags:\n  - rust\n  - web\n---\nBody",
+      "expected_tags": ["rust", "web"],
+      "rust_only": true
+    },
+    {
+      "name": "frontmatter_inline_array",
+      "markdown": "---\ntags: [alpha, \"#beta\"]\n---\nBody",
+      "expected_tags": ["alpha", "beta"],
+      "rust_only": true
+    },
+    {
+      "name": "frontmatter_and_inline_mixed",
+      "markdown": "---\ntags:\n  - fm-tag\n---\n\nSome #inline-tag here",
+      "expected_tags": ["fm-tag", "inline-tag"],
+      "rust_only": true
+    }
+  ]
+}

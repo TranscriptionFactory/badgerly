@@ -8,12 +8,14 @@ use crate::shared::storage;
 use crate::shared::vault_ignore;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
+use regex::Regex;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 use specta::Type;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::LazyLock;
 use tauri::{AppHandle, Manager};
 use walkdir::WalkDir;
 
@@ -359,10 +361,10 @@ pub(crate) fn extract_frontmatter_properties(markdown: &str) -> Vec<(String, Str
     props
 }
 
-struct ExtractedTag {
-    tag: String,
-    line: i64,
-    source: &'static str,
+pub(crate) struct ExtractedTag {
+    pub(crate) tag: String,
+    pub(crate) line: i64,
+    pub(crate) source: &'static str,
 }
 
 pub(crate) struct ExtractedHeading {
@@ -618,17 +620,67 @@ fn sync_sections(
     Ok(())
 }
 
-fn extract_tags(markdown: &str) -> Vec<ExtractedTag> {
-    use regex::Regex;
-    use std::sync::LazyLock;
+fn is_list_item(line: &str) -> bool {
+    static LIST_ITEM_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"^\s*(?:[-*+]|\d+[.)])\s").unwrap());
+    LIST_ITEM_RE.is_match(line)
+}
 
-    static INLINE_TAG_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"(?:^|\s)#([\w][\w/\-]*)").unwrap());
+fn is_indented_code(line: &str) -> bool {
+    line.starts_with('\t') || line.starts_with("    ")
+}
+
+fn find_closing_backtick_run(bytes: &[u8], from: usize, run_len: usize) -> Option<usize> {
+    let mut i = from;
+    while i < bytes.len() {
+        if bytes[i] != b'`' {
+            i += 1;
+            continue;
+        }
+        let start = i;
+        while i < bytes.len() && bytes[i] == b'`' {
+            i += 1;
+        }
+        if i - start == run_len {
+            return Some(start);
+        }
+    }
+    None
+}
+
+fn mask_inline_code(line: &str) -> String {
+    let bytes = line.as_bytes();
+    let mut masked = bytes.to_vec();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] != b'`' {
+            i += 1;
+            continue;
+        }
+        let run_start = i;
+        while i < bytes.len() && bytes[i] == b'`' {
+            i += 1;
+        }
+        let run_len = i - run_start;
+        if let Some(close) = find_closing_backtick_run(bytes, i, run_len) {
+            masked[i..close].fill(b' ');
+            i = close + run_len;
+        }
+    }
+    String::from_utf8(masked).expect("masking keeps the line valid utf-8")
+}
+
+pub(crate) fn extract_tags(markdown: &str) -> Vec<ExtractedTag> {
+    static INLINE_TAG_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?:^|\s)#([\p{L}\p{N}_][\p{L}\p{N}_/\-]*)").unwrap()
+    });
 
     let mut tags = Vec::new();
     let mut in_frontmatter = false;
     let mut in_tags_array = false;
     let mut in_code_block = false;
+    let mut in_math = false;
+    let mut in_list = false;
 
     for (line_idx, line) in markdown.lines().enumerate() {
         let trimmed = line.trim();
@@ -638,6 +690,16 @@ fn extract_tags(markdown: &str) -> Vec<ExtractedTag> {
             continue;
         }
         if in_code_block {
+            continue;
+        }
+
+        if trimmed.starts_with("$$") {
+            if !(trimmed.len() > 2 && trimmed.ends_with("$$")) {
+                in_math = !in_math;
+            }
+            continue;
+        }
+        if in_math {
             continue;
         }
 
@@ -710,17 +772,25 @@ fn extract_tags(markdown: &str) -> Vec<ExtractedTag> {
             continue;
         }
 
-        {
-            for cap in INLINE_TAG_RE.captures_iter(line) {
-                if let Some(m) = cap.get(1) {
-                    let tag = m.as_str();
-                    if !tag.chars().all(|c| c.is_ascii_digit()) {
-                        tags.push(ExtractedTag {
-                            tag: tag.to_string(),
-                            line: line_idx as i64,
-                            source: "inline",
-                        });
-                    }
+        if is_list_item(line) {
+            in_list = true;
+        } else if !trimmed.is_empty() && !line.starts_with(char::is_whitespace) {
+            in_list = false;
+        }
+        if !in_list && is_indented_code(line) {
+            continue;
+        }
+
+        let masked = mask_inline_code(line);
+        for cap in INLINE_TAG_RE.captures_iter(&masked) {
+            if let Some(m) = cap.get(1) {
+                let tag = m.as_str();
+                if !tag.chars().all(char::is_numeric) {
+                    tags.push(ExtractedTag {
+                        tag: tag.to_string(),
+                        line: line_idx as i64,
+                        source: "inline",
+                    });
                 }
             }
         }

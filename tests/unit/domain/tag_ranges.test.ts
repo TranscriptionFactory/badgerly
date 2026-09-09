@@ -124,4 +124,11 @@ describe("find_inline_tag_ranges", () => {
       { from: 1, to: 6, tag: "done" },
     ]);
   });
+
+  it("rejects a pure-numeric tag", () => {
+    const doc = paragraph_doc([{ text: "issue #123 and #123-a" }]);
+    expect(find_inline_tag_ranges(doc)).toEqual([
+      { from: 16, to: 22, tag: "123-a" },
+    ]);
+  });
 });
