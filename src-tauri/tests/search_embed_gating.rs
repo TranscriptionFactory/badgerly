@@ -1,10 +1,16 @@
 use crate::features::search::db as search_db;
+use crate::features::search::embed_scope::{
+    embedding_scope_from_editor, note_embed_eligible, EmbeddingScope, NoteEmbedFacts,
+};
 use crate::features::search::hnsw_index::{SharedVectorIndex, VectorIndex};
-use crate::features::search::service::{apply_note_embedding_on_save, embedding_flags, SaveEncoder};
+use crate::features::search::service::{
+    apply_note_embedding_on_save, embedding_flags, sweep_stale_note_vectors, SaveEncoder,
+};
 use crate::features::search::vector_db;
 use crate::features::settings::service::SettingsStore;
 use rusqlite::Connection;
 use serde_json::json;
+use std::collections::BTreeMap;
 use std::sync::{Arc, RwLock};
 
 const NOTE: &str = "n.md";
@@ -394,4 +400,242 @@ fn save_prunes_stale_block_index_keys() {
     let keys = bi.keys_with_prefix(&format!("{NOTE}\0"));
     assert_eq!(keys.len(), 2, "only live section keys survive");
     assert!(!keys.contains(&format!("{NOTE}\0removed-section")));
+}
+
+fn facts(file_type: Option<&str>, source: &str, char_count: i64) -> NoteEmbedFacts {
+    NoteEmbedFacts {
+        file_type: file_type.map(str::to_string),
+        source: Some(source.to_string()),
+        char_count,
+    }
+}
+
+fn vault(file_type: &str) -> NoteEmbedFacts {
+    facts(Some(file_type), "vault", 42)
+}
+
+const ALL_SCOPES: [EmbeddingScope; 3] = [
+    EmbeddingScope::Markdown,
+    EmbeddingScope::Documents,
+    EmbeddingScope::All,
+];
+
+#[test]
+fn scope_documents_is_the_default() {
+    assert_eq!(embedding_scope_from_editor(None), EmbeddingScope::Documents);
+    assert_eq!(
+        embedding_scope_from_editor(Some(&json!({}))),
+        EmbeddingScope::Documents
+    );
+    assert_eq!(
+        embedding_scope_from_editor(Some(&json!({ "embedding_scope": "everything" }))),
+        EmbeddingScope::Documents,
+        "an unknown value from a hand-edited settings file falls back to the default"
+    );
+    assert_eq!(
+        embedding_scope_from_editor(Some(&json!({ "embedding_scope": 3 }))),
+        EmbeddingScope::Documents
+    );
+    assert_eq!(
+        embedding_scope_from_editor(Some(&json!("documents"))),
+        EmbeddingScope::Documents,
+        "a non-object editor value is treated as missing"
+    );
+}
+
+#[test]
+fn scope_parses_each_value() {
+    for (raw, expected) in [
+        ("markdown", EmbeddingScope::Markdown),
+        ("documents", EmbeddingScope::Documents),
+        ("all", EmbeddingScope::All),
+    ] {
+        assert_eq!(
+            embedding_scope_from_editor(Some(&json!({ "embedding_scope": raw }))),
+            expected,
+            "{raw}"
+        );
+    }
+}
+
+#[test]
+fn eligibility_rejects_empty_body_in_every_scope() {
+    for scope in ALL_SCOPES {
+        for file_type in ["markdown", "canvas", "pdf", "text", "code"] {
+            assert!(
+                !note_embed_eligible(&facts(Some(file_type), "vault", 0), scope),
+                "{file_type} with an empty body under {scope:?}"
+            );
+        }
+        assert!(!note_embed_eligible(&facts(Some("pdf"), "linked", 0), scope));
+    }
+}
+
+#[test]
+fn eligibility_markdown_scope_excludes_documents_and_code() {
+    let scope = EmbeddingScope::Markdown;
+    assert!(note_embed_eligible(&vault("markdown"), scope));
+    assert!(note_embed_eligible(&vault("canvas"), scope));
+    for file_type in ["pdf", "html", "epub", "text", "code", "binary"] {
+        assert!(!note_embed_eligible(&vault(file_type), scope), "{file_type}");
+    }
+    assert!(
+        !note_embed_eligible(&facts(Some("pdf"), "linked", 42), scope),
+        "linked rows are documents, so Markdown scope leaves them out"
+    );
+}
+
+#[test]
+fn eligibility_documents_scope_includes_linked_rows() {
+    let scope = EmbeddingScope::Documents;
+    for file_type in ["markdown", "canvas", "pdf", "html", "epub", "text"] {
+        assert!(note_embed_eligible(&vault(file_type), scope), "{file_type}");
+    }
+    assert!(!note_embed_eligible(&vault("code"), scope));
+    assert!(!note_embed_eligible(&vault("binary"), scope));
+    assert!(note_embed_eligible(&facts(Some("pdf"), "linked", 42), scope));
+    assert!(
+        note_embed_eligible(&facts(Some("code"), "linked", 42), scope),
+        "a linked row is eligible by its source, whatever its file_type"
+    );
+}
+
+#[test]
+fn eligibility_all_scope_includes_code_never_binary() {
+    let scope = EmbeddingScope::All;
+    for file_type in ["markdown", "canvas", "pdf", "html", "epub", "text", "code"] {
+        assert!(note_embed_eligible(&vault(file_type), scope), "{file_type}");
+    }
+    assert!(!note_embed_eligible(&vault("binary"), scope));
+    assert!(note_embed_eligible(&facts(Some("code"), "linked", 42), scope));
+}
+
+#[test]
+fn eligibility_rejects_unknown_file_type() {
+    for scope in ALL_SCOPES {
+        assert!(!note_embed_eligible(&facts(None, "vault", 42), scope));
+        assert!(!note_embed_eligible(&facts(Some("wasm"), "vault", 42), scope));
+    }
+}
+
+fn seed_note_vector(conn: &Connection, note_index: &SharedVectorIndex, path: &str) {
+    vector_db::upsert_embedding(conn, path, &[0.1_f32; 4]).expect("seed note embedding");
+    note_index
+        .write()
+        .expect("index lock")
+        .insert(path, vec![0.1_f32; 4]);
+}
+
+fn embedded_keys(note_index: &SharedVectorIndex) -> Vec<String> {
+    let mut keys = note_index.read().expect("index lock").keys_with_prefix("");
+    keys.sort();
+    keys
+}
+
+#[test]
+fn sweep_drops_ineligible_rows_from_db_and_index() {
+    let conn = conn_with_vector_schema();
+    let note_index = shared_index();
+    for path in ["a.md", "b.py", "c.png"] {
+        seed_note_vector(&conn, &note_index, path);
+    }
+    let facts: BTreeMap<String, NoteEmbedFacts> = [
+        ("a.md".to_string(), vault("markdown")),
+        ("b.py".to_string(), vault("code")),
+        ("c.png".to_string(), facts(Some("binary"), "vault", 0)),
+    ]
+    .into_iter()
+    .collect();
+
+    let swept = sweep_stale_note_vectors(&conn, &note_index, &facts, EmbeddingScope::Documents);
+
+    assert_eq!(swept, 2);
+    let mut db_paths: Vec<String> = vector_db::get_embedded_paths(&conn).into_iter().collect();
+    db_paths.sort();
+    assert_eq!(db_paths, vec!["a.md".to_string()]);
+    assert_eq!(embedded_keys(&note_index), vec!["a.md".to_string()]);
+}
+
+#[test]
+fn sweep_drops_rows_with_no_note_facts() {
+    let conn = conn_with_vector_schema();
+    let note_index = shared_index();
+    seed_note_vector(&conn, &note_index, "deleted.md");
+    seed_note_vector(&conn, &note_index, "kept.md");
+    let facts: BTreeMap<String, NoteEmbedFacts> =
+        [("kept.md".to_string(), vault("markdown"))].into_iter().collect();
+
+    let swept = sweep_stale_note_vectors(&conn, &note_index, &facts, EmbeddingScope::Documents);
+
+    assert_eq!(swept, 1, "a vector whose notes row is gone is a ghost");
+    assert!(!vector_db::has_embedding(&conn, "deleted.md"));
+    assert_eq!(embedded_keys(&note_index), vec!["kept.md".to_string()]);
+}
+
+#[test]
+fn sweep_drops_index_keys_without_a_db_row() {
+    let conn = conn_with_vector_schema();
+    let note_index = shared_index();
+    seed_note_vector(&conn, &note_index, "kept.md");
+    note_index
+        .write()
+        .expect("index lock")
+        .insert("orphan.txt", vec![0.2_f32; 4]);
+    let facts: BTreeMap<String, NoteEmbedFacts> = [
+        ("kept.md".to_string(), vault("markdown")),
+        ("orphan.txt".to_string(), vault("text")),
+    ]
+    .into_iter()
+    .collect();
+
+    let swept = sweep_stale_note_vectors(&conn, &note_index, &facts, EmbeddingScope::Documents);
+
+    assert_eq!(swept, 1, "an index key with no DB row counts as swept");
+    assert_eq!(embedded_keys(&note_index), vec!["kept.md".to_string()]);
+    assert!(vector_db::has_embedding(&conn, "kept.md"));
+}
+
+#[test]
+fn sweep_keeps_eligible_vectors() {
+    let conn = conn_with_vector_schema();
+    let note_index = shared_index();
+    for path in ["a.md", "b.pdf", "linked/paper.pdf"] {
+        seed_note_vector(&conn, &note_index, path);
+    }
+    let facts: BTreeMap<String, NoteEmbedFacts> = [
+        ("a.md".to_string(), vault("markdown")),
+        ("b.pdf".to_string(), vault("pdf")),
+        (
+            "linked/paper.pdf".to_string(),
+            facts(Some("pdf"), "linked", 42),
+        ),
+    ]
+    .into_iter()
+    .collect();
+
+    let swept = sweep_stale_note_vectors(&conn, &note_index, &facts, EmbeddingScope::Documents);
+
+    assert_eq!(swept, 0);
+    assert_eq!(vector_db::get_embedded_paths(&conn).len(), 3);
+    assert_eq!(embedded_keys(&note_index).len(), 3);
+}
+
+#[test]
+fn sweep_is_idempotent() {
+    let conn = conn_with_vector_schema();
+    let note_index = shared_index();
+    seed_note_vector(&conn, &note_index, "a.md");
+    seed_note_vector(&conn, &note_index, "b.py");
+    let facts: BTreeMap<String, NoteEmbedFacts> = [
+        ("a.md".to_string(), vault("markdown")),
+        ("b.py".to_string(), vault("code")),
+    ]
+    .into_iter()
+    .collect();
+
+    let first = sweep_stale_note_vectors(&conn, &note_index, &facts, EmbeddingScope::Markdown);
+    let second = sweep_stale_note_vectors(&conn, &note_index, &facts, EmbeddingScope::Markdown);
+
+    assert_eq!((first, second), (1, 0));
+    assert_eq!(embedded_keys(&note_index), vec!["a.md".to_string()]);
 }

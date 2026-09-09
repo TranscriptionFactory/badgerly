@@ -120,6 +120,30 @@ export const EMBEDDING_MODEL_OPTIONS: {
   },
 ];
 
+export type EmbeddingScope = "markdown" | "documents" | "all";
+
+export const EMBEDDING_SCOPE_OPTIONS: {
+  value: EmbeddingScope;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "markdown",
+    label: "Markdown only",
+    description: "notes and canvases",
+  },
+  {
+    value: "documents",
+    label: "Markdown + documents",
+    description: "adds PDF, HTML, EPUB, text, linked sources",
+  },
+  {
+    value: "all",
+    label: "Everything",
+    description: "adds code files",
+  },
+];
+
 export type EditorSettings = {
   attachment_folder: string;
   ignored_folders: string[];
@@ -262,6 +286,7 @@ export type EditorSettings = {
   // stt_ai_cleanup_enabled: boolean;
   // stt_ai_cleanup_prompt: string;
   embedding_model_id: EmbeddingModelId;
+  embedding_scope: EmbeddingScope;
   embedding_note_enabled: boolean;
   embedding_block_enabled: boolean;
   native_link_hover_enabled: boolean;
@@ -401,6 +426,7 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   // stt_ai_cleanup_prompt:
   //   "Clean up this dictated text. Fix grammar, remove filler words, maintain the speaker's intent and tone.",
   embedding_model_id: "snowflake-arctic-embed-xs",
+  embedding_scope: "documents",
   embedding_note_enabled: true,
   embedding_block_enabled: true,
   native_link_hover_enabled: true,

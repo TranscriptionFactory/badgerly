@@ -1,5 +1,8 @@
 use crate::features::notes::service as notes_service;
 use crate::features::search::db::{self as search_db, AttachmentLink, OrphanLink};
+use crate::features::search::embed_scope::{
+    embedding_scope_from_editor, note_embed_eligible, EmbeddingScope, NoteEmbedFacts,
+};
 use crate::features::search::embedding_model;
 use crate::features::search::embeddings::{
     self, embed_with_singles_fallback, estimated_chunk_count, is_cancellation,
@@ -12,6 +15,7 @@ use crate::features::search::model::{
 };
 use crate::features::search::{hybrid, vector_db};
 use crate::features::settings::service as settings_service;
+use crate::features::vault_settings::service::get_vault_setting_value;
 use crate::shared::storage::{self, VaultMode};
 use crate::shared::vault_ignore;
 use rusqlite::Connection;
@@ -49,6 +53,52 @@ pub(crate) fn embedding_flags(store: &settings_service::SettingsStore) -> (bool,
         flag("embedding_note_enabled"),
         flag("embedding_block_enabled"),
     )
+}
+
+fn resolve_embedding_scope(app: &AppHandle, vault_id: &str) -> EmbeddingScope {
+    embedding_scope_from_editor(
+        get_vault_setting_value(app, vault_id, "editor")
+            .ok()
+            .flatten()
+            .as_ref(),
+    )
+}
+
+/// Drops every note vector whose row is missing or no longer eligible, from
+/// the DB and the resident index, then drops index keys with no DB row. That
+/// second loop is what closes the gap left by `upsert_plain_content`, which
+/// evicts a changed document's DB row without access to the index; a row
+/// evicted by a command drained mid-pass is caught by the following pass.
+pub(crate) fn sweep_stale_note_vectors(
+    conn: &Connection,
+    note_index: &SharedVectorIndex,
+    facts: &BTreeMap<String, NoteEmbedFacts>,
+    scope: EmbeddingScope,
+) -> usize {
+    let mut removed = 0usize;
+    let stale: Vec<String> = vector_db::get_embedded_paths(conn)
+        .into_iter()
+        .filter(|path| !facts.get(path).is_some_and(|f| note_embed_eligible(f, scope)))
+        .collect();
+    for path in &stale {
+        if let Err(e) = vector_db::remove_embedding(conn, path) {
+            log::warn!("embed_sweep: remove failed for {path}: {e}");
+            continue;
+        }
+        removed += 1;
+    }
+    let embedded = vector_db::get_embedded_paths(conn);
+    if let Ok(mut ni) = note_index.write() {
+        for key in ni.keys_with_prefix("") {
+            if !embedded.contains(&key) {
+                ni.remove(&key);
+                if !stale.contains(&key) {
+                    removed += 1;
+                }
+            }
+        }
+    }
+    removed
 }
 
 fn resolve_embedding_flags(app: &AppHandle) -> (bool, bool) {
@@ -1573,7 +1623,7 @@ pub(crate) fn apply_note_embedding_on_save(
     if note_embed_enabled && blocks_encoded {
         let block_vecs = vector_db::get_block_embeddings_for_note(conn, note_id);
         let note_vec = if block_vecs.is_empty() {
-            model.encode_note(&embed_text_for_note(conn, note_id)).ok()
+            embed_text_for_note(conn, note_id).and_then(|text| model.encode_note(&text).ok())
         } else {
             let vecs: Vec<Vec<f32>> = block_vecs.into_iter().map(|(_, v)| v).collect();
             Some(vector_db::mean_pool_normalize(&vecs))
@@ -2068,22 +2118,16 @@ fn handle_sync_paths(
     }
 }
 
-/// Text for the whole-note fallback embed. Pre-truncated: this is the only
-/// embed path fed an unbounded body, and the encoder discards everything past
-/// its token budget anyway — without the cut, a 50 KB note is WordPiece-
-/// tokenized in full to keep 256 tokens of it, which at batch width 32 is the
-/// dominant cost of the fallback pass.
-fn embed_text_for_note(conn: &Connection, path: &str) -> String {
+/// Text for the whole-note fallback embed, or `None` when the body is missing
+/// or blank — a note is only ever embedded from its content, never its name.
+/// Pre-truncated: this is the only embed path fed an unbounded body, and the
+/// encoder discards everything past its token budget anyway — without the
+/// cut, a 50 KB note is WordPiece-tokenized in full to keep 256 tokens of it,
+/// which at batch width 32 is the dominant cost of the fallback pass.
+fn embed_text_for_note(conn: &Connection, path: &str) -> Option<String> {
     search_db::get_fts_body(conn, path)
         .filter(|b| !b.trim().is_empty())
         .map(|body| embeddings::pretruncate(&body).to_string())
-        .unwrap_or_else(|| {
-            Path::new(path)
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or(path)
-                .to_string()
-        })
 }
 
 /// Drains commands that queued up while an embedding pass held the writer
@@ -2177,7 +2221,7 @@ fn handle_embed_batch(
     // 2. Note composition: derives note_embeddings by mean-pooling block vectors for
     //    each note, then L2-normalizing. No separate full-body embed pass; composition
     //    from blocks covers all sections without truncation. Notes with zero block
-    //    embeddings fall back to a direct embed of FTS body or filename. (ref: DL-003, DL-005)
+    //    embeddings fall back to a direct embed of the FTS body; a blank body is skipped. (ref: DL-003, DL-005)
     //
     // Both phases are gated by global feature flags (embedding_block_enabled,
     // embedding_note_enabled), checked before get_or_init so a disabled
@@ -2223,11 +2267,23 @@ fn handle_embed_batch(
 
     let mut deferred: Vec<DbCommand> = Vec::new();
 
+    let scope = resolve_embedding_scope(app_handle, vault_id);
+    let facts = search_db::note_embed_facts(conn).unwrap_or_default();
+    let swept = sweep_stale_note_vectors(conn, note_index, &facts, scope);
+    if swept > 0 {
+        log::info!("embed_batch: swept {swept} stale note vectors for {vault_id}");
+    }
+
     let already_embedded = vector_db::get_embedded_paths(conn);
     let notes_needing_embedding: Vec<String> = if note_embed_enabled {
         notes_cache
             .keys()
-            .filter(|path| !already_embedded.contains(path.as_str()))
+            .filter(|path| {
+                !already_embedded.contains(path.as_str())
+                    && facts
+                        .get(path.as_str())
+                        .is_some_and(|f| note_embed_eligible(f, scope))
+            })
             .cloned()
             .collect()
     } else {
@@ -2327,10 +2383,8 @@ fn handle_embed_batch(
                 // two ways. A save may have embedded the note already — tested
                 // against the note table itself, since block rows only prove a
                 // *composition input* exists, not a vector. Or a delete may have
-                // removed it, in which case re-embedding would resurrect it:
-                // `embed_text_for_note` falls back to the filename when the body
-                // is gone, so the note would come back as a ghost hit until the
-                // next restart reconciled it away.
+                // removed it, in which case re-embedding would resurrect it as
+                // a ghost hit until the next restart reconciled it away.
                 let mut already = 0usize;
                 let pending: Vec<&str> = chunk
                     .iter()
@@ -2349,12 +2403,12 @@ fn handle_embed_batch(
                 embedded += already;
 
                 let batch_start = Instant::now();
+                let pending: Vec<(&str, String)> = pending
+                    .into_iter()
+                    .filter_map(|path| embed_text_for_note(conn, path).map(|text| (path, text)))
+                    .collect();
                 if !pending.is_empty() {
-                    let texts: Vec<String> = pending
-                        .iter()
-                        .map(|path| embed_text_for_note(conn, path))
-                        .collect();
-                    let text_refs: Vec<&str> = texts.iter().map(String::as_str).collect();
+                    let text_refs: Vec<&str> = pending.iter().map(|(_, t)| t.as_str()).collect();
                     // Per-note error semantics have to survive batching: these
                     // notes' rows were already invalidated, so a whole batch
                     // lost to one bad text would stay unembedded.
@@ -2363,7 +2417,7 @@ fn handle_embed_batch(
                     });
                     match embedded_texts {
                         Ok(vectors) => {
-                            for (path, vector) in pending.iter().zip(vectors) {
+                            for ((path, _), vector) in pending.iter().zip(vectors) {
                                 if let Some(vector) = vector {
                                     if store_note_embedding(conn, note_index, path, vector) {
                                         embedded += 1;
@@ -2403,30 +2457,32 @@ fn handle_embed_batch(
                 if cancel.load(Ordering::Relaxed) {
                     break;
                 }
-                let mut texts = Vec::with_capacity(chunk.len());
-                let mut paths = Vec::with_capacity(chunk.len());
-                for path in chunk {
-                    texts.push(embed_text_for_note(conn, path));
-                    paths.push(path.as_str());
-                }
-                let text_refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
+                let pending: Vec<(&str, String)> = chunk
+                    .iter()
+                    .filter_map(|path| {
+                        embed_text_for_note(conn, path).map(|text| (path.as_str(), text))
+                    })
+                    .collect();
                 let batch_start = Instant::now();
-                let embedded_texts = embed_with_singles_fallback(&text_refs, |window| {
-                    model.embed_documents(window, Some(cancel.as_ref()))
-                });
-                match embedded_texts {
-                    Ok(vectors) => {
-                        for (path, vector) in paths.iter().zip(vectors) {
-                            if let Some(vector) = vector {
-                                if store_note_embedding(conn, note_index, path, vector) {
-                                    embedded += 1;
+                if !pending.is_empty() {
+                    let text_refs: Vec<&str> = pending.iter().map(|(_, t)| t.as_str()).collect();
+                    let embedded_texts = embed_with_singles_fallback(&text_refs, |window| {
+                        model.embed_documents(window, Some(cancel.as_ref()))
+                    });
+                    match embedded_texts {
+                        Ok(vectors) => {
+                            for ((path, _), vector) in pending.iter().zip(vectors) {
+                                if let Some(vector) = vector {
+                                    if store_note_embedding(conn, note_index, path, vector) {
+                                        embedded += 1;
+                                    }
                                 }
                             }
                         }
-                    }
-                    Err(e) => {
-                        log::info!("embed_batch: {e}");
-                        break;
+                        Err(e) => {
+                            log::info!("embed_batch: {e}");
+                            break;
+                        }
                     }
                 }
                 let _ = app_handle.emit(
