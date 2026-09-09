@@ -18,7 +18,9 @@ pub fn execute_rules(
     limit: usize,
     note_index: &VectorIndex,
     block_index: &VectorIndex,
+    promoted_tags: &HashSet<String>,
 ) -> Result<Vec<SmartLinkSuggestion>, String> {
+    let _ = promoted_tags;
     let mut hits: HashMap<String, SmartLinkSuggestion> = HashMap::new();
 
     for group in rule_groups {

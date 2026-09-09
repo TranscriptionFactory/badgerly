@@ -5977,6 +5977,11 @@ pub fn list_all_tags(
         .map_err(|e| e.to_string())
 }
 
+pub fn list_frontmatter_tags(conn: &Connection) -> Result<Vec<String>, String> {
+    let _ = conn;
+    todo!("lane C phase 2")
+}
+
 pub fn get_notes_for_tag(conn: &Connection, tag: &str) -> Result<Vec<String>, String> {
     let mut stmt = conn
         .prepare("SELECT DISTINCT path FROM note_inline_tags WHERE tag = ?1 ORDER BY path ASC")

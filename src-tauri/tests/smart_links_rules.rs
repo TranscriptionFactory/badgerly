@@ -4,6 +4,7 @@ use crate::features::smart_links::{
     default_rules, SmartLinkRule, SmartLinkRuleGroup, SmartLinkSuggestion,
 };
 use rusqlite::params;
+use std::collections::HashSet;
 use tempfile::TempDir;
 
 fn setup_db() -> (TempDir, rusqlite::Connection) {
@@ -75,10 +76,23 @@ fn make_rule_group(rule_id: &str, weight: f64) -> Vec<SmartLinkRuleGroup> {
     }]
 }
 
+fn all_promoted(tags: &[&str]) -> HashSet<String> {
+    tags.iter().map(|t| t.to_lowercase()).collect()
+}
+
 fn compute(
     conn: &rusqlite::Connection,
     note_path: &str,
     groups: &[SmartLinkRuleGroup],
+) -> Vec<SmartLinkSuggestion> {
+    compute_with(conn, note_path, groups, &all_promoted(&["rust", "coding", "test"]))
+}
+
+fn compute_with(
+    conn: &rusqlite::Connection,
+    note_path: &str,
+    groups: &[SmartLinkRuleGroup],
+    promoted: &HashSet<String>,
 ) -> Vec<SmartLinkSuggestion> {
     use crate::features::search::hnsw_index::VectorIndex;
     // Detect dims from first embedding in the DB (tests may use non-384 dims)
@@ -98,6 +112,7 @@ fn compute(
         20,
         &note_index,
         &block_index,
+        promoted,
     )
     .expect("execute_rules")
 }
@@ -552,4 +567,58 @@ fn block_semantic_similarity_aggregates_best_score_per_note() {
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].target_path, "b.md");
     assert!(results[0].score > 0.8);
+}
+
+#[test]
+fn shared_tag_ignores_candidate_tags() {
+    let (_tmp, conn) = setup_db();
+    let ts = 1_700_000_000_000i64;
+    insert_note(&conn, "a.md", "Note A", ts);
+    insert_note(&conn, "b.md", "Note B", ts);
+    insert_tag(&conn, "a.md", "fff");
+    insert_tag(&conn, "b.md", "fff");
+
+    let groups = make_rule_group("shared_tag", 1.0);
+    let results = compute_with(&conn, "a.md", &groups, &HashSet::new());
+    assert!(results.is_empty());
+}
+
+#[test]
+fn shared_tag_counts_only_promoted_tags() {
+    let (_tmp, conn) = setup_db();
+    let ts = 1_700_000_000_000i64;
+    insert_note(&conn, "a.md", "Note A", ts);
+    insert_note(&conn, "b.md", "Note B", ts);
+    insert_note(&conn, "c.md", "Note C", ts);
+
+    insert_tag(&conn, "a.md", "rust");
+    insert_tag(&conn, "a.md", "coding");
+    insert_tag(&conn, "a.md", "draft");
+    insert_tag(&conn, "b.md", "rust");
+    insert_tag(&conn, "b.md", "draft");
+    insert_tag(&conn, "c.md", "draft");
+
+    let groups = make_rule_group("shared_tag", 1.0);
+    let results = compute_with(&conn, "a.md", &groups, &all_promoted(&["rust", "coding"]));
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].target_path, "b.md");
+    assert!((results[0].score - 0.5).abs() < 0.01);
+}
+
+#[test]
+fn shared_tag_matches_promotion_case_insensitively_and_by_ancestor() {
+    let (_tmp, conn) = setup_db();
+    let ts = 1_700_000_000_000i64;
+    insert_note(&conn, "a.md", "Note A", ts);
+    insert_note(&conn, "b.md", "Note B", ts);
+    insert_tag(&conn, "a.md", "Rust");
+    insert_tag(&conn, "a.md", "proj/alpha");
+    insert_tag(&conn, "b.md", "Rust");
+    insert_tag(&conn, "b.md", "proj/alpha");
+
+    let groups = make_rule_group("shared_tag", 1.0);
+    let results = compute_with(&conn, "a.md", &groups, &all_promoted(&["RUST", "proj"]));
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].target_path, "b.md");
+    assert!((results[0].score - 1.0).abs() < 0.01);
 }

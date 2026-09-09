@@ -82,6 +82,9 @@ mod mcp_scoped_tokens;
 #[path = "../../tests/smart_links_rules.rs"]
 mod smart_links_rules;
 
+#[path = "../../tests/tag_promotion.rs"]
+mod tag_promotion;
+
 #[path = "../../tests/smart_links_config.rs"]
 mod smart_links_config;
 

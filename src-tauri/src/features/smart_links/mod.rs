@@ -186,7 +186,16 @@ pub fn smart_links_compute_suggestions_inner(
     let bi_guard = bi.read().map_err(|e| e.to_string())?;
 
     search_service::with_read_conn(&app, &vault_id, |conn| {
-        execute_rules(conn, &note_path, &rule_groups, limit, &ni_guard, &bi_guard)
+        let promoted = std::collections::HashSet::new();
+        execute_rules(
+            conn,
+            &note_path,
+            &rule_groups,
+            limit,
+            &ni_guard,
+            &bi_guard,
+            &promoted,
+        )
     })
 }
 
@@ -226,7 +235,16 @@ pub async fn smart_links_compute_vault_edges(
                 let ni_guard = ni.read().map_err(|e| e.to_string())?;
                 let bi_guard = bi.read().map_err(|e| e.to_string())?;
                 let conn = read_conn.lock().map_err(|e| e.to_string())?;
-                execute_rules(&conn, source_path, &rule_groups, limit, &ni_guard, &bi_guard)?
+                let promoted = std::collections::HashSet::new();
+                execute_rules(
+                    &conn,
+                    source_path,
+                    &rule_groups,
+                    limit,
+                    &ni_guard,
+                    &bi_guard,
+                    &promoted,
+                )?
             };
 
             for s in suggestions {
