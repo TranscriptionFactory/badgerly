@@ -1,6 +1,7 @@
 use super::{SmartLinkRuleGroup, SmartLinkRuleMatch, SmartLinkSuggestion};
 use crate::features::search::db as search_db;
 use crate::features::search::hnsw_index::VectorIndex;
+use crate::features::search::tag_promotion::is_promoted;
 use crate::features::search::vector_db;
 use rusqlite::Connection;
 use std::collections::{HashMap, HashSet};
@@ -18,6 +19,7 @@ pub fn execute_rules(
     limit: usize,
     note_index: &VectorIndex,
     block_index: &VectorIndex,
+    promoted_tags: &HashSet<String>,
 ) -> Result<Vec<SmartLinkSuggestion>, String> {
     let mut hits: HashMap<String, SmartLinkSuggestion> = HashMap::new();
 
@@ -31,7 +33,7 @@ pub fn execute_rules(
             }
             let rule_hits = match rule.id.as_str() {
                 "same_day" => query_same_day(conn, note_path)?,
-                "shared_tag" => query_shared_tag(conn, note_path)?,
+                "shared_tag" => query_shared_tag(conn, note_path, promoted_tags)?,
                 "shared_property" => query_shared_property(conn, note_path)?,
                 "semantic_similarity" => query_semantic_similarity(conn, note_path, note_index)?,
                 "title_overlap" => query_title_overlap(conn, note_path)?,
@@ -97,28 +99,43 @@ fn query_same_day(conn: &Connection, note_path: &str) -> Result<Vec<RuleHit>, St
         .map_err(|e| e.to_string())
 }
 
-fn query_shared_tag(conn: &Connection, note_path: &str) -> Result<Vec<RuleHit>, String> {
-    let sql = "
-        SELECT n.path, n.title, COUNT(DISTINCT t2.tag) as shared_count,
-               (SELECT COUNT(DISTINCT tag) FROM note_inline_tags WHERE path = ?1) as source_count
-        FROM note_inline_tags t1
-        JOIN note_inline_tags t2 ON t1.tag = t2.tag AND t2.path != ?1
-        JOIN notes n ON n.path = t2.path
-        WHERE t1.path = ?1
-        GROUP BY n.path
-        ORDER BY shared_count DESC
-        LIMIT 50
-    ";
-    let mut stmt = conn.prepare(sql).map_err(|e| e.to_string())?;
+fn query_shared_tag(
+    conn: &Connection,
+    note_path: &str,
+    promoted: &HashSet<String>,
+) -> Result<Vec<RuleHit>, String> {
+    let own: Vec<String> = search_db::get_note_tags(conn, note_path)?
+        .into_iter()
+        .filter(|tag| is_promoted(tag, promoted))
+        .collect();
+    if own.is_empty() {
+        return Ok(vec![]);
+    }
+    let source_count = own.len() as f64;
+
+    let placeholders = (0..own.len())
+        .map(|i| format!("?{}", i + 2))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let sql = format!(
+        "SELECT n.path, n.title, COUNT(DISTINCT t2.tag) as shared_count
+         FROM note_inline_tags t1
+         JOIN note_inline_tags t2 ON t1.tag = t2.tag AND t2.path != ?1
+         JOIN notes n ON n.path = t2.path
+         WHERE t1.path = ?1 AND t1.tag IN ({placeholders})
+         GROUP BY n.path
+         ORDER BY shared_count DESC
+         LIMIT 50"
+    );
+    let params = std::iter::once(note_path).chain(own.iter().map(String::as_str));
+    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
     let rows = stmt
-        .query_map([note_path], |row| {
+        .query_map(rusqlite::params_from_iter(params), |row| {
             let shared: f64 = row.get(2)?;
-            let source: f64 = row.get(3)?;
-            let score = if source > 0.0 { shared / source } else { 0.0 };
             Ok(RuleHit {
                 target_path: row.get(0)?,
                 target_title: row.get(1)?,
-                raw_score: score,
+                raw_score: shared / source_count,
             })
         })
         .map_err(|e| e.to_string())?;

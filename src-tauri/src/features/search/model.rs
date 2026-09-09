@@ -233,6 +233,7 @@ pub struct PropertyInfo {
 pub struct TagInfo {
     pub tag: String,
     pub count: usize,
+    pub promoted: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Type)]
