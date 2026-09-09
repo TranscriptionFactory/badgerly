@@ -952,6 +952,10 @@ body.block-handle-dragging .prosemirror-dropcursor-inline {
   white-space: nowrap;
 }
 
+.TagSuggest__item--candidate .TagSuggest__label {
+  color: var(--muted-foreground);
+}
+
 .TagSuggest__badge,
 .DslSuggest__badge {
   flex-shrink: 0;

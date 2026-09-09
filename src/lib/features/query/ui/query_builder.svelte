@@ -27,7 +27,7 @@
   ];
   const operators = PROPERTY_OPERATORS as readonly PropertyOperator[];
 
-  const tag_options = $derived(stores.tag.tags.map((t) => t.tag));
+  const tag_options = $derived(stores.tag.promoted_tags.map((t) => t.tag));
   const folder_paths = $derived(stores.notes.folder_paths);
 
   let clauses = $state<QueryBuilderClauseEntry[]>([

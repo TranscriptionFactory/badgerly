@@ -15,6 +15,7 @@ export type TagItem = { tag: string; count: number; promoted: boolean };
 export type TagSuggestPluginConfig = {
   on_query: (query: string) => void;
   on_dismiss: () => void;
+  on_accept?: (item: TagItem) => void;
 };
 
 export function extract_tag_query(
@@ -56,6 +57,7 @@ function render_items(
     row.type = "button";
     row.className = "TagSuggest__item";
     if (i === selected_index) row.classList.add("TagSuggest__item--selected");
+    if (!item.promoted) row.classList.add("TagSuggest__item--candidate");
 
     const label = document.createElement("span");
     label.className = "TagSuggest__label";
@@ -63,7 +65,9 @@ function render_items(
 
     const badge = document.createElement("span");
     badge.className = "TagSuggest__badge";
-    badge.textContent = `${String(item.count)} notes`;
+    badge.textContent = item.promoted
+      ? `${String(item.count)} notes`
+      : `${String(item.count)} notes · candidate`;
 
     row.appendChild(label);
     row.appendChild(badge);
@@ -109,6 +113,7 @@ export function create_tag_suggest_prose_plugin(
       });
       view.dispatch(tr);
       view.focus();
+      config.on_accept?.(item);
     },
     on_query: config.on_query,
     on_dismiss: config.on_dismiss,

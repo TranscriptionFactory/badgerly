@@ -14,7 +14,11 @@ export function create_tag_pill_styles_reactor(
     });
 
     $effect(() => {
-      apply_tag_pill_styles(tag_store.promoted_setting, tag_store.tag_colors);
+      const promoted = new Set([
+        ...tag_store.promoted_setting,
+        ...tag_store.promoted_tags.map((t) => t.tag),
+      ]);
+      apply_tag_pill_styles([...promoted], tag_store.tag_colors);
     });
   });
 }

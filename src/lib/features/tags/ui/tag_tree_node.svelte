@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { TagTreeNode } from "../types";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
+  import * as ContextMenu from "$lib/components/ui/context-menu";
   import { ACTION_IDS } from "$lib/app";
   import type { ActionRegistry } from "$lib/app/action_registry/action_registry";
   import type { TagStore } from "../state/tag_store.svelte";
@@ -18,54 +19,81 @@
   let has_children = $derived(node.children.length > 0);
   let is_expanded = $derived(tag_store.is_expanded(node.full_tag));
   let total_count = $derived(node.own_count + node.descendant_count);
+  let can_demote = $derived(
+    tag_store.promoted_setting.some(
+      (entry) => entry.toLowerCase() === node.full_tag.toLowerCase(),
+    ),
+  );
 </script>
 
 <div>
-  <div
-    class="flex items-center gap-0.5 group"
-    style:padding-left="{depth * 12 + 8}px"
-  >
-    {#if has_children}
-      <button
-        type="button"
-        class="shrink-0 w-4 h-4 flex items-center justify-center rounded hover:bg-muted"
-        onclick={() =>
-          void action_registry.execute(
-            ACTION_IDS.tags_toggle_expanded,
-            node.full_tag,
-          )}
+  <ContextMenu.Root>
+    <ContextMenu.Trigger class="w-full">
+      <div
+        class="flex items-center gap-0.5 group"
+        style:padding-left="{depth * 12 + 8}px"
       >
-        <ChevronRight
-          size={12}
-          class="transition-transform {is_expanded ? 'rotate-90' : ''}"
-        />
-      </button>
-    {:else}
-      <span class="shrink-0 w-4"></span>
-    {/if}
+        {#if has_children}
+          <button
+            type="button"
+            class="shrink-0 w-4 h-4 flex items-center justify-center rounded hover:bg-muted"
+            onclick={() =>
+              void action_registry.execute(
+                ACTION_IDS.tags_toggle_expanded,
+                node.full_tag,
+              )}
+          >
+            <ChevronRight
+              size={12}
+              class="transition-transform {is_expanded ? 'rotate-90' : ''}"
+            />
+          </button>
+        {:else}
+          <span class="shrink-0 w-4"></span>
+        {/if}
 
-    <button
-      type="button"
-      class="flex-1 min-w-0 text-left py-1 pr-2 rounded text-xs hover:bg-muted flex items-center justify-between gap-2"
-      onclick={() => {
-        if (has_children) {
-          void action_registry.execute(
-            ACTION_IDS.tags_select_prefix,
-            node.full_tag,
-          );
-        } else {
-          void action_registry.execute(ACTION_IDS.tags_select, node.full_tag);
-        }
-      }}
-    >
-      <span class="truncate">#{node.segment}</span>
-      <span
-        class="shrink-0 text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full"
-      >
-        {total_count}
-      </span>
-    </button>
-  </div>
+        <button
+          type="button"
+          class="flex-1 min-w-0 text-left py-1 pr-2 rounded text-xs hover:bg-muted flex items-center justify-between gap-2"
+          onclick={() => {
+            if (has_children) {
+              void action_registry.execute(
+                ACTION_IDS.tags_select_prefix,
+                node.full_tag,
+              );
+            } else {
+              void action_registry.execute(
+                ACTION_IDS.tags_select,
+                node.full_tag,
+              );
+            }
+          }}
+        >
+          <span class="truncate">#{node.segment}</span>
+          <span
+            class="shrink-0 text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full"
+          >
+            {total_count}
+          </span>
+        </button>
+      </div>
+    </ContextMenu.Trigger>
+    {#if can_demote}
+      <ContextMenu.Portal>
+        <ContextMenu.Content>
+          <ContextMenu.Item
+            onSelect={() =>
+              void action_registry.execute(
+                ACTION_IDS.tags_demote,
+                node.full_tag,
+              )}
+          >
+            Demote to candidate
+          </ContextMenu.Item>
+        </ContextMenu.Content>
+      </ContextMenu.Portal>
+    {/if}
+  </ContextMenu.Root>
 
   {#if has_children && is_expanded}
     {#each node.children as child (child.full_tag)}

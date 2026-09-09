@@ -37,7 +37,7 @@
   git_branch={stores.git.branch}
   git_is_dirty={stores.git.is_dirty}
   git_pending_files={stores.git.pending_files}
-  tags={stores.tag.tags}
+  tags={stores.tag.promoted_tags}
   on_tag_click={(tag: string) =>
     void action_registry.execute(ACTION_IDS.tags_select, tag)}
 />

@@ -39,7 +39,7 @@
   const save_pending = $derived(save_op.status === "pending");
 
   const suggest_ctx: DslContext = $derived({
-    tags: stores.tag.tags.map((t) => t.tag),
+    tags: stores.tag.promoted_tags.map((t) => t.tag),
     note_names: stores.notes.notes.map((n) => n.name),
     folder_paths: stores.notes.folder_paths,
     property_names: stores.bases.available_properties.map((p) => p.name),

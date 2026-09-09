@@ -17,11 +17,12 @@ function make_service(
   vault_id: string | null = "vault-1",
 ) {
   const calls: string[] = [];
+  let persisted: unknown = null;
   const store = new TagStore();
   const port: TagPort = {
-    list_all_tags: vi.fn(async () => {
+    list_all_tags: vi.fn(() => {
       calls.push("list_all_tags");
-      return tags;
+      return Promise.resolve(tags);
     }),
     get_notes_for_tag: vi.fn().mockResolvedValue([]),
     get_notes_for_tag_prefix: vi.fn().mockResolvedValue([]),
@@ -29,10 +30,11 @@ function make_service(
   const settings_port: VaultSettingsPort = {
     get_vault_setting: vi.fn().mockImplementation((_vault_id, key) => {
       calls.push(`get:${String(key)}`);
-      return Promise.resolve(null);
+      return Promise.resolve(persisted);
     }),
-    set_vault_setting: vi.fn().mockImplementation((_vault_id, key) => {
+    set_vault_setting: vi.fn().mockImplementation((_vault_id, key, value) => {
       calls.push(`set:${String(key)}`);
+      persisted = value;
       return Promise.resolve();
     }),
     get_local_setting: vi.fn().mockResolvedValue(null),
@@ -159,7 +161,7 @@ describe("TagService promotion", () => {
   });
 
   it("persist failure records the error but keeps the optimistic store value", async () => {
-    const { service, store } = make_service([], {
+    const { service, store, port } = make_service([], {
       set_vault_setting: vi.fn().mockRejectedValue(new Error("disk full")),
     });
 
@@ -167,5 +169,6 @@ describe("TagService promotion", () => {
 
     expect(store.promoted_setting).toEqual(["rust"]);
     expect(store.error).toBe("disk full");
+    expect(port.list_all_tags).not.toHaveBeenCalled();
   });
 });

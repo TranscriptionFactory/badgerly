@@ -1136,11 +1136,15 @@ export class EditorService {
       if (!this.is_generation_current(generation)) return;
       const tag_map = new Map(tags.map((t) => [t.tag, t]));
       const ranked = rank_tags(query, Array.from(tag_map.keys()), 20);
-      const filtered = ranked.flatMap((m) => {
+      const matched = ranked.flatMap((m) => {
         const entry = tag_map.get(m.tag);
         return entry ? [entry] : [];
       });
-      this.session?.set_tag_suggestions?.(filtered);
+      const ordered = [
+        ...matched.filter((t) => t.promoted),
+        ...matched.filter((t) => !t.promoted),
+      ];
+      this.session?.set_tag_suggestions?.(ordered);
     });
   }
 
@@ -1155,7 +1159,7 @@ export class EditorService {
       notes_port?.list_folders(vault_id) ?? Promise.resolve([]),
     ]);
     return {
-      tags: tags.map((t) => t.tag),
+      tags: tags.filter((t) => t.promoted).map((t) => t.tag),
       note_names,
       folder_paths: folders,
       // ponytail: no bases port here; add optional list_properties dep when
@@ -1309,7 +1313,9 @@ export class EditorService {
 
     void tag_port.list_all_tags(vault_id).then((tags) => {
       if (!this.is_generation_current(generation)) return;
-      const tag_map = new Map(tags.map((t) => [t.tag, t]));
+      const tag_map = new Map(
+        tags.filter((t) => t.promoted).map((t) => [t.tag, t]),
+      );
       const ranked = rank_tags(query, Array.from(tag_map.keys()), 20);
       const items: AtPaletteItem[] = ranked.flatMap((m) => {
         const entry = tag_map.get(m.tag);
@@ -1420,6 +1426,9 @@ export class EditorService {
     if (this.tag_port) {
       events.on_tag_suggest_query = (query: string) => {
         this.handle_tag_suggest_query(generation, query);
+      };
+      events.on_tag_suggest_accept = (tag: string) => {
+        this.callbacks.on_tag_accepted?.(tag);
       };
     }
 

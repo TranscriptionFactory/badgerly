@@ -7,6 +7,10 @@ export type TagPillMenuConfig = {
   get_color: (tag: string) => string | null;
   on_set_color: (tag: string, color: string) => void;
   on_clear_color: (tag: string) => void;
+  is_promoted: (tag: string) => boolean;
+  can_demote: (tag: string) => boolean;
+  on_promote: (tag: string) => void;
+  on_demote: (tag: string) => void;
 };
 
 export type TagPillMenuState = {

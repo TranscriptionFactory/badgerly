@@ -34,7 +34,9 @@ describe("build_tag_pill_css", () => {
     const selector = `${PROMOTED_PREFIX}${promoted_selector(css)})`;
 
     expect(css).toContain(`${selector}:hover {`);
-    expect(css.indexOf(selector)).toBeLessThan(css.indexOf(`${selector}:hover`));
+    expect(css.indexOf(selector)).toBeLessThan(
+      css.indexOf(`${selector}:hover`),
+    );
   });
 
   it("emits the colour rules unchanged when no tag is promoted", () => {

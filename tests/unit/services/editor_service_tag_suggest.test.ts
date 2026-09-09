@@ -235,14 +235,18 @@ describe("handle_tag_suggest_query — fuzzy/hierarchical ranking", () => {
 
     const results = require_first(session.captured_tag_suggestions);
     expect(results.map((r) => r.promoted)).toEqual([true, true, false, false]);
-    expect(results.slice(0, 2).map((r) => r.tag).sort()).toEqual([
-      "child",
-      "child/b",
-    ]);
-    expect(results.slice(2).map((r) => r.tag).sort()).toEqual([
-      "child/a",
-      "child/c",
-    ]);
+    expect(
+      results
+        .slice(0, 2)
+        .map((r) => r.tag)
+        .sort(),
+    ).toEqual(["child", "child/b"]);
+    expect(
+      results
+        .slice(2)
+        .map((r) => r.tag)
+        .sort(),
+    ).toEqual(["child/a", "child/c"]);
   });
 
   it("accepting a suggestion calls on_tag_accepted", async () => {
