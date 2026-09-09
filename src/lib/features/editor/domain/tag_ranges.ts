@@ -2,7 +2,7 @@ import type { Node as ProseNode } from "prosemirror-model";
 
 export type InlineTagRange = { from: number; to: number; tag: string };
 
-// Mirrors the Rust inline tag extractor: `(?:^|\s)#([\w][\w/\-]*)`.
+// Mirrors the Rust inline tag extractor: `(?:^|\s)#([\p{L}\p{N}_][\p{L}\p{N}_/\-]*)`.
 const TAG_TOKEN_RE = /#([\p{L}\p{N}_][\p{L}\p{N}_/-]*)/gu;
 
 const EXCLUDED_NODE_TYPES = new Set([
@@ -43,6 +43,7 @@ export function find_inline_tag_ranges(doc: ProseNode): InlineTagRange[] {
     for (const match of text.matchAll(TAG_TOKEN_RE)) {
       const tag = match[1];
       if (tag === undefined) continue;
+      if (/^\p{N}+$/u.test(tag)) continue;
       if (!has_tag_boundary_before(doc, text, pos, match.index)) continue;
       ranges.push({
         from: pos + match.index,

@@ -32,12 +32,9 @@ describe("tag grammar shared fixture", () => {
     expect(shared_cases.length).toBeGreaterThan(0);
   });
 
-  it.each(shared_cases.map((c) => [c.name, c] as const))(
-    "%s",
-    (_name, c) => {
-      const doc = parse_markdown(c.markdown);
-      const tags = find_inline_tag_ranges(doc).map((r) => r.tag);
-      expect(tags).toEqual(c.expected_tags);
-    },
-  );
+  it.each(shared_cases.map((c) => [c.name, c] as const))("%s", (_name, c) => {
+    const doc = parse_markdown(c.markdown);
+    const tags = find_inline_tag_ranges(doc).map((r) => r.tag);
+    expect(tags).toEqual(c.expected_tags);
+  });
 });
