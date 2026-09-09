@@ -358,10 +358,10 @@ pub(crate) fn extract_frontmatter_properties(markdown: &str) -> Vec<(String, Str
     props
 }
 
-struct ExtractedTag {
-    tag: String,
-    line: i64,
-    source: &'static str,
+pub(crate) struct ExtractedTag {
+    pub(crate) tag: String,
+    pub(crate) line: i64,
+    pub(crate) source: &'static str,
 }
 
 pub(crate) struct ExtractedHeading {
@@ -617,7 +617,7 @@ fn sync_sections(
     Ok(())
 }
 
-fn extract_tags(markdown: &str) -> Vec<ExtractedTag> {
+pub(crate) fn extract_tags(markdown: &str) -> Vec<ExtractedTag> {
     use regex::Regex;
     use std::sync::LazyLock;
 

@@ -349,3 +349,6 @@ mod git_history;
 
 #[path = "../../tests/proposal_mutations.rs"]
 mod proposal_mutations;
+
+#[path = "../../tests/tag_grammar_fixture.rs"]
+mod tag_grammar_fixture;
