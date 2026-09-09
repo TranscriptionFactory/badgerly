@@ -1,5 +1,6 @@
 use crate::features::notes::service as notes_service;
 use crate::features::search::model::{IndexNoteMeta, SearchHit, SearchScope};
+use crate::features::search::embed_scope::NoteEmbedFacts;
 use crate::features::search::vector_db;
 use crate::shared::constants;
 use crate::shared::io_utils;
@@ -2684,6 +2685,10 @@ pub fn get_fts_body(conn: &Connection, path: &str) -> Option<String> {
     )
     .ok()
     .map(|body| body.replace('\0', ""))
+}
+
+pub fn note_embed_facts(_conn: &Connection) -> Result<BTreeMap<String, NoteEmbedFacts>, String> {
+    todo!("lane A step 3")
 }
 
 pub fn get_all_notes_from_db(conn: &Connection) -> Result<BTreeMap<String, IndexNoteMeta>, String> {

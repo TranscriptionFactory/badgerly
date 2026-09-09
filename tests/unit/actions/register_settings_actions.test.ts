@@ -332,6 +332,25 @@ describe("register_settings_actions", () => {
     expect(update_embeddings).toHaveBeenCalledTimes(1);
   });
 
+  it("triggers an embedding update when the embedding scope changes", async () => {
+    const { registry } = create_harness();
+    const update_embeddings = vi.fn();
+    registry.register({
+      id: ACTION_IDS.vault_update_embeddings,
+      label: "Update Embeddings",
+      execute: update_embeddings,
+    });
+    const draft: EditorSettings = {
+      ...DEFAULT_EDITOR_SETTINGS,
+      embedding_scope: "all",
+    };
+
+    await registry.execute(ACTION_IDS.settings_update, draft);
+    await registry.execute(ACTION_IDS.settings_save);
+
+    expect(update_embeddings).toHaveBeenCalledTimes(1);
+  });
+
   it("does not trigger an embedding update when the model is unchanged", async () => {
     const { registry } = create_harness();
     const update_embeddings = vi.fn();

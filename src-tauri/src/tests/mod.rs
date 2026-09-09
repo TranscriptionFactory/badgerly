@@ -25,6 +25,8 @@ mod search_db_behavior;
 mod search_scan_vault_excludes;
 #[path = "../../tests/bases_filter_in_operator.rs"]
 mod bases_filter_in_operator;
+#[path = "../../tests/search_content_hash.rs"]
+mod search_content_hash;
 #[path = "../../tests/search_embed_gating.rs"]
 mod search_embed_gating;
 #[path = "../../tests/search_worker_scheduling.rs"]

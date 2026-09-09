@@ -1,5 +1,6 @@
 use crate::features::notes::service as notes_service;
 use crate::features::search::db::{self as search_db, AttachmentLink, OrphanLink};
+use crate::features::search::embed_scope::{note_embed_eligible, EmbeddingScope, NoteEmbedFacts};
 use crate::features::search::embedding_model;
 use crate::features::search::embeddings::{
     self, embed_with_singles_fallback, estimated_chunk_count, is_cancellation,
@@ -49,6 +50,19 @@ pub(crate) fn embedding_flags(store: &settings_service::SettingsStore) -> (bool,
         flag("embedding_note_enabled"),
         flag("embedding_block_enabled"),
     )
+}
+
+fn resolve_embedding_scope(_app: &AppHandle, _vault_id: &str) -> EmbeddingScope {
+    todo!("lane A step 2")
+}
+
+pub(crate) fn sweep_stale_note_vectors(
+    _conn: &Connection,
+    _note_index: &SharedVectorIndex,
+    _facts: &BTreeMap<String, NoteEmbedFacts>,
+    _scope: EmbeddingScope,
+) -> usize {
+    todo!("lane A step 4")
 }
 
 fn resolve_embedding_flags(app: &AppHandle) -> (bool, bool) {
