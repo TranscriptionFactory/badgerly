@@ -93,7 +93,7 @@ fn same_body_keeps_the_note_vector() {
 }
 
 #[test]
-fn first_hash_write_does_not_invalidate() {
+fn null_hash_with_changed_body_drops_the_vector() {
     let (_tmp, conn) = setup_db();
     let path = import(&conn, "extracted text v1", 1_000);
     clear_content_hash(&conn, &path);
@@ -102,23 +102,23 @@ fn first_hash_write_does_not_invalidate() {
     import(&conn, "extracted text v2", 2_000);
 
     assert!(
-        vector_db::get_embedding(&conn, &path).is_some(),
-        "a pre-upgrade row has no hash to compare against, so nothing is invalidated"
+        vector_db::get_embedding(&conn, &path).is_none(),
+        "a pre-upgrade row falls back to the stored FTS body to detect the change"
     );
     assert!(content_hash(&conn, &path).is_some());
 }
 
 #[test]
-fn hash_gap_is_closed_on_the_following_change() {
+fn null_hash_with_same_body_keeps_the_vector_and_writes_the_hash() {
     let (_tmp, conn) = setup_db();
     let path = import(&conn, "extracted text v1", 1_000);
     clear_content_hash(&conn, &path);
     seed_vector(&conn, &path);
-    import(&conn, "extracted text v2", 2_000);
 
-    import(&conn, "extracted text v3", 3_000);
+    import(&conn, "extracted text v1", 2_000);
 
-    assert!(vector_db::get_embedding(&conn, &path).is_none());
+    assert!(vector_db::get_embedding(&conn, &path).is_some());
+    assert!(content_hash(&conn, &path).is_some());
 }
 
 fn sync_vault_file(conn: &Connection, root: &std::path::Path, rel: &str, body: &str) {

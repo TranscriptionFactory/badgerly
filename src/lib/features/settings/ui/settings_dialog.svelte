@@ -94,8 +94,10 @@
     LAYOUT_PRESET_OPTIONS,
     EDITOR_BLOCK_DRAG_HANDLE_OPTIONS,
     EMBEDDING_MODEL_OPTIONS,
+    EMBEDDING_SCOPE_OPTIONS,
     type MarkdownLspProvider,
     type EmbeddingModelId,
+    type EmbeddingScope,
   } from "$lib/shared/types/editor_settings";
   import type {
     IweConfigStatus,
@@ -5227,6 +5229,57 @@
                   disabled={editor_settings.embedding_model_id ===
                     DEFAULT_EDITOR_SETTINGS.embedding_model_id}
                   title={`Reset to default (${DEFAULT_EDITOR_SETTINGS.embedding_model_id})`}
+                >
+                  <RotateCcw />
+                </button>
+              </div>
+            </div>
+
+            <div class="SettingsDialog__row">
+              <div class="SettingsDialog__label-group">
+                <span class="SettingsDialog__label">Embedding Scope</span>
+                <span class="SettingsDialog__description"
+                  >Which files get note embeddings. Applies on the next embedding
+                  pass.</span
+                >
+              </div>
+              <div class="flex items-center gap-3">
+                <Select.Root
+                  type="single"
+                  value={editor_settings.embedding_scope}
+                  onValueChange={(v: string | undefined) => {
+                    if (v) update("embedding_scope", v as EmbeddingScope);
+                  }}
+                >
+                  <Select.Trigger class="w-48">
+                    <span data-slot="select-value">
+                      {EMBEDDING_SCOPE_OPTIONS.find(
+                        (o) => o.value === editor_settings.embedding_scope,
+                      )?.label ?? editor_settings.embedding_scope}
+                    </span>
+                  </Select.Trigger>
+                  <Select.Content>
+                    {#each EMBEDDING_SCOPE_OPTIONS as opt (opt.value)}
+                      <Select.Item value={opt.value}
+                        >{opt.label}
+                        <span class="text-muted-foreground ml-1"
+                          >({opt.description})</span
+                        ></Select.Item
+                      >
+                    {/each}
+                  </Select.Content>
+                </Select.Root>
+                <button
+                  type="button"
+                  class="SettingsDialog__reset"
+                  onclick={() =>
+                    update(
+                      "embedding_scope",
+                      DEFAULT_EDITOR_SETTINGS.embedding_scope,
+                    )}
+                  disabled={editor_settings.embedding_scope ===
+                    DEFAULT_EDITOR_SETTINGS.embedding_scope}
+                  title={`Reset to default (${DEFAULT_EDITOR_SETTINGS.embedding_scope})`}
                 >
                   <RotateCcw />
                 </button>

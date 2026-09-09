@@ -1142,6 +1142,14 @@ export const SETTINGS_REGISTRY: SettingDefinition[] = [
     ],
   },
   {
+    key: "embedding_scope",
+    label: "Embedding Scope",
+    description:
+      "Which files get note embeddings: markdown only, markdown plus documents (PDF, HTML, EPUB, text, linked sources), or everything including code. Applies on the next embedding pass.",
+    category: "Semantic",
+    keywords: ["embedding", "scope", "code", "pdf", "documents", "semantic"],
+  },
+  {
     key: "editor_divider_thickness_px",
     label: "Divider Thickness",
     description: "Line thickness in pixels for horizontal rules",

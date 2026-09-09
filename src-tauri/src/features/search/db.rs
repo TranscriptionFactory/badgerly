@@ -1144,7 +1144,7 @@ fn init_schema(conn: &Connection) -> Result<(), String> {
         let _ = conn.execute_batch(&format!("ALTER TABLE notes ADD COLUMN {col}"));
     }
 
-    for col in &["content_snippet TEXT", "first_image_path TEXT"] {
+    for col in &["content_snippet TEXT", "first_image_path TEXT", "content_hash TEXT"] {
         let _ = conn.execute_batch(&format!("ALTER TABLE notes ADD COLUMN {col}"));
     }
 
@@ -1297,10 +1297,17 @@ fn upsert_plain_content(
     } else {
         serde_json::to_string(page_offsets).ok()
     };
+    let content_hash = blake3::hash(body.as_bytes()).to_hex().to_string();
+
+    if plain_content_changed(conn, &meta.path, body, &content_hash) {
+        if let Err(e) = vector_db::remove_embedding(conn, &meta.path) {
+            log::debug!("vector_db::remove_embedding skipped: {e}");
+        }
+    }
 
     conn.execute(
-        "INSERT INTO notes (path, title, mtime_ms, ctime_ms, size_bytes, word_count, char_count, heading_count, reading_time_secs, last_indexed_at, file_type, page_offsets, source) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, 0, ?8, ?9, ?10, ?11) ON CONFLICT(path) DO UPDATE SET title = ?2, mtime_ms = ?3, ctime_ms = ?4, size_bytes = ?5, word_count = ?6, char_count = ?7, heading_count = 0, reading_time_secs = 0, last_indexed_at = ?8, file_type = ?9, page_offsets = ?10, source = ?11",
-        params![meta.path, meta.title, meta.mtime_ms, meta.ctime_ms, meta.size_bytes, word_count, char_count, now_ms, file_type, offsets_json, source],
+        "INSERT INTO notes (path, title, mtime_ms, ctime_ms, size_bytes, word_count, char_count, heading_count, reading_time_secs, last_indexed_at, file_type, page_offsets, source, content_hash) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, 0, ?8, ?9, ?10, ?11, ?12) ON CONFLICT(path) DO UPDATE SET title = ?2, mtime_ms = ?3, ctime_ms = ?4, size_bytes = ?5, word_count = ?6, char_count = ?7, heading_count = 0, reading_time_secs = 0, last_indexed_at = ?8, file_type = ?9, page_offsets = ?10, source = ?11, content_hash = ?12",
+        params![meta.path, meta.title, meta.mtime_ms, meta.ctime_ms, meta.size_bytes, word_count, char_count, now_ms, file_type, offsets_json, source, content_hash],
     )
     .map_err(|e| e.to_string())?;
 
@@ -1314,6 +1321,25 @@ fn upsert_plain_content(
     .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+/// Plain-content rows have no sections, and the bulk embed pass only fills in
+/// missing keys, so a changed body has to evict its note vector here. Rows
+/// indexed before `content_hash` existed fall back to the stored FTS body, so
+/// an upgrade neither re-embeds every document nor misses its first edit.
+fn plain_content_changed(conn: &Connection, path: &str, body: &str, content_hash: &str) -> bool {
+    let stored_hash = conn
+        .query_row(
+            "SELECT content_hash FROM notes WHERE path = ?1",
+            params![path],
+            |row| row.get::<_, Option<String>>(0),
+        )
+        .ok()
+        .flatten();
+    match stored_hash {
+        Some(old) => old != content_hash,
+        None => get_fts_body(conn, path).is_some_and(|old_body| old_body != body),
+    }
 }
 
 /// Upserts one linked file. Returns the note meta plus the note path of a stale
@@ -1352,23 +1378,6 @@ pub fn upsert_linked_content(
         file_type: Some(file_type.to_string()),
         source: Some("linked".to_string()),
     };
-    // Linked notes are embedded from the FTS body (they have no sections), and
-    // the bulk embed pass only fills in missing keys — drop the stale vector
-    // when re-extraction changed the body so it gets recomputed, mirroring
-    // invalidate_changed_embeddings on the markdown path.
-    let body_changed = conn
-        .query_row(
-            "SELECT body FROM notes_fts WHERE path = ?1",
-            params![meta.path],
-            |row| row.get::<_, String>(0),
-        )
-        .map(|old_body| old_body != body)
-        .unwrap_or(false);
-    if body_changed {
-        if let Err(e) = vector_db::remove_embedding(conn, &meta.path) {
-            log::debug!("vector_db::remove_embedding skipped: {e}");
-        }
-    }
     upsert_plain_content(conn, &meta, body, page_offsets)?;
     update_linked_metadata(conn, &meta.path, linked_meta)?;
     Ok((meta, stale_path))
@@ -2687,8 +2696,24 @@ pub fn get_fts_body(conn: &Connection, path: &str) -> Option<String> {
     .map(|body| body.replace('\0', ""))
 }
 
-pub fn note_embed_facts(_conn: &Connection) -> Result<BTreeMap<String, NoteEmbedFacts>, String> {
-    todo!("lane A step 3")
+pub fn note_embed_facts(conn: &Connection) -> Result<BTreeMap<String, NoteEmbedFacts>, String> {
+    let mut stmt = conn
+        .prepare("SELECT path, file_type, source, char_count FROM notes")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                NoteEmbedFacts {
+                    file_type: row.get(1)?,
+                    source: row.get(2)?,
+                    char_count: row.get::<_, Option<i64>>(3)?.unwrap_or(0),
+                },
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<BTreeMap<_, _>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 pub fn get_all_notes_from_db(conn: &Connection) -> Result<BTreeMap<String, IndexNoteMeta>, String> {
