@@ -8,7 +8,7 @@ pub(crate) fn promoted_setting_from_value(value: Option<&Value>) -> Vec<String> 
     entries
         .iter()
         .filter_map(Value::as_str)
-        .map(|raw| raw.trim().strip_prefix('#').unwrap_or(raw.trim()).trim())
+        .map(|raw| raw.trim().strip_prefix('#').unwrap_or(raw).trim())
         .filter(|tag| !tag.is_empty())
         .map(str::to_string)
         .collect()

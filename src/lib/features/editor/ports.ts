@@ -6,6 +6,7 @@ import type {
 } from "$lib/shared/types/editor";
 import type { OutlineHeading } from "$lib/features/outline";
 import type { CiteSuggestionItem } from "$lib/features/editor/adapters/cite_suggest_plugin";
+import type { TagItem } from "$lib/features/editor/adapters/tag_suggest_plugin";
 import type { DslLanguage } from "$lib/features/editor/adapters/dsl_suggest_plugin";
 import type { DslSuggestion } from "$lib/shared/types/dsl_suggestion";
 import type {
@@ -81,9 +82,7 @@ export type EditorSession = {
   set_image_suggestions?: (
     items: Array<{ path: string; name: string }>,
   ) => void;
-  set_tag_suggestions?: (
-    items: Array<{ tag: string; count: number; promoted: boolean }>,
-  ) => void;
+  set_tag_suggestions?: (items: TagItem[]) => void;
   set_dsl_suggestions?: (
     language: DslLanguage,
     items: DslSuggestion[],
